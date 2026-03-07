@@ -113,7 +113,7 @@ export function Quiz({
     if (isCorrect) {
       setScore((prev) => prev + 1);
       onAwardXp?.(XP_GAIN_PER_QUIZ_CORRECT);
-      onResolveMistake?.(current.word, current.sourceBookId);
+      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId);
     } else {
       setMistakeReviewItems((prev) => [
         ...prev,
@@ -124,7 +124,7 @@ export function Quiz({
           chapterId: current.chapterId || DEFAULT_CHAPTER_ID,
         },
       ]);
-      onRecordMistake?.(current.word, current.sourceBookId);
+      onRecordMistake?.(current.word, current.sourceBookId, current.chapterId);
     }
     const promptPool = isCorrect ? QUIZ_SUCCESS_PROMPTS : QUIZ_MISS_PROMPTS;
     const prompt = promptPool[Math.floor(Math.random() * promptPool.length)];
@@ -144,7 +144,7 @@ export function Quiz({
     if (isCorrect) {
       setScore((prev) => prev + 1);
       onAwardXp?.(XP_GAIN_PER_QUIZ_CORRECT);
-      onResolveMistake?.(current.word, current.sourceBookId);
+      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId);
     } else {
       setMistakeReviewItems((prev) => [
         ...prev,
@@ -155,7 +155,7 @@ export function Quiz({
           chapterId: current.chapterId || DEFAULT_CHAPTER_ID,
         },
       ]);
-      onRecordMistake?.(current.word, current.sourceBookId);
+      onRecordMistake?.(current.word, current.sourceBookId, current.chapterId);
     }
 
     const promptPool = isCorrect ? QUIZ_SUCCESS_PROMPTS : QUIZ_MISS_PROMPTS;

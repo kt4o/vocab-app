@@ -13,6 +13,16 @@ const MIN_QUIZ_QUESTIONS_FOR_COINS = 5;
 const FULL_COIN_REWARD_QUIZ_LENGTH = 10;
 const INACTIVITY_TIMEOUT_MS = 7 * 60 * 1000;
 const DEFAULT_CHAPTER_ID = "general";
+const WORD_MASTERY_MAX_XP = 10;
+const WORD_MASTERY_BAR_STEPS = 5;
+const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
+  .trim()
+  .replace(/\/$/, "");
+const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
+const STATE_API_PATH = `${API_BASE_URL}/api/state`;
+const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
+const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
+const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const WORD_DIFFICULTY_OPTIONS = [
   { value: "a1", label: "A1" },
   { value: "a2", label: "A2" },
@@ -143,6 +153,59 @@ function getMistakeCount(wordEntry) {
   return Math.max(0, Math.floor(count));
 }
 
+function getWordMasteryXp(wordEntry) {
+  const xp = Number(wordEntry?.masteryXp ?? 0);
+  if (!Number.isFinite(xp)) return 0;
+  return Math.max(0, Math.min(Math.floor(xp), WORD_MASTERY_MAX_XP));
+}
+
+function getWordMasteryMeta(wordEntry) {
+  const masteryXp = getWordMasteryXp(wordEntry);
+
+  if (masteryXp >= 9) {
+    return {
+      level: 4,
+      label: "Mastered",
+      masteryXp,
+      nextLevelXp: WORD_MASTERY_MAX_XP,
+    };
+  }
+  if (masteryXp >= 6) {
+    return {
+      level: 3,
+      label: "Strong",
+      masteryXp,
+      nextLevelXp: 9,
+    };
+  }
+  if (masteryXp >= 3) {
+    return {
+      level: 2,
+      label: "Familiar",
+      masteryXp,
+      nextLevelXp: 6,
+    };
+  }
+  return {
+    level: 1,
+    label: "Learned",
+    masteryXp,
+    nextLevelXp: 3,
+  };
+}
+
+function getWordMasteryBarFillCount(wordEntry) {
+  const masteryXp = getWordMasteryXp(wordEntry);
+  if (masteryXp <= 0) return 0;
+  return Math.min(WORD_MASTERY_BAR_STEPS, Math.ceil((masteryXp / WORD_MASTERY_MAX_XP) * WORD_MASTERY_BAR_STEPS));
+}
+
+function getWordMasteryBlocks(wordEntry) {
+  const filled = getWordMasteryBarFillCount(wordEntry);
+  const empty = Math.max(WORD_MASTERY_BAR_STEPS - filled, 0);
+  return `${"█".repeat(filled)}${"░".repeat(empty)}`;
+}
+
 function extractDefinitions(apiPayload) {
   const seen = new Set();
   const all = [];
@@ -167,7 +230,7 @@ function extractExampleSentences(apiPayload) {
 
   (apiPayload?.[0]?.meanings || []).forEach((meaning) => {
     (meaning?.definitions || []).forEach((item) => {
-      const text = String(item?.example || "").trim();
+      const text = sanitizeExampleSentence(item?.example);
       if (!text) return;
       const normalized = text.toLowerCase();
       if (seen.has(normalized)) return;
@@ -179,10 +242,93 @@ function extractExampleSentences(apiPayload) {
   return all.slice(0, 3);
 }
 
+function escapeRegex(text) {
+  return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function sanitizeExampleSentence(value) {
+  const sentence = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "");
+  if (!sentence) return "";
+  if (sentence.split(/\s+/).length < 3) return "";
+  return sentence;
+}
+
+function scoreExampleSentence(sentence, word) {
+  const safeSentence = sanitizeExampleSentence(sentence);
+  const safeWord = String(word || "").trim().toLowerCase();
+  if (!safeSentence || !safeWord) return Number.NEGATIVE_INFINITY;
+
+  const wordRegex = new RegExp(`\\b${escapeRegex(safeWord)}\\b`, "gi");
+  const matchCount = (safeSentence.toLowerCase().match(wordRegex) || []).length;
+  if (matchCount === 0) return Number.NEGATIVE_INFINITY;
+
+  const tokenCount = safeSentence.split(/\s+/).filter(Boolean).length;
+  let score = 0;
+
+  if (tokenCount >= 6 && tokenCount <= 16) score += 4;
+  else if (tokenCount >= 4 && tokenCount <= 22) score += 2;
+  else score -= 2;
+
+  if (matchCount === 1) score += 3;
+  else if (matchCount === 2) score += 1;
+  else score -= 2;
+
+  if (/^[A-Z]/.test(safeSentence)) score += 1;
+  if (/[.!?]["']?$/.test(safeSentence)) score += 1;
+  if (/[;:()[\]{}<>]/.test(safeSentence)) score -= 1;
+  if (/(https?:\/\/|www\.|@|#|\\)/i.test(safeSentence)) score -= 3;
+  if (/[A-Z]{4,}/.test(safeSentence)) score -= 2;
+
+  const digitCount = (safeSentence.match(/\d/g) || []).length;
+  if (digitCount > 0) score -= Math.min(2, digitCount);
+
+  return score;
+}
+
+function rankAndSelectExamples(word, dictionaryExamples = [], supplementalExamples = []) {
+  const seen = new Set();
+  const candidates = [];
+
+  const addCandidates = (items, source) => {
+    items.forEach((item) => {
+      const sentence = sanitizeExampleSentence(item);
+      if (!sentence) return;
+      const key = sentence.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      candidates.push({ sentence, source });
+    });
+  };
+
+  addCandidates(dictionaryExamples, "dictionary");
+  addCandidates(supplementalExamples, "supplemental");
+
+  return candidates
+    .map((entry) => {
+      const qualityScore = scoreExampleSentence(entry.sentence, word);
+      if (!Number.isFinite(qualityScore)) return null;
+      const sourceBonus = entry.source === "dictionary" ? 1 : 0;
+      return {
+        sentence: entry.sentence,
+        score: qualityScore + sourceBonus,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.sentence.length - b.sentence.length;
+    })
+    .slice(0, 3)
+    .map((entry) => entry.sentence);
+}
+
 function extractSentencesFromText(text) {
   return String(text || "")
     .split(/(?<=[.!?])\s+/)
-    .map((item) => item.trim())
+    .map((item) => sanitizeExampleSentence(item))
     .filter(Boolean);
 }
 
@@ -191,12 +337,12 @@ async function fetchSupplementalExamples(word) {
   if (!safeWord) return [];
 
   const normalizedWord = safeWord.toLowerCase();
-  const wordRegex = new RegExp(`\\b${normalizedWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  const wordRegex = new RegExp(`\\b${escapeRegex(normalizedWord)}\\b`, "i");
   const seen = new Set();
   const collected = [];
 
   const pushExample = (candidate) => {
-    const sentence = String(candidate || "").trim();
+    const sentence = sanitizeExampleSentence(candidate);
     if (!sentence) return;
     if (!wordRegex.test(sentence.toLowerCase())) return;
     const key = sentence.toLowerCase();
@@ -694,6 +840,7 @@ function ensureBookChapters(book) {
       chapterId: safeChapterId,
       difficulty: normalizeWordDifficulty(wordEntry?.difficulty),
       examples: getWordExamples(wordEntry),
+      masteryXp: getWordMasteryXp(wordEntry),
     };
   });
 
@@ -1102,6 +1249,16 @@ export default function App() {
     const saved = localStorage.getItem("vocab_activity_history");
     return parseStoredActivityHistory(saved);
   });
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "");
+  const [authUsername, setAuthUsername] = useState(
+    () => localStorage.getItem(AUTH_USERNAME_STORAGE_KEY) || ""
+  );
+  const [authMode, setAuthMode] = useState("login");
+  const [authForm, setAuthForm] = useState({ username: "", password: "" });
+  const [authError, setAuthError] = useState("");
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isCloudStateHydrated, setIsCloudStateHydrated] = useState(false);
   const modalRef = useRef(null);
   const coinInfoRef = useRef(null);
   const levelInfoRef = useRef(null);
@@ -1168,6 +1325,23 @@ export default function App() {
     1,
     ...difficultyWordCounts.map((item) => item.count)
   );
+  const masteryLevelCounts = [
+    { level: 1, label: "Learned", count: 0 },
+    { level: 2, label: "Familiar", count: 0 },
+    { level: 3, label: "Strong", count: 0 },
+    { level: 4, label: "Mastered", count: 0 },
+  ].map((item) => ({
+    ...item,
+    count: books.reduce((total, book) => {
+      const words = Array.isArray(book.words) ? book.words : [];
+      const wordsForLevel = words.reduce((wordTotal, wordEntry) => {
+        if (getWordMasteryMeta(wordEntry).level !== item.level) return wordTotal;
+        return wordTotal + 1;
+      }, 0);
+      return total + wordsForLevel;
+    }, 0),
+  }));
+  const maxMasteryWordCount = Math.max(1, ...masteryLevelCounts.map((item) => item.count));
   const quizSetupBooks = books.filter((book) => quizSetupSelection.bookIds.includes(String(book.id)));
   const quizSetupChapterOptions = quizSetupBooks.flatMap((book) =>
     getBookChapterList(book).map((chapter) => ({
@@ -1422,6 +1596,14 @@ export default function App() {
                   <span className="sidebarNavBtnLabel">Settings</span>
                   <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\u2699\uFE0F"}</span>
                 </button>
+                <button
+                  type="button"
+                  className={`sidebarNavBtn ${screen === "account" ? "isActive" : ""}`}
+                  onClick={() => setScreen("account")}
+                >
+                  <span className="sidebarNavBtnLabel">My Account</span>
+                  <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDC64"}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1448,6 +1630,8 @@ export default function App() {
       vocab_last_quiz_mistake_mode: lastQuizMistakeMode,
       vocab_last_quiz_mistake_mode_by_book: JSON.stringify(lastQuizMistakeModeByBook),
       vocab_streak: JSON.stringify(streak),
+      [AUTH_TOKEN_STORAGE_KEY]: authToken,
+      [AUTH_USERNAME_STORAGE_KEY]: authUsername,
     };
 
     Object.entries(persistedState).forEach(([key, value]) => {
@@ -1469,7 +1653,173 @@ export default function App() {
     lastQuizMistakeMode,
     lastQuizMistakeModeByBook,
     streak,
+    authToken,
+    authUsername,
   ]);
+
+  async function submitAuth(mode) {
+    const username = String(authForm.username || "")
+      .trim()
+      .toLowerCase();
+    const password = String(authForm.password || "");
+
+    if (!username || !password) {
+      setAuthError("Username and password are required.");
+      return;
+    }
+
+    setIsAuthSubmitting(true);
+    setAuthError("");
+
+    try {
+      const endpoint = mode === "register" ? "register" : "login";
+      const response = await fetch(`${AUTH_API_PATH}/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const backendError = String(payload?.error || "");
+        const nextError =
+          backendError === "invalid-username"
+            ? "Use 3-24 chars: lowercase letters, numbers, underscore."
+            : backendError === "weak-password"
+              ? "Password must be at least 8 characters."
+              : backendError === "username-taken"
+                ? "That username is already taken."
+                : backendError === "invalid-credentials"
+                  ? "Incorrect username or password."
+                  : "Could not sign in. Please try again.";
+        setAuthError(nextError);
+        return;
+      }
+
+      const nextToken = String(payload?.token || "").trim();
+      const nextUsername = String(payload?.username || username).trim().toLowerCase();
+      if (!nextToken) {
+        setAuthError("Auth token was not returned by the server.");
+        return;
+      }
+
+      setAuthToken(nextToken);
+      setAuthUsername(nextUsername);
+      setAuthForm({ username: "", password: "" });
+      openNoticeModal(`Signed in as ${nextUsername}.`, "Account Ready");
+    } catch {
+      setAuthError("Could not reach auth service. Check backend and try again.");
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }
+
+  function logoutAccount() {
+    setAuthToken("");
+    setAuthUsername("");
+    setAuthError("");
+    setAuthForm({ username: "", password: "" });
+    setIsCloudStateHydrated(false);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateCloudState() {
+      if (!authToken) {
+        setIsCloudStateHydrated(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(STATE_API_PATH, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+
+        if (response.status === 401) {
+          if (!cancelled) {
+            setAuthToken("");
+            setAuthUsername("");
+            setAuthError("Your session expired. Please log in again.");
+          }
+          return;
+        }
+
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (cancelled) return;
+
+        const rawState =
+          payload?.appState && typeof payload.appState === "object" && !Array.isArray(payload.appState)
+            ? payload.appState
+            : null;
+        const stateData =
+          rawState?.data && typeof rawState.data === "object" && !Array.isArray(rawState.data)
+            ? rawState.data
+            : rawState;
+
+        if (stateData) {
+          applyAppDataSnapshot(stateData);
+        }
+      } catch {
+        // Keep local state when cloud sync is unavailable.
+      } finally {
+        if (!cancelled) setIsCloudStateHydrated(true);
+      }
+    }
+
+    hydrateCloudState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken]);
+
+  useEffect(() => {
+    if (!authToken || !isCloudStateHydrated) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      fetch(STATE_API_PATH, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          appState: buildBackupSnapshot(),
+        }),
+      }).catch(() => {
+        // Keep app fully usable even if cloud save fails.
+      });
+    }, CLOUD_STATE_SYNC_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    authToken,
+    isCloudStateHydrated,
+    theme,
+    books,
+    streak,
+    xp,
+    coins,
+    isEconomyEnabled,
+    isLevelsEnabled,
+    marketLevels,
+    isSidebarHidden,
+    weeklyStats,
+    activityHistory,
+    lastQuizMistakeKeys,
+    lastQuizMistakeKeysByBook,
+    lastQuizMistakeMode,
+    lastQuizMistakeModeByBook,
+  ]);
+
+  useEffect(() => {
+    if (authToken) return;
+    setIsCloudStateHydrated(false);
+  }, [authToken]);
 
   useEffect(() => {
     document.body.classList.toggle("theme-dark", theme === "dark");
@@ -1934,6 +2284,72 @@ export default function App() {
     setNoticeModal({ title, message });
   }
 
+  function applyAppDataSnapshot(rawData, { screenAfterApply = null } = {}) {
+    if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
+      throw new Error("invalid-app-state-shape");
+    }
+
+    const importedBooks = normalizeBooksData(rawData.books);
+    const importedTheme = rawData.theme === "dark" || rawData.theme === "light" ? rawData.theme : "light";
+    const importedStreak = {
+      count: Math.max(1, Math.floor(Number(rawData?.streak?.count) || 1)),
+      lastDate: rawData?.streak?.lastDate ? String(rawData.streak.lastDate) : null,
+    };
+    const importedXp = Math.max(0, Math.floor(Number(rawData?.xp) || 0));
+    const importedCoins = Math.max(0, Math.floor(Number(rawData?.coins) || 0));
+    const importedIsEconomyEnabled = parseStoredBoolean(rawData?.isEconomyEnabled, true);
+    const importedIsLevelsEnabled = parseStoredBoolean(rawData?.isLevelsEnabled, true);
+    const importedMarketLevels = parseStoredMarketLevels(JSON.stringify(rawData?.marketLevels || {}));
+    const importedSidebarHidden = parseStoredBoolean(rawData?.isSidebarHidden, false);
+    const importedWeeklyStats = parseStoredWeeklyStats(JSON.stringify(rawData?.weeklyStats || null));
+    const importedActivityHistory = parseStoredActivityHistory(
+      JSON.stringify(rawData?.activityHistory || {})
+    );
+    const importedLastQuizMistakeKeys = Array.isArray(rawData?.lastQuizMistakeKeys)
+      ? rawData.lastQuizMistakeKeys.filter((item) => typeof item === "string")
+      : [];
+    const importedLastQuizMistakeKeysByBook = {};
+    if (
+      rawData?.lastQuizMistakeKeysByBook &&
+      typeof rawData.lastQuizMistakeKeysByBook === "object" &&
+      !Array.isArray(rawData.lastQuizMistakeKeysByBook)
+    ) {
+      Object.entries(rawData.lastQuizMistakeKeysByBook).forEach(([bookId, keys]) => {
+        if (!Array.isArray(keys)) return;
+        importedLastQuizMistakeKeysByBook[String(bookId)] = keys.filter((item) => typeof item === "string");
+      });
+    }
+    const importedLastQuizMistakeMode = normalizeQuizMode(rawData?.lastQuizMistakeMode, "normal");
+    const importedLastQuizMistakeModeByBook = {};
+    if (
+      rawData?.lastQuizMistakeModeByBook &&
+      typeof rawData.lastQuizMistakeModeByBook === "object" &&
+      !Array.isArray(rawData.lastQuizMistakeModeByBook)
+    ) {
+      Object.entries(rawData.lastQuizMistakeModeByBook).forEach(([bookId, mode]) => {
+        importedLastQuizMistakeModeByBook[String(bookId)] = normalizeQuizMode(mode, "normal");
+      });
+    }
+
+    setTheme(importedTheme);
+    setBooks(importedBooks);
+    setStreak(importedStreak);
+    setXp(importedXp);
+    setCoins(importedCoins);
+    setIsEconomyEnabled(importedIsEconomyEnabled);
+    setIsLevelsEnabled(importedIsLevelsEnabled);
+    setMarketLevels(importedMarketLevels);
+    setIsSidebarHidden(importedSidebarHidden);
+    setWeeklyStats(importedWeeklyStats);
+    setActivityHistory(importedActivityHistory);
+    setLastQuizMistakeKeys(importedLastQuizMistakeKeys);
+    setLastQuizMistakeKeysByBook(importedLastQuizMistakeKeysByBook);
+    setLastQuizMistakeMode(importedLastQuizMistakeMode);
+    setLastQuizMistakeModeByBook(importedLastQuizMistakeModeByBook);
+    setCurrentBookId((prev) => (importedBooks.some((book) => book.id === prev) ? prev : importedBooks[0]?.id ?? null));
+    if (screenAfterApply) setScreen(screenAfterApply);
+  }
+
   function buildBackupSnapshot() {
     return {
       backupVersion: 1,
@@ -1995,70 +2411,7 @@ export default function App() {
       if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
         throw new Error("invalid-backup-shape");
       }
-
-      const importedBooks = normalizeBooksData(rawData.books);
-      const importedTheme = rawData.theme === "dark" || rawData.theme === "light" ? rawData.theme : "light";
-      const importedStreak = {
-        count: Math.max(1, Math.floor(Number(rawData?.streak?.count) || 1)),
-        lastDate: rawData?.streak?.lastDate ? String(rawData.streak.lastDate) : null,
-      };
-      const importedXp = Math.max(0, Math.floor(Number(rawData?.xp) || 0));
-      const importedCoins = Math.max(0, Math.floor(Number(rawData?.coins) || 0));
-      const importedIsEconomyEnabled = parseStoredBoolean(rawData?.isEconomyEnabled, true);
-      const importedIsLevelsEnabled = parseStoredBoolean(rawData?.isLevelsEnabled, true);
-      const importedMarketLevels = parseStoredMarketLevels(JSON.stringify(rawData?.marketLevels || {}));
-      const importedSidebarHidden = parseStoredBoolean(rawData?.isSidebarHidden, false);
-      const importedWeeklyStats = parseStoredWeeklyStats(JSON.stringify(rawData?.weeklyStats || null));
-      const importedActivityHistory = parseStoredActivityHistory(
-        JSON.stringify(rawData?.activityHistory || {})
-      );
-      const importedLastQuizMistakeKeys = Array.isArray(rawData?.lastQuizMistakeKeys)
-        ? rawData.lastQuizMistakeKeys.filter((item) => typeof item === "string")
-        : [];
-      const importedLastQuizMistakeKeysByBook = {};
-      if (
-        rawData?.lastQuizMistakeKeysByBook &&
-        typeof rawData.lastQuizMistakeKeysByBook === "object" &&
-        !Array.isArray(rawData.lastQuizMistakeKeysByBook)
-      ) {
-        Object.entries(rawData.lastQuizMistakeKeysByBook).forEach(([bookId, keys]) => {
-          if (!Array.isArray(keys)) return;
-          importedLastQuizMistakeKeysByBook[String(bookId)] = keys.filter(
-            (item) => typeof item === "string"
-          );
-        });
-      }
-      const importedLastQuizMistakeMode = normalizeQuizMode(rawData?.lastQuizMistakeMode, "normal");
-      const importedLastQuizMistakeModeByBook = {};
-      if (
-        rawData?.lastQuizMistakeModeByBook &&
-        typeof rawData.lastQuizMistakeModeByBook === "object" &&
-        !Array.isArray(rawData.lastQuizMistakeModeByBook)
-      ) {
-        Object.entries(rawData.lastQuizMistakeModeByBook).forEach(([bookId, mode]) => {
-          importedLastQuizMistakeModeByBook[String(bookId)] = normalizeQuizMode(mode, "normal");
-        });
-      }
-
-      setTheme(importedTheme);
-      setBooks(importedBooks);
-      setStreak(importedStreak);
-      setXp(importedXp);
-      setCoins(importedCoins);
-      setIsEconomyEnabled(importedIsEconomyEnabled);
-      setIsLevelsEnabled(importedIsLevelsEnabled);
-      setMarketLevels(importedMarketLevels);
-      setIsSidebarHidden(importedSidebarHidden);
-      setWeeklyStats(importedWeeklyStats);
-      setActivityHistory(importedActivityHistory);
-      setLastQuizMistakeKeys(importedLastQuizMistakeKeys);
-      setLastQuizMistakeKeysByBook(importedLastQuizMistakeKeysByBook);
-      setLastQuizMistakeMode(importedLastQuizMistakeMode);
-      setLastQuizMistakeModeByBook(importedLastQuizMistakeModeByBook);
-      setCurrentBookId((prev) =>
-        importedBooks.some((book) => book.id === prev) ? prev : importedBooks[0]?.id ?? null
-      );
-      setScreen("data");
+      applyAppDataSnapshot(rawData, { screenAfterApply: "data" });
       openNoticeModal("Backup imported successfully.", "Import Complete");
     } catch {
       openNoticeModal("Invalid backup file. Please use a valid JSON backup.", "Import Failed");
@@ -2429,10 +2782,13 @@ export default function App() {
 
       const data = await res.json();
       const definitions = extractDefinitions(data);
-      const examples = extractExampleSentences(data);
-      const supplementalExamples =
-        examples.length > 0 ? [] : await fetchSupplementalExamples(cleanWord);
-      const normalizedExamples = (examples.length > 0 ? examples : supplementalExamples).slice(0, 3);
+      const dictionaryExamples = extractExampleSentences(data);
+      const supplementalExamples = await fetchSupplementalExamples(cleanWord);
+      const normalizedExamples = rankAndSelectExamples(
+        cleanWord,
+        dictionaryExamples,
+        supplementalExamples
+      );
       const pronunciation = extractPronunciation(data);
 
       if (!definitions.length) {
@@ -2453,6 +2809,7 @@ export default function App() {
                   pronunciation,
                   definitions,
                   examples: normalizedExamples,
+                  masteryXp: 0,
                   currentDefinitionIndex: 0,
                   definition: definitions[0],
                   chapterId: safeSelectedChapterIdForNewWords,
@@ -2656,7 +3013,11 @@ export default function App() {
     cancelEditingDefinition();
   }
 
-  function recordMistakeForWord(wordToUpdate, sourceBookId = currentBookId) {
+  function recordMistakeForWord(
+    wordToUpdate,
+    sourceBookId = currentBookId,
+    sourceChapterId = DEFAULT_CHAPTER_ID
+  ) {
     setBooks((prevBooks) =>
       prevBooks.map((book) => {
         if (book.id !== sourceBookId) return book;
@@ -2664,7 +3025,8 @@ export default function App() {
         return {
           ...book,
           words: book.words.map((wordEntry) =>
-            wordEntry.word === wordToUpdate
+            wordEntry.word === wordToUpdate &&
+            (wordEntry.chapterId || DEFAULT_CHAPTER_ID) === (sourceChapterId || DEFAULT_CHAPTER_ID)
               ? {
                   ...wordEntry,
                   mistakeCount: getMistakeCount(wordEntry) + 1,
@@ -2676,7 +3038,11 @@ export default function App() {
     );
   }
 
-  function resolveMistakeForWord(wordToUpdate, sourceBookId = currentBookId) {
+  function resolveMistakeForWord(
+    wordToUpdate,
+    sourceBookId = currentBookId,
+    sourceChapterId = DEFAULT_CHAPTER_ID
+  ) {
     setBooks((prevBooks) =>
       prevBooks.map((book) => {
         if (book.id !== sourceBookId) return book;
@@ -2684,10 +3050,12 @@ export default function App() {
         return {
           ...book,
           words: book.words.map((wordEntry) =>
-            wordEntry.word === wordToUpdate
+            wordEntry.word === wordToUpdate &&
+            (wordEntry.chapterId || DEFAULT_CHAPTER_ID) === (sourceChapterId || DEFAULT_CHAPTER_ID)
               ? {
                   ...wordEntry,
                   mistakeCount: Math.max(getMistakeCount(wordEntry) - 1, 0),
+                  masteryXp: Math.min(getWordMasteryXp(wordEntry) + 1, WORD_MASTERY_MAX_XP),
                 }
               : wordEntry
           ),
@@ -3187,6 +3555,109 @@ export default function App() {
     );
   }
 
+  // ---------- ACCOUNT ----------
+  if (screen === "account") {
+    return renderWithSidebar(
+      <div className="page">
+        <div className="pageHeader">
+          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>My Account</h1>
+        </div>
+        <div className="analyticsSection">
+          <div className="analyticsGrid">
+            <div className="analyticsCard settingsCard">
+              <h3>Account</h3>
+              {authToken ? (
+                <>
+                  <p className="settingsHint">Signed in as <strong>{authUsername}</strong></p>
+                  <div className="settingsRow">
+                    <span>Session</span>
+                    <button
+                      type="button"
+                      className="primaryBtn"
+                      onClick={logoutAccount}
+                    >
+                      Log Out
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="settingsHint">Create an account or sign in to sync with backend.</p>
+                  <div className="settingsAuthModeRow" role="group" aria-label="Choose account action">
+                    <button
+                      type="button"
+                      className={`settingsAuthModeBtn ${authMode === "login" ? "isActive" : ""}`}
+                      onClick={() => setAuthMode("login")}
+                    >
+                      Login
+                    </button>
+                    <button
+                      type="button"
+                      className={`settingsAuthModeBtn ${authMode === "register" ? "isActive" : ""}`}
+                      onClick={() => setAuthMode("register")}
+                    >
+                      Register
+                    </button>
+                  </div>
+                  <input
+                    className="settingsInput"
+                    value={authForm.username}
+                    onChange={(event) => {
+                      setAuthForm((prev) => ({ ...prev, username: event.target.value }));
+                      if (authError) setAuthError("");
+                    }}
+                    placeholder="username (a-z, 0-9, _)"
+                    autoComplete="username"
+                  />
+                  <div className="settingsPasswordWrap">
+                    <input
+                      className="settingsInput settingsPasswordInput"
+                      type={isPasswordVisible ? "text" : "password"}
+                      value={authForm.password}
+                      onChange={(event) => {
+                        setAuthForm((prev) => ({ ...prev, password: event.target.value }));
+                        if (authError) setAuthError("");
+                      }}
+                      placeholder="password (min 8 chars)"
+                      autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                    />
+                    <button
+                      type="button"
+                      className="settingsPasswordToggleBtn"
+                      onClick={() => setIsPasswordVisible((prev) => !prev)}
+                      aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                      title={isPasswordVisible ? "Hide password" : "Show password"}
+                    >
+                      {"\uD83D\uDC41"}
+                    </button>
+                  </div>
+                  <div className="settingsRow">
+                    <span>{authMode === "login" ? "Use existing account" : "Create new account"}</span>
+                    <button
+                      type="button"
+                      className="primaryBtn"
+                      onClick={() => submitAuth(authMode)}
+                      disabled={isAuthSubmitting}
+                    >
+                      {isAuthSubmitting
+                        ? "Please wait..."
+                        : authMode === "login"
+                          ? "Log In"
+                          : "Register"}
+                    </button>
+                  </div>
+                  {authError ? <p className="settingsErrorText">{authError}</p> : null}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        {renderModal()}
+      </div>
+    );
+  }
+
   // ---------- DATA ----------
   if (screen === "data") {
     const overviewCards = [
@@ -3204,6 +3675,9 @@ export default function App() {
     );
     const difficultyTicks = chartTickFractions.map((fraction, index) =>
       index === chartTickFractions.length - 1 ? 0 : Math.round(maxDifficultyWordCount * fraction)
+    );
+    const masteryTicks = chartTickFractions.map((fraction, index) =>
+      index === chartTickFractions.length - 1 ? 0 : Math.round(maxMasteryWordCount * fraction)
     );
 
     return renderWithSidebar(
@@ -3327,6 +3801,40 @@ export default function App() {
                             className="difficultyChartBar"
                             style={{ height: `${Math.max(heightPercent, item.count > 0 ? 6 : 0)}%` }}
                             title={`${item.label}: ${item.count} words`}
+                          />
+                          <span>{item.count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="analyticsCard">
+              <h3>Words by Mastery Level</h3>
+              <div className="chartGridLayout">
+                <div className="chartYAxis" aria-hidden="true">
+                  {masteryTicks.map((tick, index) => (
+                    <span key={`mastery-tick-${index}`}>{tick}</span>
+                  ))}
+                </div>
+                <div className="chartPlot">
+                  <div className="chartGridLines" aria-hidden="true">
+                    {chartTickFractions.map((fraction, index) => (
+                      <span key={`mastery-line-${index}`} style={{ bottom: `${fraction * 100}%` }} />
+                    ))}
+                  </div>
+                  <div className="difficultyChart masteryChart" role="img" aria-label="Word count by mastery level">
+                    {masteryLevelCounts.map((item) => {
+                      const heightPercent = Math.round((item.count / maxMasteryWordCount) * 100);
+                      return (
+                        <div className="difficultyChartCol" key={item.level}>
+                          <strong>L{item.level}</strong>
+                          <div
+                            className="difficultyChartBar isMastery"
+                            style={{ height: `${Math.max(heightPercent, item.count > 0 ? 6 : 0)}%` }}
+                            title={`Level ${item.level} (${item.label}): ${item.count} words`}
                           />
                           <span>{item.count}</span>
                         </div>
@@ -3574,6 +4082,7 @@ export default function App() {
             const exampleKey = `${currentBookId}:${w.chapterId || fallbackChapterId}:${w.word}:${i}`;
             const isExamplesExpanded = expandedExamplesKey === exampleKey;
             const definitionVariants = getWordDefinitions(w);
+            const masteryMeta = getWordMasteryMeta(w);
             const totalDefinitionVariants = definitionVariants.length;
             const currentDefinitionVariant = Math.min(
               Math.max((w.currentDefinitionIndex ?? 0) + 1, 1),
@@ -3617,6 +4126,14 @@ export default function App() {
                         {getDifficultyLabel(w.difficulty)}
                       </button>
                       {isDefinitionEdited(w) && <span className="definitionEditedBadge">Edited</span>}
+                    </div>
+                    <div className="wordMasteryRow">
+                      <span className="wordMasteryLevel">
+                        Level {masteryMeta.level} - {masteryMeta.label}
+                      </span>
+                      <span className="wordMasteryBlocks" aria-hidden="true">
+                        {getWordMasteryBlocks(w)}
+                      </span>
                     </div>
                   </div>
                   {difficultyInfoWord === w.word && (

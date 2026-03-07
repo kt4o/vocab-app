@@ -1,16 +1,39 @@
-# React + Vite
+# My Vocab App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend with an Express + SQLite backend.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. Install dependencies:
+   `npm install`
+2. Start frontend:
+   `npm run dev`
+3. Start backend (separate terminal):
+   `npm run dev:server`
 
-## React Compiler
+Frontend requests to `/api/*` are proxied by Vite to `http://localhost:4000` during local dev.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Deploy frontend to Netlify
 
-## Expanding the ESLint configuration
+This repo includes `netlify.toml` with:
+- build command: `npm run build`
+- publish directory: `dist`
+- SPA fallback redirect to `index.html`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+In Netlify site settings, add environment variable:
+- `VITE_API_BASE_URL = https://your-backend-domain`
+
+Example:
+- `VITE_API_BASE_URL=https://my-vocab-api.onrender.com`
+
+The app will then call:
+- `https://my-vocab-api.onrender.com/api/auth/...`
+- `https://my-vocab-api.onrender.com/api/state`
+
+## Deploy backend
+
+Because this backend writes to SQLite files in `server/data`, deploy it to a server platform that supports persistent disk (for example Render, Railway, Fly.io, or a VPS).
+
+After backend deployment, set:
+- backend `PORT` (platform-provided)
+- frontend `VITE_API_BASE_URL` (Netlify env var)
