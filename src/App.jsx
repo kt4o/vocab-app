@@ -1262,6 +1262,7 @@ export default function App() {
   const modalRef = useRef(null);
   const coinInfoRef = useRef(null);
   const levelInfoRef = useRef(null);
+  const sidebarRef = useRef(null);
   const backupFileInputRef = useRef(null);
   const pronunciationFetchInFlightRef = useRef(new Set());
   const sessionStartedAtRef = useRef(Date.now());
@@ -1437,7 +1438,7 @@ export default function App() {
 
     return (
       <div className="appShell">
-        <aside className={`sidebar ${isSidebarHidden ? "isCollapsed" : ""}`}>
+        <aside ref={sidebarRef} className={`sidebar ${isSidebarHidden ? "isCollapsed" : ""}`}>
           <div className="sidebarTopRow">
             {!isSidebarHidden && (
               <div className="sidebarBrandWrap">
@@ -1612,6 +1613,12 @@ export default function App() {
       </div>
     );
   }
+
+  useEffect(() => {
+    if (!isSidebarHidden) return;
+    if (!sidebarRef.current) return;
+    sidebarRef.current.scrollTop = 0;
+  }, [isSidebarHidden]);
 
   useEffect(() => {
     const persistedState = {
