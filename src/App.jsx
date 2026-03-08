@@ -265,7 +265,7 @@ function scoreExampleSentence(sentence, word) {
     return Number.NEGATIVE_INFINITY;
   }
   if (/\b(may refer to|can refer to)\b/i.test(safeSentence)) return Number.NEGATIVE_INFINITY;
-  if (/^[\-*]\s+/.test(safeSentence)) return Number.NEGATIVE_INFINITY;
+  if (/^[-*]\s+/.test(safeSentence)) return Number.NEGATIVE_INFINITY;
   if (/\[[^\]]+\]/.test(safeSentence)) return Number.NEGATIVE_INFINITY;
 
   const wordRegex = new RegExp(`\\b${escapeRegex(safeWord)}\\b`, "gi");
@@ -1355,14 +1355,6 @@ export default function App() {
   }));
   const maxMasteryWordCount = Math.max(1, ...masteryLevelCounts.map((item) => item.count));
   const quizSetupBooks = books.filter((book) => quizSetupSelection.bookIds.includes(String(book.id)));
-  const quizSetupChapterOptions = quizSetupBooks.flatMap((book) =>
-    getBookChapterList(book).map((chapter) => ({
-      key: `${book.id}:${chapter.id}`,
-      bookId: String(book.id),
-      chapterId: chapter.id,
-      label: `${book.name} - ${chapter.name}`,
-    }))
-  );
   const quizSetupChapterKeySet = new Set(quizSetupSelection.chapterKeys);
   const quizSetupDifficultyKeySet = new Set(quizSetupSelection.difficultyKeys);
   const lastQuizMistakeKeySet = new Set(lastQuizMistakeKeys);
@@ -1453,7 +1445,7 @@ export default function App() {
           <div className="sidebarTopRow">
             {!isSidebarHidden && (
               <div className="sidebarBrandWrap">
-                <div className="sidebarBrand">Vocab</div>
+                <div className="sidebarBrand">Vocalibry</div>
                 {IS_BETA_BUILD && <span className="betaPill">Beta</span>}
               </div>
             )}
@@ -2224,28 +2216,6 @@ export default function App() {
               ? {
                   ...wordEntry,
                   chapterId: safeChapterId,
-                }
-              : wordEntry
-          ),
-        };
-      })
-    );
-  }
-
-  function updateWordDifficulty(wordToUpdate, difficultyValue) {
-    if (!currentBook) return;
-    const safeDifficulty = normalizeWordDifficulty(difficultyValue);
-
-    setBooks((prevBooks) =>
-      prevBooks.map((book) => {
-        if (book.id !== currentBookId) return book;
-        return {
-          ...book,
-          words: book.words.map((wordEntry) =>
-            wordEntry.word === wordToUpdate
-              ? {
-                  ...wordEntry,
-                  difficulty: safeDifficulty,
                 }
               : wordEntry
           ),

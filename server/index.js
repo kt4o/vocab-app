@@ -11,7 +11,8 @@ dotenv.config({ path: "server/.env" });
 dotenv.config();
 
 const app = express();
-const port = Number(process.env.PORT || 4000);
+const port = Number(process.env.PORT || 8000);
+const host = "0.0.0.0";
 
 app.use(cors());
 app.use(express.json());
@@ -31,8 +32,8 @@ app.use("/api/state", stateRouter);
 
 initDb()
   .then(() => {
-    app.listen(port, () => {
-      console.log(`API listening on http://localhost:${port}`);
+    app.listen(port, host, () => {
+      console.log(`API listening on http://${host}:${port}`);
     });
   })
   .catch((error) => {
