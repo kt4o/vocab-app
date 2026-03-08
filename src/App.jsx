@@ -261,11 +261,19 @@ function scoreExampleSentence(sentence, word) {
   const safeWord = String(word || "").trim().toLowerCase();
   if (!safeSentence || !safeWord) return Number.NEGATIVE_INFINITY;
 
+  if (/^(see also|synonyms?|antonyms?|etymology|pronunciation|usage notes?)\b/i.test(safeSentence)) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  if (/\b(may refer to|can refer to)\b/i.test(safeSentence)) return Number.NEGATIVE_INFINITY;
+  if (/^[\-*]\s+/.test(safeSentence)) return Number.NEGATIVE_INFINITY;
+  if (/\[[^\]]+\]/.test(safeSentence)) return Number.NEGATIVE_INFINITY;
+
   const wordRegex = new RegExp(`\\b${escapeRegex(safeWord)}\\b`, "gi");
   const matchCount = (safeSentence.toLowerCase().match(wordRegex) || []).length;
   if (matchCount === 0) return Number.NEGATIVE_INFINITY;
 
   const tokenCount = safeSentence.split(/\s+/).filter(Boolean).length;
+  if (tokenCount < 4 || tokenCount > 28) return Number.NEGATIVE_INFINITY;
   let score = 0;
 
   if (tokenCount >= 6 && tokenCount <= 16) score += 4;
@@ -306,13 +314,14 @@ function rankAndSelectExamples(word, dictionaryExamples = [], supplementalExampl
   addCandidates(dictionaryExamples, "dictionary");
   addCandidates(supplementalExamples, "supplemental");
 
-  return candidates
+  const ranked = candidates
     .map((entry) => {
       const qualityScore = scoreExampleSentence(entry.sentence, word);
       if (!Number.isFinite(qualityScore)) return null;
       const sourceBonus = entry.source === "dictionary" ? 1 : 0;
       return {
         sentence: entry.sentence,
+        qualityScore,
         score: qualityScore + sourceBonus,
       };
     })
@@ -320,9 +329,11 @@ function rankAndSelectExamples(word, dictionaryExamples = [], supplementalExampl
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return a.sentence.length - b.sentence.length;
-    })
-    .slice(0, 3)
-    .map((entry) => entry.sentence);
+    });
+
+  const highQuality = ranked.filter((entry) => entry.qualityScore >= 4);
+  const selected = (highQuality.length ? highQuality : ranked).slice(0, 3);
+  return selected.map((entry) => entry.sentence);
 }
 
 function extractSentencesFromText(text) {
@@ -1254,7 +1265,7 @@ export default function App() {
     () => localStorage.getItem(AUTH_USERNAME_STORAGE_KEY) || ""
   );
   const [authMode, setAuthMode] = useState("login");
-  const [authForm, setAuthForm] = useState({ username: "", password: "" });
+  const [authForm, setAuthForm] = useState({ username: "", password: "", confirmPassword: "" });
   const [authError, setAuthError] = useState("");
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -1669,9 +1680,14 @@ export default function App() {
       .trim()
       .toLowerCase();
     const password = String(authForm.password || "");
+    const confirmPassword = String(authForm.confirmPassword || "");
 
     if (!username || !password) {
       setAuthError("Username and password are required.");
+      return;
+    }
+    if (mode === "register" && password !== confirmPassword) {
+      setAuthError("Passwords do not match.");
       return;
     }
 
@@ -1712,7 +1728,7 @@ export default function App() {
 
       setAuthToken(nextToken);
       setAuthUsername(nextUsername);
-      setAuthForm({ username: "", password: "" });
+      setAuthForm({ username: "", password: "", confirmPassword: "" });
       openNoticeModal(`Signed in as ${nextUsername}.`, "Account Ready");
     } catch {
       setAuthError("Could not reach auth service. Check backend and try again.");
@@ -1725,7 +1741,7 @@ export default function App() {
     setAuthToken("");
     setAuthUsername("");
     setAuthError("");
-    setAuthForm({ username: "", password: "" });
+    setAuthForm({ username: "", password: "", confirmPassword: "" });
     setIsCloudStateHydrated(false);
   }
 
@@ -3639,6 +3655,30 @@ export default function App() {
                       {"\uD83D\uDC41"}
                     </button>
                   </div>
+                  {authMode === "register" ? (
+                    <div className="settingsPasswordWrap">
+                      <input
+                        className="settingsInput settingsPasswordInput"
+                        type={isPasswordVisible ? "text" : "password"}
+                        value={authForm.confirmPassword}
+                        onChange={(event) => {
+                          setAuthForm((prev) => ({ ...prev, confirmPassword: event.target.value }));
+                          if (authError) setAuthError("");
+                        }}
+                        placeholder="confirm password"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        className="settingsPasswordToggleBtn"
+                        onClick={() => setIsPasswordVisible((prev) => !prev)}
+                        aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                        title={isPasswordVisible ? "Hide password" : "Show password"}
+                      >
+                        {"\uD83D\uDC41"}
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="settingsRow">
                     <span>{authMode === "login" ? "Use existing account" : "Create new account"}</span>
                     <button
