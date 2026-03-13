@@ -12,6 +12,10 @@ function normalizeUsername(value) {
     .toLowerCase();
 }
 
+function normalizePlan(value) {
+  return String(value || "").trim().toLowerCase() === "pro" ? "pro" : "free";
+}
+
 function getPairIds(userIdA, userIdB) {
   const a = Number(userIdA);
   const b = Number(userIdB);
@@ -62,6 +66,59 @@ function buildStatsBucket(activityHistory, predicate) {
   };
 }
 
+function parseDayKey(dayKey) {
+  if (typeof dayKey !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) return null;
+  const [year, month, day] = dayKey.split("-").map((value) => Number(value));
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function addDays(date, offset) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + offset);
+  return next;
+}
+
+function hasAnyActivity(entry) {
+  if (!entry || typeof entry !== "object") return false;
+  const wordsAdded = Math.max(0, Math.floor(Number(entry.wordsAdded) || 0));
+  const questionsCompleted = Math.max(0, Math.floor(Number(entry.questionsCompleted) || 0));
+  const timeSpentSeconds = Math.max(0, Math.floor(Number(entry.timeSpentSeconds) || 0));
+  return wordsAdded > 0 || questionsCompleted > 0 || timeSpentSeconds > 0;
+}
+
+function getCurrentStreakCount(activityHistory) {
+  const activeDayKeys = new Set(
+    Object.entries(activityHistory || {})
+      .filter(([dayKey, entry]) => /^\d{4}-\d{2}-\d{2}$/.test(dayKey) && hasAnyActivity(entry))
+      .map(([dayKey]) => dayKey)
+  );
+  if (!activeDayKeys.size) return 0;
+
+  const todayKey = getCurrentDayKey(new Date());
+  const todayDate = parseDayKey(todayKey);
+  if (!todayDate) return 0;
+
+  let cursor = todayDate;
+  if (!activeDayKeys.has(todayKey)) {
+    cursor = addDays(todayDate, -1);
+    const cursorKey = getCurrentDayKey(cursor);
+    if (!activeDayKeys.has(cursorKey)) return 0;
+  }
+
+  let streak = 0;
+  while (true) {
+    const cursorKey = getCurrentDayKey(cursor);
+    if (!activeDayKeys.has(cursorKey)) break;
+    streak += 1;
+    cursor = addDays(cursor, -1);
+  }
+  return streak;
+}
+
 function getSocialStatsFromState(stateJson) {
   const data =
     stateJson && typeof stateJson === "object" && !Array.isArray(stateJson) ? stateJson.data : null;
@@ -85,6 +142,7 @@ function getSocialStatsFromState(stateJson) {
     monthly: buildStatsBucket(activityHistory, (dayKey) => dayKey.startsWith(monthPrefix)),
     yearly: buildStatsBucket(activityHistory, (dayKey) => dayKey.startsWith(yearPrefix)),
     total: buildStatsBucket(activityHistory),
+    streakCount: getCurrentStreakCount(activityHistory),
   };
 }
 
@@ -94,7 +152,7 @@ async function getUserStatsMap(userIds) {
 
   const result = await query(
     `
-      SELECT u.id, u.username, a.state_json
+      SELECT u.id, u.username, u.plan, a.state_json
       FROM users u
       LEFT JOIN app_state a ON a.user_id = u.id
       WHERE u.id = ANY($1::int[])
@@ -107,6 +165,7 @@ async function getUserStatsMap(userIds) {
     statsMap.set(Number(row.id), {
       userId: Number(row.id),
       username: String(row.username || ""),
+      plan: normalizePlan(row.plan),
       stats: getSocialStatsFromState(row.state_json),
     });
   });
@@ -191,11 +250,13 @@ socialRouter.get("/overview", async (req, res) => {
     const currentUserStats = statsMap.get(userId) || {
       userId,
       username: req.authUser.username,
+      plan: normalizePlan(req.authUser.plan),
       stats: {
         weekly: createEmptyStatTotals(),
         monthly: createEmptyStatTotals(),
         yearly: createEmptyStatTotals(),
         total: createEmptyStatTotals(),
+        streakCount: 0,
       },
     };
 
@@ -203,25 +264,34 @@ socialRouter.get("/overview", async (req, res) => {
       const profile = statsMap.get(link.userId) || {
         userId: link.userId,
         username: `user_${link.userId}`,
+        plan: "free",
         stats: {
           weekly: createEmptyStatTotals(),
           monthly: createEmptyStatTotals(),
           yearly: createEmptyStatTotals(),
           total: createEmptyStatTotals(),
+          streakCount: 0,
         },
       };
       return {
         friendshipId: link.friendshipId,
         userId: link.userId,
         username: profile.username,
+        plan: profile.plan,
         since: link.since,
         stats: profile.stats,
       };
     });
 
+    const currentUserPlan = normalizePlan(currentUserStats.plan);
+    const leaderboardProfiles = [currentUserStats, ...friends]
+      .filter(Boolean)
+      .filter((profile) => normalizePlan(profile.plan) === currentUserPlan);
+
     res.json({
       currentUser: currentUserStats,
       friends,
+      leaderboardProfiles,
       incomingRequests,
       outgoingRequests,
     });

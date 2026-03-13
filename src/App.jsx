@@ -25,12 +25,13 @@ const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .replace(/\/$/, "");
 const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
 const STATE_API_PATH = `${API_BASE_URL}/api/state`;
-const EXAMPLES_API_PATH = `${API_BASE_URL}/api/examples`;
 const SOCIAL_API_PATH = `${API_BASE_URL}/api/social`;
 const BILLING_API_PATH = `${API_BASE_URL}/api/billing`;
+const ANALYTICS_API_PATH = `${API_BASE_URL}/api/analytics`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
+const RETENTION_PING_DAY_KEY_STORAGE = "vocab_retention_ping_day";
 const WORD_DIFFICULTY_OPTIONS = [
   { value: "a1", label: "A1" },
   { value: "a2", label: "A2" },
@@ -118,14 +119,6 @@ function getSelectedDefinition(wordEntry) {
   return definitions[safeIndex];
 }
 
-function getWordExamples(wordEntry) {
-  const examples = Array.isArray(wordEntry?.examples) ? wordEntry.examples : [];
-  return examples
-    .map((item) => String(item || "").trim())
-    .filter(Boolean)
-    .slice(0, 3);
-}
-
 function getMistakeCount(wordEntry) {
   const count = Number(wordEntry?.mistakeCount ?? 0);
   if (!Number.isFinite(count)) return 0;
@@ -203,191 +196,6 @@ function extractDefinitions(apiPayload) {
   return all;
 }
 
-function extractExampleSentences(apiPayload) {
-  const seen = new Set();
-  const all = [];
-
-  const entries = Array.isArray(apiPayload) ? apiPayload : [];
-  entries.forEach((entry) => {
-    (entry?.meanings || []).forEach((meaning) => {
-      (meaning?.definitions || []).forEach((item) => {
-        const text = sanitizeExampleSentence(item?.example);
-        if (!text) return;
-        const normalized = text.toLowerCase();
-        if (seen.has(normalized)) return;
-        seen.add(normalized);
-        all.push(text);
-      });
-    });
-  });
-
-  return all.slice(0, 40);
-}
-
-function escapeRegex(text) {
-  return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function sanitizeExampleSentence(value) {
-  const sentence = String(value || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^["'`]+|["'`]+$/g, "");
-  if (!sentence) return "";
-  if (sentence.split(/\s+/).length < 3) return "";
-  return sentence;
-}
-
-function getExampleWordVariants(word) {
-  const raw = String(word || "").trim().toLowerCase();
-  if (!raw) return [];
-
-  const variants = new Set([raw]);
-
-  if (raw.endsWith("y") && raw.length > 2) {
-    variants.add(`${raw.slice(0, -1)}ies`);
-  } else if (raw.endsWith("s")) {
-    variants.add(`${raw}es`);
-  } else {
-    variants.add(`${raw}s`);
-  }
-
-  if (raw.endsWith("e") && !raw.endsWith("ee")) {
-    variants.add(`${raw.slice(0, -1)}ing`);
-    variants.add(`${raw}d`);
-  } else {
-    variants.add(`${raw}ing`);
-    variants.add(`${raw}ed`);
-  }
-
-  if (raw.endsWith("ing") && raw.length > 5) {
-    const stem = raw.slice(0, -3);
-    variants.add(stem);
-    variants.add(`${stem}e`);
-  }
-  if (raw.endsWith("ed") && raw.length > 4) {
-    const stem = raw.slice(0, -2);
-    variants.add(stem);
-    variants.add(`${stem}e`);
-  }
-  if (raw.endsWith("es") && raw.length > 4) {
-    variants.add(raw.slice(0, -2));
-  }
-  if (raw.endsWith("s") && raw.length > 3) {
-    variants.add(raw.slice(0, -1));
-  }
-
-  return Array.from(variants).filter((item) => item.length >= 3);
-}
-
-function buildVariantRegexes(word) {
-  const variants = getExampleWordVariants(word);
-  return variants.map((variant) => new RegExp(`\\b${escapeRegex(variant)}\\b`, "gi"));
-}
-
-function scoreExampleSentence(sentence, word) {
-  const safeSentence = sanitizeExampleSentence(sentence);
-  const variantRegexes = buildVariantRegexes(word);
-  if (!safeSentence || variantRegexes.length === 0) return Number.NEGATIVE_INFINITY;
-
-  if (/^(see also|synonyms?|antonyms?|etymology|pronunciation|usage notes?)\b/i.test(safeSentence)) {
-    return Number.NEGATIVE_INFINITY;
-  }
-  if (/\b(may refer to|can refer to)\b/i.test(safeSentence)) return Number.NEGATIVE_INFINITY;
-  if (/^[-*]\s+/.test(safeSentence)) return Number.NEGATIVE_INFINITY;
-  if (/\[[^\]]+\]/.test(safeSentence)) return Number.NEGATIVE_INFINITY;
-
-  const loweredSentence = safeSentence.toLowerCase();
-  const matchCount = variantRegexes.reduce(
-    (total, regex) => total + ((loweredSentence.match(regex) || []).length),
-    0
-  );
-
-  const tokenCount = safeSentence.split(/\s+/).filter(Boolean).length;
-  if (tokenCount < 3 || tokenCount > 40) return Number.NEGATIVE_INFINITY;
-  let score = 0;
-
-  if (tokenCount >= 10 && tokenCount <= 24) score += 5;
-  else if (tokenCount >= 7 && tokenCount <= 30) score += 3;
-  else score -= 2;
-
-  if (matchCount === 0) score -= 3;
-  else if (matchCount === 1) score += 3;
-  else if (matchCount === 2) score += 1;
-  else score -= 2;
-
-  if (/^[A-Z]/.test(safeSentence)) score += 1;
-  if (/[.!?]["']?$/.test(safeSentence)) score += 1;
-  if (/,\s/.test(safeSentence)) score += 1;
-  if (/\b(because|although|however|while|whereas|unless|despite|therefore)\b/i.test(safeSentence)) {
-    score += 1;
-  }
-  if (/[;:()[\]{}<>]/.test(safeSentence)) score -= 1;
-  if (/(https?:\/\/|www\.|@|#|\\)/i.test(safeSentence)) score -= 3;
-  if (/[A-Z]{4,}/.test(safeSentence)) score -= 2;
-
-  const digitCount = (safeSentence.match(/\d/g) || []).length;
-  if (digitCount > 0) score -= Math.min(2, digitCount);
-
-  return score;
-}
-
-function rankAndSelectExamples(word, dictionaryExamples = [], supplementalExamples = []) {
-  const seen = new Set();
-  const candidates = [];
-
-  const addCandidates = (items, source) => {
-    items.forEach((item) => {
-      const sentence = sanitizeExampleSentence(item);
-      if (!sentence) return;
-      const key = sentence.toLowerCase();
-      if (seen.has(key)) return;
-      seen.add(key);
-      candidates.push({ sentence, source });
-    });
-  };
-
-  addCandidates(dictionaryExamples, "dictionary");
-  addCandidates(supplementalExamples, "supplemental");
-
-  const ranked = candidates
-    .map((entry) => {
-      const qualityScore = scoreExampleSentence(entry.sentence, word);
-      if (!Number.isFinite(qualityScore)) return null;
-      const sourceBonus = entry.source === "dictionary" ? 1 : 0;
-      return {
-        sentence: entry.sentence,
-        qualityScore,
-        score: qualityScore + sourceBonus,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return a.sentence.length - b.sentence.length;
-    });
-
-  const highQuality = ranked.filter((entry) => entry.qualityScore >= 4);
-  const selected = (highQuality.length ? highQuality : ranked).slice(0, 3);
-  return selected.map((entry) => entry.sentence);
-}
-
-async function fetchSupplementalExamples(word) {
-  const safeWord = String(word || "").trim();
-  if (!safeWord) return [];
-
-  try {
-    const response = await fetch(`${EXAMPLES_API_PATH}/${encodeURIComponent(safeWord)}`);
-    if (!response.ok) return [];
-    const payload = await response.json();
-    const examples = Array.isArray(payload?.examples) ? payload.examples : [];
-    return examples.map((item) => sanitizeExampleSentence(item)).filter(Boolean).slice(0, 12);
-  } catch {
-    // Ignore supplemental source failures and continue with dictionary-only examples.
-    return [];
-  }
-}
-
 function extractPronunciation(apiPayload) {
   const firstEntry = Array.isArray(apiPayload) ? apiPayload[0] : null;
   const direct = String(firstEntry?.phonetic || "").trim();
@@ -428,6 +236,31 @@ function parseStoredStreak(rawValue) {
 
 function parseStoredBoolean(value, fallbackValue = false) {
   return typeof value === "boolean" ? value : fallbackValue;
+}
+
+function parseStoredQuizSetup(rawValue) {
+  const parsed = parseJsonSafely(rawValue, null);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+  const bookIds = Array.isArray(parsed.bookIds)
+    ? Array.from(new Set(parsed.bookIds.map((id) => String(id)).filter(Boolean)))
+    : [];
+  const chapterKeys = Array.isArray(parsed.chapterKeys)
+    ? Array.from(new Set(parsed.chapterKeys.map((key) => String(key)).filter(Boolean)))
+    : [];
+  const difficultyKeys = Array.isArray(parsed.difficultyKeys)
+    ? Array.from(new Set(parsed.difficultyKeys.map((key) => String(key)).filter(Boolean)))
+    : [];
+  const mode = normalizeQuizMode(parsed.mode, "normal");
+
+  if (bookIds.length === 0 || chapterKeys.length === 0 || difficultyKeys.length === 0) return null;
+
+  return {
+    mode,
+    bookIds,
+    chapterKeys,
+    difficultyKeys,
+  };
 }
 
 function createDefaultFreeDailyUsage(date = new Date()) {
@@ -532,6 +365,15 @@ function buildQuizQuestions(words, options = {}) {
     });
   }
 
+  // Never repeat the same target word in one quiz, even across different chapters/books.
+  const seenWordKeys = new Set();
+  baseWords = baseWords.filter((entry) => {
+    const wordKey = normalizeQuizAnswer(entry?.word);
+    if (!wordKey || seenWordKeys.has(wordKey)) return false;
+    seenWordKeys.add(wordKey);
+    return true;
+  });
+
   const allDefinitions = Array.from(
     new Set(baseWords.map((entry) => getSelectedDefinition(entry)).filter(Boolean))
   );
@@ -553,68 +395,6 @@ function buildQuizQuestions(words, options = {}) {
       };
     })
     .filter((question) => question.options.length >= 2);
-
-  return shuffleArray(questions);
-}
-
-function buildSentenceWithBlank(sentence, word) {
-  const safeSentence = String(sentence || "").trim();
-  const safeWord = String(word || "").trim();
-  if (!safeSentence || !safeWord) return "";
-
-  const escaped = safeWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const wordRegex = new RegExp(`\\b${escaped}\\b`, "gi");
-  if (wordRegex.test(safeSentence)) {
-    return safeSentence.replace(wordRegex, "____");
-  }
-
-  return `${safeSentence} (____)`;
-}
-
-function buildBlankQuizQuestions(words, options = {}) {
-  const mistakesOnly = Boolean(options?.mistakesOnly);
-  let baseWords = (words || []).filter(
-    (entry) => getSelectedDefinition(entry) && getWordExamples(entry).length > 0
-  );
-
-  if (mistakesOnly) {
-    baseWords = baseWords.filter((entry) => getMistakeCount(entry) > 0);
-
-    const weighted = shuffleArray(
-      baseWords.flatMap((entry) => Array(Math.min(getMistakeCount(entry), 4)).fill(entry))
-    );
-    const seen = new Set();
-    baseWords = weighted.filter((entry) => {
-      const key = entry.word.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }
-
-  const allWords = Array.from(new Set(baseWords.map((entry) => String(entry.word || "").trim()).filter(Boolean)));
-
-  const questions = baseWords
-    .map((entry) => {
-      const word = String(entry.word || "").trim();
-      const examples = getWordExamples(entry);
-      const sentence = examples[0] || "";
-      const sentenceWithBlank = buildSentenceWithBlank(sentence, word);
-      if (!sentenceWithBlank) return null;
-
-      const distractors = shuffleArray(allWords.filter((candidate) => candidate !== word)).slice(0, 3);
-      const options = shuffleArray([word, ...distractors]);
-
-      return {
-        word,
-        correctDefinition: getSelectedDefinition(entry),
-        sentenceWithBlank,
-        options,
-        sourceBookId: entry.sourceBookId ?? null,
-        chapterId: entry.chapterId || DEFAULT_CHAPTER_ID,
-      };
-    })
-    .filter((question) => question && question.options.length >= 2);
 
   return shuffleArray(questions);
 }
@@ -693,15 +473,21 @@ function isEquivalentTypingAnswer(typedValue, targetValue) {
   return false;
 }
 
-function getCurrentWeekKey(date = new Date()) {
+function getWeekStartDate(date = new Date()) {
   const localDate = new Date(date);
-  const day = localDate.getDay();
+  if (Number.isNaN(localDate.getTime())) return new Date();
   localDate.setHours(0, 0, 0, 0);
-  localDate.setDate(localDate.getDate() - day);
+  const day = localDate.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  localDate.setDate(localDate.getDate() + mondayOffset);
+  return localDate;
+}
 
-  const year = localDate.getFullYear();
-  const month = String(localDate.getMonth() + 1).padStart(2, "0");
-  const dateOfMonth = String(localDate.getDate()).padStart(2, "0");
+function getCurrentWeekKey(date = new Date()) {
+  const weekStart = getWeekStartDate(date);
+  const year = weekStart.getFullYear();
+  const month = String(weekStart.getMonth() + 1).padStart(2, "0");
+  const dateOfMonth = String(weekStart.getDate()).padStart(2, "0");
   return `${year}-${month}-${dateOfMonth}`;
 }
 
@@ -861,6 +647,15 @@ function getRecentPeriodTotals(history, days) {
   return sumActivityHistory(history, (key) => key >= startKey && key <= endKey);
 }
 
+function getWeekTotals(history, date = new Date()) {
+  const weekStart = getWeekStartDate(date);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const startKey = getCurrentDayKey(weekStart);
+  const endKey = getCurrentDayKey(weekEnd);
+  return sumActivityHistory(history, (key) => key >= startKey && key <= endKey);
+}
+
 function getMonthTotals(history, date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -990,7 +785,6 @@ function ensureBookChapters(book) {
       ...wordEntry,
       chapterId: safeChapterId,
       difficulty: normalizeWordDifficulty(wordEntry?.difficulty),
-      examples: getWordExamples(wordEntry),
       masteryXp: getWordMasteryXp(wordEntry),
     };
   });
@@ -1324,6 +1118,10 @@ export default function App() {
     chapterKeys: [],
     difficultyKeys: [],
   });
+  const [lastQuizSetup, setLastQuizSetup] = useState(() =>
+    parseStoredQuizSetup(localStorage.getItem("vocab_last_quiz_setup"))
+  );
+  const [isQuickQuizSetupArmed, setIsQuickQuizSetupArmed] = useState(false);
   const [activeQuizWords, setActiveQuizWords] = useState([]);
   const [activeQuizTitle, setActiveQuizTitle] = useState("Quiz");
   const [activeQuizMode, setActiveQuizMode] = useState("normal");
@@ -1376,7 +1174,6 @@ export default function App() {
   const [isLevelInfoOpen, setIsLevelInfoOpen] = useState(false);
   const [editingDefinitionKey, setEditingDefinitionKey] = useState("");
   const [editingDefinitionDraft, setEditingDefinitionDraft] = useState("");
-  const [expandedExamplesKey, setExpandedExamplesKey] = useState("");
   const [difficultyInfoWord, setDifficultyInfoWord] = useState("");
   const [selectedChapterIdForNewWords, setSelectedChapterIdForNewWords] = useState(DEFAULT_CHAPTER_ID);
   const [newChapterName, setNewChapterName] = useState("");
@@ -1422,6 +1219,7 @@ export default function App() {
   const [isBillingCheckoutSubmitting, setIsBillingCheckoutSubmitting] = useState(false);
   const [isBillingPortalSubmitting, setIsBillingPortalSubmitting] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [accountPanelModal, setAccountPanelModal] = useState("");
   const [isDailyGoalModalOpen, setIsDailyGoalModalOpen] = useState(false);
   const [accountSecurityForm, setAccountSecurityForm] = useState({
     currentPassword: "",
@@ -1433,6 +1231,7 @@ export default function App() {
   const [isPasswordChangeSubmitting, setIsPasswordChangeSubmitting] = useState(false);
   const [isLogoutAllSubmitting, setIsLogoutAllSubmitting] = useState(false);
   const [isDeleteAccountSubmitting, setIsDeleteAccountSubmitting] = useState(false);
+  const [isDeleteAccountConfirmOpen, setIsDeleteAccountConfirmOpen] = useState(false);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [isSocialLoading, setIsSocialLoading] = useState(false);
   const [socialError, setSocialError] = useState("");
@@ -1500,7 +1299,7 @@ export default function App() {
       ? `Streak savers full (${streak.savers}/${MAX_STREAK_SAVERS}).`
       : `${daysUntilNextSaver} day${daysUntilNextSaver !== 1 ? "s" : ""} until next streak saver.`;
   const activityDailyStats = getRecentPeriodTotals(activityHistory, 1);
-  const activityWeeklyStats = getRecentPeriodTotals(activityHistory, 7);
+  const activityWeeklyStats = getWeekTotals(activityHistory);
   const activityMonthlyStats = getMonthTotals(activityHistory);
   const activityTotalStats = sumActivityHistory(activityHistory);
   const currentFreeDailyUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
@@ -1610,6 +1409,14 @@ export default function App() {
       quizSetupSelection.bookIds.length === 1
         ? books.find((book) => String(book.id) === quizSetupSelection.bookIds[0])?.name || "Quiz"
         : "Multi-Book Quiz";
+    const setupSnapshot = {
+      mode: selectedMode,
+      bookIds: [...quizSetupSelection.bookIds],
+      chapterKeys: [...quizSetupSelection.chapterKeys],
+      difficultyKeys: [...quizSetupSelection.difficultyKeys],
+    };
+    setLastQuizSetup(setupSnapshot);
+    setIsQuickQuizSetupArmed(false);
     setActiveQuizWords(quizSetupWords);
     setActiveQuizTitle(nextTitle);
     setActiveQuizMode(selectedMode);
@@ -1619,7 +1426,6 @@ export default function App() {
 
   function startSmartReviewSession() {
     if (!isProPlan) {
-      openNoticeModal("Smart Review is a Pro feature. Upgrade to unlock adaptive revision sessions.", "Pro Feature");
       return;
     }
     if (smartReviewWords.length < 2) {
@@ -1637,7 +1443,6 @@ export default function App() {
 
   function exportWeakWordsCsv() {
     if (!isProPlan) {
-      openNoticeModal("Weak Words CSV export is available on Pro.", "Pro Feature");
       return;
     }
     if (!weakWordCandidates.length) {
@@ -1851,28 +1656,22 @@ export default function App() {
                 <span className="sidebarNavBtnLabel">Quiz</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\u2705"}</span>
               </button>
-              <button
-                type="button"
-                className={`sidebarNavBtn ${screen === "quiz" && activeQuizTitle === "Smart Review" ? "isActive" : ""}`}
-                onClick={startSmartReviewSession}
-              >
-                <span className="proFeatureBadge proFeatureBadgeCorner">PRO</span>
-                <span className="sidebarNavBtnLabel hasProBadge">Smart Review</span>
-                <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83E\uDDE0"}</span>
-              </button>
+              {isProPlan ? (
+                <button
+                  type="button"
+                  className={`sidebarNavBtn ${screen === "quiz" && activeQuizTitle === "Smart Review" ? "isActive" : ""}`}
+                  onClick={startSmartReviewSession}
+                >
+                  <span className="sidebarNavBtnLabel">Smart Review</span>
+                  <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83E\uDDE0"}</span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={`sidebarNavBtn ${inSocial ? "isActive" : ""}`}
-                onClick={() => {
-                  if (!isProPlan) {
-                    openNoticeModal("Socials is a Pro feature. Upgrade to unlock friends and leaderboards.", "Pro Feature");
-                    return;
-                  }
-                  setScreen("socialLeaderboard");
-                }}
+                onClick={() => setScreen("socialLeaderboard")}
               >
-                <span className="proFeatureBadge proFeatureBadgeCorner">PRO</span>
-                <span className="sidebarNavBtnLabel hasProBadge">Socials</span>
+                <span className="sidebarNavBtnLabel">Socials</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDC65"}</span>
               </button>
             </nav>
@@ -1951,6 +1750,7 @@ export default function App() {
       vocab_last_quiz_mistakes_by_book: JSON.stringify(lastQuizMistakeKeysByBook),
       vocab_last_quiz_mistake_mode: lastQuizMistakeMode,
       vocab_last_quiz_mistake_mode_by_book: JSON.stringify(lastQuizMistakeModeByBook),
+      vocab_last_quiz_setup: JSON.stringify(lastQuizSetup),
       vocab_streak: JSON.stringify(streak),
       [AUTH_TOKEN_STORAGE_KEY]: authToken,
       [AUTH_USERNAME_STORAGE_KEY]: authUsername,
@@ -1973,6 +1773,7 @@ export default function App() {
     lastQuizMistakeKeysByBook,
     lastQuizMistakeMode,
     lastQuizMistakeModeByBook,
+    lastQuizSetup,
     streak,
     authToken,
     authUsername,
@@ -2001,7 +1802,7 @@ export default function App() {
       return;
     }
     if (mode === "register" && !authForm.acceptedLegal) {
-      setAuthError("Please accept Terms & Conditions and Privacy Policy.");
+      setAuthError("Please accept Terms, Privacy Policy, and Disclaimer.");
       return;
     }
 
@@ -2032,6 +1833,8 @@ export default function App() {
                 ? "Verify your email on the Register page before creating an account."
                 : backendError === "invalid-username"
                   ? "Use 3-24 chars: lowercase letters, numbers, underscore."
+                  : backendError === "inappropriate-username"
+                    ? "Choose a different username. Inappropriate names are not allowed."
                   : backendError === "weak-password"
                     ? "Password must be at least 8 characters."
                     : backendError === "username-taken"
@@ -2099,6 +1902,8 @@ export default function App() {
       deletePassword: "",
     });
     setIsCloudStateHydrated(false);
+    setIsDeleteAccountConfirmOpen(false);
+    window.location.replace("/login");
   }
 
   const loadAccountProfile = useCallback(async () => {
@@ -2353,6 +2158,23 @@ export default function App() {
     }
   }
 
+  function askDeleteAccountConfirmation() {
+    if (isDeleteAccountSubmitting || !authToken) return;
+    if (billingPlan === "pro" && !isCanceledSubscriptionStatus(billingSubscriptionStatus)) {
+      setAccountActionError(
+        "Cancel your Pro subscription first. Account deletion is available only after status is canceled."
+      );
+      return;
+    }
+    const password = String(accountSecurityForm.deletePassword || "");
+    if (!password) {
+      setAccountActionError("Enter your password to delete your account.");
+      return;
+    }
+    setAccountActionError("");
+    setIsDeleteAccountConfirmOpen(true);
+  }
+
   async function deleteAccountPermanently() {
     if (isDeleteAccountSubmitting || !authToken) return;
     if (billingPlan === "pro" && !isCanceledSubscriptionStatus(billingSubscriptionStatus)) {
@@ -2366,10 +2188,7 @@ export default function App() {
       setAccountActionError("Enter your password to delete your account.");
       return;
     }
-    const confirmed = window.confirm(
-      "Delete your account permanently? This will remove your cloud data and cannot be undone."
-    );
-    if (!confirmed) return;
+    setIsDeleteAccountConfirmOpen(false);
 
     setIsDeleteAccountSubmitting(true);
     setAccountActionError("");
@@ -2383,7 +2202,9 @@ export default function App() {
         body: JSON.stringify({ password }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (response.status === 401) {
+      const backendError = String(payload?.error || "").trim().toLowerCase();
+      const isAuthTokenError = backendError === "missing-auth-token" || backendError === "invalid-auth-token";
+      if (response.status === 401 && isAuthTokenError) {
         logoutAccount();
         setAuthError("Your session expired. Please log in again.");
         return;
@@ -2569,10 +2390,9 @@ export default function App() {
   useEffect(() => {
     const onSocialScreen = screen === "socialLeaderboard" || screen === "socialFriends";
     if (!onSocialScreen) return;
-    if (!isProPlan) return;
     if (!authToken) return;
     loadSocialOverview();
-  }, [screen, authToken, isProPlan, loadSocialOverview]);
+  }, [screen, authToken, loadSocialOverview]);
 
   useEffect(() => {
     if (!authToken) {
@@ -2598,7 +2418,7 @@ export default function App() {
     if (!billingResult) return;
 
     if (billingResult === "success") {
-      openNoticeModal("Payment confirmed. Your plan has been updated.", "Billing Updated");
+      openNoticeModal("Checkout complete. Your plan has been updated.", "Billing Updated");
     } else if (billingResult === "cancel") {
       openNoticeModal("Checkout was canceled. You are still on the free plan.", "Billing Canceled");
     }
@@ -2606,6 +2426,42 @@ export default function App() {
     const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
     window.history.replaceState(null, "", cleanUrl);
     void loadBillingStatus();
+  }, [authToken, loadBillingStatus]);
+
+  useEffect(() => {
+    if (!authToken) return;
+    const dayKey = getCurrentDayKey(new Date());
+    if (!dayKey) return;
+    const storedDayKey = String(localStorage.getItem(RETENTION_PING_DAY_KEY_STORAGE) || "").trim();
+    if (storedDayKey === dayKey) return;
+
+    let cancelled = false;
+    const pingRetention = async () => {
+      try {
+        const response = await fetch(`${ANALYTICS_API_PATH}/retention/ping`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            eventName: "session_start",
+            dayKey,
+            metadata: { source: "app/client" },
+          }),
+        });
+        if (!cancelled && response.ok) {
+          localStorage.setItem(RETENTION_PING_DAY_KEY_STORAGE, dayKey);
+        }
+      } catch {
+        // Ignore retention ping errors to keep UX uninterrupted.
+      }
+    };
+
+    void pingRetention();
+    return () => {
+      cancelled = true;
+    };
   }, [authToken]);
 
   function getProfileStatsForPeriod(profile, period = "weekly") {
@@ -2677,7 +2533,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, applyAppDataSnapshot]);
 
   useEffect(() => {
     if (!authToken || !isCloudStateHydrated) return undefined;
@@ -2828,7 +2684,6 @@ export default function App() {
   useEffect(() => {
     setEditingDefinitionKey("");
     setEditingDefinitionDraft("");
-    setExpandedExamplesKey("");
     setDifficultyInfoWord("");
     setNewChapterName("");
     setSelectedChapterIdForNewWords(fallbackChapterId);
@@ -3248,7 +3103,7 @@ export default function App() {
     setNoticeModal({ title, message });
   }
 
-  function applyAppDataSnapshot(rawData, { screenAfterApply = null } = {}) {
+  const applyAppDataSnapshot = useCallback((rawData, { screenAfterApply = null } = {}) => {
     if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
       throw new Error("invalid-app-state-shape");
     }
@@ -3293,6 +3148,10 @@ export default function App() {
         importedLastQuizMistakeModeByBook[String(bookId)] = normalizeQuizMode(mode, "normal");
       });
     }
+    const importedLastQuizSetup =
+      rawData?.lastQuizSetup && typeof rawData.lastQuizSetup === "object" && !Array.isArray(rawData.lastQuizSetup)
+        ? parseStoredQuizSetup(JSON.stringify(rawData.lastQuizSetup))
+        : null;
 
     setTheme(importedTheme);
     setBooks(importedBooks);
@@ -3308,9 +3167,10 @@ export default function App() {
     setLastQuizMistakeKeysByBook(importedLastQuizMistakeKeysByBook);
     setLastQuizMistakeMode(importedLastQuizMistakeMode);
     setLastQuizMistakeModeByBook(importedLastQuizMistakeModeByBook);
+    setLastQuizSetup(importedLastQuizSetup);
     setCurrentBookId((prev) => (importedBooks.some((book) => book.id === prev) ? prev : importedBooks[0]?.id ?? null));
     if (screenAfterApply) setScreen(screenAfterApply);
-  }
+  }, [proDailyGoalQuestions]);
 
   function buildBackupSnapshot() {
     return {
@@ -3331,6 +3191,7 @@ export default function App() {
         lastQuizMistakeKeysByBook,
         lastQuizMistakeMode,
         lastQuizMistakeModeByBook,
+        lastQuizSetup,
       },
     };
   }
@@ -3383,6 +3244,7 @@ export default function App() {
     const isModalOpen =
       isAddBookModalOpen ||
       isChangePasswordModalOpen ||
+      Boolean(accountPanelModal) ||
       isDailyGoalModalOpen ||
       Boolean(bookPendingRename) ||
       Boolean(bookPendingDelete) ||
@@ -3396,6 +3258,7 @@ export default function App() {
     const closeModal = () => {
       if (isAddBookModalOpen) setIsAddBookModalOpen(false);
       if (isChangePasswordModalOpen) setIsChangePasswordModalOpen(false);
+      if (accountPanelModal) setAccountPanelModal("");
       if (isDailyGoalModalOpen) setIsDailyGoalModalOpen(false);
       if (bookPendingRename) setBookPendingRename(null);
       if (bookPendingDelete) setBookPendingDelete(null);
@@ -3438,6 +3301,7 @@ export default function App() {
   }, [
     isAddBookModalOpen,
     isChangePasswordModalOpen,
+    accountPanelModal,
     isDailyGoalModalOpen,
     bookPendingRename,
     bookPendingDelete,
@@ -3445,6 +3309,7 @@ export default function App() {
     wordPendingDelete,
     friendPendingRemove,
     isStreakModalOpen,
+    isDeleteAccountConfirmOpen,
     noticeModal,
   ]);
 
@@ -3633,6 +3498,237 @@ export default function App() {
       );
     }
 
+    if (isDeleteAccountConfirmOpen) {
+      return (
+        <div className="modalOverlay" onClick={() => setIsDeleteAccountConfirmOpen(false)}>
+          <div
+            className="modalCard"
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-account-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="delete-account-confirm-title">Delete Account?</h3>
+            <p>
+              This permanently removes your account and cloud data. This action cannot be undone.
+            </p>
+            <div className="modalActions">
+              <button
+                type="button"
+                className="modalBtn ghost"
+                onClick={() => setIsDeleteAccountConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modalBtn danger"
+                onClick={deleteAccountPermanently}
+                disabled={isDeleteAccountSubmitting}
+              >
+                {isDeleteAccountSubmitting ? "Deleting..." : "Delete Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (accountPanelModal && screen === "account" && authToken) {
+      const billingPeriodEndLabel = billingCurrentPeriodEnd
+        ? new Date(billingCurrentPeriodEnd).toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
+        : "";
+      const isAccountDeletionBlockedBySubscription =
+        billingPlan === "pro" && !isCanceledSubscriptionStatus(billingSubscriptionStatus);
+
+      return (
+        <div className="modalOverlay" onClick={() => setAccountPanelModal("")}>
+          <div
+            className="modalCard"
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="account-panel-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {accountPanelModal === "plan" ? (
+              <>
+                <h3 id="account-panel-title">Plan</h3>
+                <p className="settingsHint">
+                  Current plan:{" "}
+                  <strong className="billingPlanLabel">{billingPlan === "pro" ? "Pro" : "Free"}</strong>
+                </p>
+                {billingSubscriptionStatus ? (
+                  <p className="settingsHint">Subscription status: {billingSubscriptionStatus}</p>
+                ) : null}
+                {billingPeriodEndLabel ? (
+                  <p className="settingsHint">Current period ends: {billingPeriodEndLabel}</p>
+                ) : null}
+                {!isStripeBillingConfigured ? (
+                  <p className="settingsHint">
+                    Stripe billing is not configured yet. Add Stripe env vars on the backend.
+                  </p>
+                ) : null}
+                {billingPlan === "pro" ? (
+                  <div className="settingsRow">
+                    <span>Manage billing</span>
+                    <button
+                      type="button"
+                      className="primaryBtn"
+                      onClick={openBillingPortal}
+                      disabled={isBillingPortalSubmitting || !isStripeBillingConfigured}
+                    >
+                      {isBillingPortalSubmitting ? "Please wait..." : "Manage Subscription"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="settingsRow">
+                    <span>Upgrade account</span>
+                    <button
+                      type="button"
+                      className="primaryBtn"
+                      onClick={startBillingCheckout}
+                      disabled={
+                        isBillingCheckoutSubmitting || !isStripeBillingConfigured || isBillingStatusLoading
+                      }
+                    >
+                      {isBillingCheckoutSubmitting ? "Redirecting..." : "Upgrade to Pro"}
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : null}
+
+            {accountPanelModal === "session" ? (
+              <>
+                <h3 id="account-panel-title">Session</h3>
+                <p className="settingsHint">
+                  Signed in as <strong>{authUsername}</strong>
+                </p>
+                <div className="settingsRow">
+                  <span>This device</span>
+                  <button type="button" className="primaryBtn" onClick={logoutAccount}>
+                    Log Out
+                  </button>
+                </div>
+                <div className="settingsRow">
+                  <span>All devices</span>
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    onClick={logoutAllDevices}
+                    disabled={isLogoutAllSubmitting}
+                  >
+                    {isLogoutAllSubmitting ? "Please wait..." : "Log Out All Devices"}
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {accountPanelModal === "profile" ? (
+              <>
+                <h3 id="account-panel-title">Account Info</h3>
+                <div className="settingsRow">
+                  <span>Email</span>
+                  <strong className="accountInfoValue">
+                    {isAccountProfileLoading ? "Loading..." : accountEmail || "No email available"}
+                  </strong>
+                </div>
+                <div className="settingsRow">
+                  <span>Username</span>
+                  <strong className="accountInfoValue">{authUsername || "Unknown"}</strong>
+                </div>
+                <div className="settingsRow accountPasswordRow">
+                  <span>Password</span>
+                  <div className="accountPasswordActions">
+                    <strong className="accountInfoValue">{"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}</strong>
+                    <button
+                      type="button"
+                      className="primaryBtn accountInlineBtn"
+                      onClick={() => {
+                        setAccountPanelModal("");
+                        setAccountActionError("");
+                        setIsChangePasswordModalOpen(true);
+                      }}
+                    >
+                      Change Password
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : null}
+
+            {accountPanelModal === "danger" ? (
+              <>
+                <h3 id="account-panel-title">Danger Zone</h3>
+                <p className="settingsHint">
+                  Deleting your account permanently removes cloud data and cannot be undone.
+                </p>
+                {isAccountDeletionBlockedBySubscription ? (
+                  <p className="settingsHint">
+                    Cancel your Pro subscription first. You can delete your account only after status is
+                    canceled.
+                  </p>
+                ) : null}
+                <div className="settingsPasswordWrap">
+                  <input
+                    className="settingsInput settingsPasswordInput"
+                    type={isPasswordVisible ? "text" : "password"}
+                    value={accountSecurityForm.deletePassword}
+                    onChange={(event) => {
+                      setAccountSecurityForm((prev) => ({ ...prev, deletePassword: event.target.value }));
+                      if (accountActionError) setAccountActionError("");
+                    }}
+                    placeholder="password to delete account"
+                    autoComplete="current-password"
+                    disabled={isAccountDeletionBlockedBySubscription || isBillingStatusLoading}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="settingsPasswordToggleBtn"
+                    onClick={() => setIsPasswordVisible((prev) => !prev)}
+                    aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                    title={isPasswordVisible ? "Hide password" : "Show password"}
+                    disabled={isAccountDeletionBlockedBySubscription || isBillingStatusLoading}
+                  >
+                    {"\uD83D\uDC41"}
+                  </button>
+                </div>
+                <div className="settingsRow">
+                  <span>Permanent action</span>
+                  <button
+                    type="button"
+                    className="primaryBtn settingsDangerBtn"
+                    onClick={askDeleteAccountConfirmation}
+                    disabled={
+                      isDeleteAccountSubmitting ||
+                      isBillingStatusLoading ||
+                      isAccountDeletionBlockedBySubscription
+                    }
+                  >
+                    {isDeleteAccountSubmitting ? "Deleting..." : "Delete Account"}
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {accountActionError ? <p className="settingsErrorText">{accountActionError}</p> : null}
+            <div className="modalActions">
+              <button type="button" className="modalBtn ghost" onClick={() => setAccountPanelModal("")}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (isDailyGoalModalOpen) {
       return (
         <div className="modalOverlay" onClick={() => setIsDailyGoalModalOpen(false)}>
@@ -3702,20 +3798,10 @@ export default function App() {
               <div className="modalActions">
                 <button
                   type="button"
-                  className="modalBtn ghost"
+                  className="modalBtn primary"
                   onClick={() => setIsDailyGoalModalOpen(false)}
                 >
                   Close
-                </button>
-                <button
-                  type="button"
-                  className="modalBtn primary"
-                  onClick={() => {
-                    setIsDailyGoalModalOpen(false);
-                    setScreen("account");
-                  }}
-                >
-                  Upgrade to Pro
                 </button>
               </div>
             )}
@@ -4086,11 +4172,26 @@ export default function App() {
 
   function initializeQuizSetupSelection() {
     setQuizSetupStep(0);
+    setIsQuickQuizSetupArmed(false);
     setQuizSetupSelection({
       bookIds: [],
       chapterKeys: [],
       difficultyKeys: [],
     });
+  }
+
+  function applyQuickQuizSetup() {
+    if (!lastQuizSetup) {
+      openNoticeModal("No previous quiz setup found yet.", "Quick Setup");
+      return;
+    }
+    setQuizMode(normalizeQuizMode(lastQuizSetup.mode, "normal"));
+    setQuizSetupSelection({
+      bookIds: [...(lastQuizSetup.bookIds || [])],
+      chapterKeys: [...(lastQuizSetup.chapterKeys || [])],
+      difficultyKeys: [...(lastQuizSetup.difficultyKeys || [])],
+    });
+    setIsQuickQuizSetupArmed(true);
   }
 
   function toggleQuizSetupBook(bookId) {
@@ -4181,13 +4282,6 @@ export default function App() {
 
       const data = await res.json();
       const definitions = extractDefinitions(data);
-      const dictionaryExamples = extractExampleSentences(data);
-      const supplementalExamples = await fetchSupplementalExamples(cleanWord);
-      const normalizedExamples = rankAndSelectExamples(
-        cleanWord,
-        dictionaryExamples,
-        supplementalExamples
-      );
       const pronunciation = extractPronunciation(data);
 
       if (!definitions.length) {
@@ -4207,7 +4301,6 @@ export default function App() {
                   word: cleanWord,
                   pronunciation,
                   definitions,
-                  examples: normalizedExamples,
                   masteryXp: 0,
                   currentDefinitionIndex: 0,
                   definition: definitions[0],
@@ -4829,44 +4922,34 @@ export default function App() {
           >
             <span>{"\uD83D\uDCCA"} Data</span>
           </div>
-          <div
-            className="panelCard wide"
-            role="button"
-            tabIndex={0}
-            onClick={startSmartReviewSession}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                startSmartReviewSession();
-              }
-            }}
-          >
-            <span className="proFeatureBadge proFeatureBadgeCorner">PRO</span>
-            <span>{"\uD83E\uDDE0"} Smart Review</span>
-          </div>
-          <div
-            className="panelCard wide"
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              if (!isProPlan) {
-                openNoticeModal("Socials is a Pro feature. Upgrade to unlock friends and leaderboards.", "Pro Feature");
-                return;
-              }
-              setScreen("socialLeaderboard");
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                if (!isProPlan) {
-                  openNoticeModal("Socials is a Pro feature. Upgrade to unlock friends and leaderboards.", "Pro Feature");
-                  return;
+          {isProPlan ? (
+            <div
+              className="panelCard wide"
+              role="button"
+              tabIndex={0}
+              onClick={startSmartReviewSession}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  startSmartReviewSession();
                 }
+              }}
+            >
+              <span>{"\uD83E\uDDE0"} Smart Review</span>
+            </div>
+          ) : null}
+          <div
+            className="panelCard wide"
+            role="button"
+            tabIndex={0}
+            onClick={() => setScreen("socialLeaderboard")}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
                 setScreen("socialLeaderboard");
               }
             }}
           >
-            <span className="proFeatureBadge proFeatureBadgeCorner">PRO</span>
             <span>{"\uD83D\uDC65"} Socials</span>
           </div>
         </div>
@@ -4925,16 +5008,6 @@ export default function App() {
 
   // ---------- ACCOUNT ----------
   if (screen === "account") {
-    const billingPeriodEndLabel = billingCurrentPeriodEnd
-      ? new Date(billingCurrentPeriodEnd).toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        })
-      : "";
-    const isAccountDeletionBlockedBySubscription =
-      billingPlan === "pro" && !isCanceledSubscriptionStatus(billingSubscriptionStatus);
-
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
@@ -4943,161 +5016,69 @@ export default function App() {
         </div>
         <div className="analyticsSection accountSection">
           {authToken ? (
-            <div className="accountLayout">
-              <div className="accountStack">
-                <div className="analyticsCard settingsCard accountCard">
+            <div className="accountLauncherGrid">
+              <button
+                type="button"
+                className="analyticsCard settingsCard accountCard accountLauncherCard"
+                onClick={() => {
+                  setAccountActionError("");
+                  setAccountPanelModal("plan");
+                }}
+              >
+                <div className="accountLauncherHead">
+                  <span className="accountLauncherIcon" aria-hidden="true">{"\uD83D\uDC8E"}</span>
                   <h3>Plan</h3>
-                  <p className="settingsHint">
-                    Current plan:{" "}
-                    <strong className="billingPlanLabel">{billingPlan === "pro" ? "Pro" : "Free"}</strong>
-                  </p>
-                  {billingSubscriptionStatus ? (
-                    <p className="settingsHint">Subscription status: {billingSubscriptionStatus}</p>
-                  ) : null}
-                  {billingPeriodEndLabel ? (
-                    <p className="settingsHint">Current period ends: {billingPeriodEndLabel}</p>
-                  ) : null}
-                  {!isStripeBillingConfigured ? (
-                    <p className="settingsHint">
-                      Stripe billing is not configured yet. Add Stripe env vars on the backend.
-                    </p>
-                  ) : null}
-                  <p className="settingsHint">
-                    Pro includes: Smart Review queue, weak-word analytics, CSV exports, and adjustable daily quiz
-                    goals.
-                  </p>
-                  <div className="settingsRow">
-                    <span>{billingPlan === "pro" ? "Manage billing" : "Upgrade account"}</span>
-                    {billingPlan === "pro" ? (
-                      <button
-                        type="button"
-                        className="primaryBtn"
-                        onClick={openBillingPortal}
-                        disabled={isBillingPortalSubmitting || !isStripeBillingConfigured}
-                      >
-                        {isBillingPortalSubmitting ? "Please wait..." : "Manage Subscription"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="primaryBtn"
-                        onClick={startBillingCheckout}
-                        disabled={
-                          isBillingCheckoutSubmitting || !isStripeBillingConfigured || isBillingStatusLoading
-                        }
-                      >
-                        {isBillingCheckoutSubmitting ? "Redirecting..." : "Upgrade to Pro"}
-                      </button>
-                    )}
-                  </div>
                 </div>
-
-                <div className="analyticsCard settingsCard accountCard">
+                <p className="settingsHint">
+                  {billingPlan === "pro" ? "Manage subscription and billing details." : "View current billing status."}
+                </p>
+                <span className="accountLauncherAction">Open</span>
+              </button>
+              <button
+                type="button"
+                className="analyticsCard settingsCard accountCard accountLauncherCard"
+                onClick={() => {
+                  setAccountActionError("");
+                  setAccountPanelModal("session");
+                }}
+              >
+                <div className="accountLauncherHead">
+                  <span className="accountLauncherIcon" aria-hidden="true">{"\uD83D\uDDA5"}</span>
                   <h3>Session</h3>
-                  <p className="settingsHint">Signed in as <strong>{authUsername}</strong></p>
-                  <div className="settingsRow">
-                    <span>This device</span>
-                    <button type="button" className="primaryBtn" onClick={logoutAccount}>
-                      Log Out
-                    </button>
-                  </div>
-                  <div className="settingsRow">
-                    <span>All devices</span>
-                    <button
-                      type="button"
-                      className="primaryBtn"
-                      onClick={logoutAllDevices}
-                      disabled={isLogoutAllSubmitting}
-                    >
-                      {isLogoutAllSubmitting ? "Please wait..." : "Log Out All Devices"}
-                    </button>
-                  </div>
                 </div>
-              </div>
-
-              <div className="accountStack">
-                <div className="analyticsCard settingsCard accountCard">
+                <p className="settingsHint">Log out this device or all devices.</p>
+                <span className="accountLauncherAction">Open</span>
+              </button>
+              <button
+                type="button"
+                className="analyticsCard settingsCard accountCard accountLauncherCard"
+                onClick={() => {
+                  setAccountActionError("");
+                  setAccountPanelModal("profile");
+                }}
+              >
+                <div className="accountLauncherHead">
+                  <span className="accountLauncherIcon" aria-hidden="true">{"\uD83D\uDC64"}</span>
                   <h3>Account Info</h3>
-                  <div className="settingsRow">
-                    <span>Email</span>
-                    <strong className="accountInfoValue">
-                      {isAccountProfileLoading ? "Loading..." : accountEmail || "No email available"}
-                    </strong>
-                  </div>
-                  <div className="settingsRow">
-                    <span>Username</span>
-                    <strong className="accountInfoValue">{authUsername || "Unknown"}</strong>
-                  </div>
-                  <div className="settingsRow accountPasswordRow">
-                    <span>Password</span>
-                    <div className="accountPasswordActions">
-                      <strong className="accountInfoValue">{"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}</strong>
-                      <button
-                        type="button"
-                        className="primaryBtn accountInlineBtn"
-                        onClick={() => {
-                          setAccountActionError("");
-                          setIsChangePasswordModalOpen(true);
-                        }}
-                      >
-                        Change Password
-                      </button>
-                    </div>
-                  </div>
                 </div>
-
-                <div className="analyticsCard settingsCard accountCard accountDangerCard">
+                <p className="settingsHint">View email, username, and password settings.</p>
+                <span className="accountLauncherAction">Open</span>
+              </button>
+              <button
+                type="button"
+                className="analyticsCard settingsCard accountCard accountLauncherCard accountDangerCard"
+                onClick={() => {
+                  setAccountActionError("");
+                  setAccountPanelModal("danger");
+                }}
+              >
+                <div className="accountLauncherHead">
+                  <span className="accountLauncherIcon" aria-hidden="true">{"\u26A0"}</span>
                   <h3>Danger Zone</h3>
-                  <p className="settingsHint">
-                    Deleting your account permanently removes cloud data and cannot be undone.
-                  </p>
-                  {isAccountDeletionBlockedBySubscription ? (
-                    <p className="settingsHint">
-                      Cancel your Pro subscription first. You can delete your account only after status is
-                      canceled.
-                    </p>
-                  ) : null}
-                  <div className="settingsPasswordWrap">
-                    <input
-                      className="settingsInput settingsPasswordInput"
-                      type={isPasswordVisible ? "text" : "password"}
-                      value={accountSecurityForm.deletePassword}
-                      onChange={(event) => {
-                        setAccountSecurityForm((prev) => ({ ...prev, deletePassword: event.target.value }));
-                        if (accountActionError) setAccountActionError("");
-                      }}
-                      placeholder="password to delete account"
-                      autoComplete="current-password"
-                      disabled={isAccountDeletionBlockedBySubscription || isBillingStatusLoading}
-                    />
-                    <button
-                      type="button"
-                      className="settingsPasswordToggleBtn"
-                      onClick={() => setIsPasswordVisible((prev) => !prev)}
-                      aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                      title={isPasswordVisible ? "Hide password" : "Show password"}
-                      disabled={isAccountDeletionBlockedBySubscription || isBillingStatusLoading}
-                    >
-                      {"\uD83D\uDC41"}
-                    </button>
-                  </div>
-                  <div className="settingsRow">
-                    <span>Permanent action</span>
-                    <button
-                      type="button"
-                      className="primaryBtn settingsDangerBtn"
-                      onClick={deleteAccountPermanently}
-                      disabled={
-                        isDeleteAccountSubmitting ||
-                        isBillingStatusLoading ||
-                        isAccountDeletionBlockedBySubscription
-                      }
-                    >
-                      {isDeleteAccountSubmitting ? "Deleting..." : "Delete Account"}
-                    </button>
-                  </div>
                 </div>
-              </div>
+                <p className="settingsHint">Delete your account permanently.</p>
+                <span className="accountLauncherAction">Open</span>
+              </button>
             </div>
           ) : (
             <div className="accountAuthWrap">
@@ -5202,7 +5183,9 @@ export default function App() {
                           }}
                         />
                         <span>
-                          I accept the <a href="/terms">Terms &amp; Conditions</a> and <a href="/privacy">Privacy Policy</a>
+                          I accept the <a href="/terms">Terms &amp; Conditions</a>,{" "}
+                          <a href="/privacy">Privacy Policy</a>, and{" "}
+                          <a href="/disclaimer">Disclaimer</a>
                         </span>
                       </label>
                       <label className="settingsCheckRow">
@@ -5249,34 +5232,19 @@ export default function App() {
 
   // ---------- SOCIAL ----------
   if (screen === "socialLeaderboard") {
-    if (!isProPlan) {
-      return renderWithSidebar(
-        <div className="page">
-          <div className="pageHeader">
-            <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-            <h1>Socials</h1>
-          </div>
-          <div className="analyticsSection">
-            <div className="analyticsCard settingsCard accountCard">
-              <h3>Pro Feature</h3>
-              <p className="settingsHint">
-                Socials (friends + leaderboards) is available on Pro.
-              </p>
-              <div className="settingsRow">
-                <span>Unlock now</span>
-                <button type="button" className="primaryBtn" onClick={() => setScreen("account")}>
-                  Upgrade to Pro
-                </button>
-              </div>
-            </div>
-          </div>
-          {renderModal()}
-        </div>
-      );
-    }
-
     const currentUserProfile = socialOverview?.currentUser || null;
     const friendProfiles = Array.isArray(socialOverview?.friends) ? socialOverview.friends : [];
+    const strictLeaderboardProfiles = Array.isArray(socialOverview?.leaderboardProfiles)
+      ? socialOverview.leaderboardProfiles
+      : [];
+    const ownLeagueTrack = (currentUserProfile?.plan || billingPlan) === "pro" ? "pro" : "free";
+    const leagueTrack = ownLeagueTrack;
+    const leagueLabel = leagueTrack === "pro" ? "Pro League" : "Free League";
+    const rankedProfiles = (strictLeaderboardProfiles.length > 0
+      ? strictLeaderboardProfiles
+      : [currentUserProfile, ...friendProfiles])
+      .filter(Boolean)
+      .filter((profile) => ((profile?.plan || "free") === "pro" ? "pro" : "free") === leagueTrack);
     const timeframeKey = socialTimeframe === "monthly"
       ? "monthly"
       : socialTimeframe === "yearly"
@@ -5307,8 +5275,7 @@ export default function App() {
       : metricKey === "timeSpentSeconds"
         ? "Time Spent"
         : "Words Added";
-    const leaderboardRows = [currentUserProfile, ...friendProfiles]
-      .filter(Boolean)
+    const leaderboardRows = rankedProfiles
       .map((profile) => ({
         userId: profile.userId,
         username: profile.username,
@@ -5352,8 +5319,9 @@ export default function App() {
             <div className="analyticsCard socialLeaderboardCard">
               <h3>Leaderboard</h3>
               <p className="settingsHint">
-                Climb the ranks and defend your position.
+                Climb the ranks in your plan league.
               </p>
+              <p className="settingsHint">League: {leagueLabel}</p>
               <div className="socialMetricRow">
                 <span className="socialTimeframeLabel">
                   Timeframe
@@ -5466,32 +5434,6 @@ export default function App() {
   }
 
   if (screen === "socialFriends") {
-    if (!isProPlan) {
-      return renderWithSidebar(
-        <div className="page">
-          <div className="pageHeader">
-            <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-            <h1>Socials</h1>
-          </div>
-          <div className="analyticsSection">
-            <div className="analyticsCard settingsCard accountCard">
-              <h3>Pro Feature</h3>
-              <p className="settingsHint">
-                Socials (friends + leaderboards) is available on Pro.
-              </p>
-              <div className="settingsRow">
-                <span>Unlock now</span>
-                <button type="button" className="primaryBtn" onClick={() => setScreen("account")}>
-                  Upgrade to Pro
-                </button>
-              </div>
-            </div>
-          </div>
-          {renderModal()}
-        </div>
-      );
-    }
-
     const friendProfiles = Array.isArray(socialOverview?.friends) ? socialOverview.friends : [];
     const incomingRequests = Array.isArray(socialOverview?.incomingRequests)
       ? socialOverview.incomingRequests
@@ -5581,10 +5523,28 @@ export default function App() {
                 <div className="socialList">
                   {friendProfiles.map((friend) => {
                     const totalStats = getProfileStatsForPeriod(friend, "total");
+                    const estimatedTotalXp =
+                      totalStats.wordsAdded * BASE_XP_GAIN_PER_WORD +
+                      totalStats.questionsCompleted * XP_GAIN_PER_QUIZ_CORRECT;
+                    const friendLevel = getLevelFromXp(estimatedTotalXp);
+                    const friendStreak = Math.max(
+                      0,
+                      Math.floor(Number(friend?.stats?.streakCount) || 0)
+                    );
                     return (
                       <div key={friend.userId} className="socialListRow">
                         <div>
-                          <strong>@{friend.username}</strong>
+                          <div className="socialFriendHeaderRow">
+                            <strong className="socialFriendName">@{friend.username}</strong>
+                            <div className="socialFriendBadgeRow socialFriendBadgeRowInline">
+                              <span className="socialFriendBadge level">
+                                {"\u2B50"} Level {friendLevel}
+                              </span>
+                              <span className="socialFriendBadge streak">
+                                {"\uD83D\uDD25"} {friendStreak}-day streak
+                              </span>
+                            </div>
+                          </div>
                           <p className="settingsHint">
                             Total - Words {totalStats.wordsAdded} | Questions {totalStats.questionsCompleted} | Time {formatWeeklyTime(totalStats.timeSpentSeconds)}
                           </p>
@@ -5825,50 +5785,37 @@ export default function App() {
             </div>
           </div>
 
-          <div className="analyticsCard premiumDataCard">
-            <div className="premiumFocusHeader">
-              <h3>
-                Weak-Words Lab <span className="proFeatureBadge">PRO</span>
-              </h3>
-              <span className={`premiumBadge ${isProPlan ? "isActive" : ""}`}>
-                {isProPlan ? "PRO ACTIVE" : "PRO"}
-              </span>
-            </div>
-            <p className="settingsHint">
-              Find the exact words that cost you points and export them for focused drills.
-            </p>
-            {isProPlan ? (
-              <>
-                <div className="premiumWeakList">
-                  {weakWordCandidates.slice(0, 8).map((entry, index) => (
-                    <div key={`${entry.sourceBookId}:${entry.word}:${index}`} className="premiumWeakRow">
-                      <strong>{entry.word}</strong>
-                      <span>{entry.sourceBookName}</span>
-                      <span>Mistakes: {entry.mistakeCount}</span>
-                      <span>Mastery XP: {entry.masteryXp}</span>
-                    </div>
-                  ))}
-                  {weakWordCandidates.length === 0 ? (
-                    <p className="quizSetupHint">No weak-word data yet. Complete quizzes to build insights.</p>
-                  ) : null}
-                </div>
-                <div className="premiumActionRow">
-                  <button type="button" className="primaryBtn" onClick={startSmartReviewSession}>
-                    Start Smart Review
-                  </button>
-                  <button type="button" className="primaryBtn" onClick={exportWeakWordsCsv}>
-                    Export Weak Words CSV
-                  </button>
-                </div>
-              </>
-            ) : (
+          {isProPlan ? (
+            <div className="analyticsCard premiumDataCard">
+              <div className="premiumFocusHeader">
+                <h3>Weak-Words Lab</h3>
+              </div>
+              <p className="settingsHint">
+                Find the exact words that cost you points and export them for focused drills.
+              </p>
+              <div className="premiumWeakList">
+                {weakWordCandidates.slice(0, 8).map((entry, index) => (
+                  <div key={`${entry.sourceBookId}:${entry.word}:${index}`} className="premiumWeakRow">
+                    <strong>{entry.word}</strong>
+                    <span>{entry.sourceBookName}</span>
+                    <span>Mistakes: {entry.mistakeCount}</span>
+                    <span>Mastery XP: {entry.masteryXp}</span>
+                  </div>
+                ))}
+                {weakWordCandidates.length === 0 ? (
+                  <p className="quizSetupHint">No weak-word data yet. Complete quizzes to build insights.</p>
+                ) : null}
+              </div>
               <div className="premiumActionRow">
-                <button type="button" className="primaryBtn" onClick={() => setScreen("account")}>
-                  Unlock Pro Insights - A$6/month
+                <button type="button" className="primaryBtn" onClick={startSmartReviewSession}>
+                  Start Smart Review
+                </button>
+                <button type="button" className="primaryBtn" onClick={exportWeakWordsCsv}>
+                  Export Weak Words CSV
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          ) : null}
 
           <div className="analyticsCard backupRestoreCard">
             <h3>Backup & Restore</h3>
@@ -6059,9 +6006,6 @@ export default function App() {
         {loading && <div className="spinner"></div>}
         <div className="wordList">
           {currentBook?.words.map((w, i) => {
-            const wordExamples = getWordExamples(w);
-            const exampleKey = `${currentBookId}:${w.chapterId || fallbackChapterId}:${w.word}:${i}`;
-            const isExamplesExpanded = expandedExamplesKey === exampleKey;
             const definitionVariants = getWordDefinitions(w);
             const masteryMeta = getWordMasteryMeta(w);
             const totalDefinitionVariants = definitionVariants.length;
@@ -6212,29 +6156,6 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                  {wordExamples.length > 0 && (
-                    <>
-                      <button
-                        type="button"
-                        className="exampleToggleBtn"
-                        onClick={() =>
-                          setExpandedExamplesKey((prev) => (prev === exampleKey ? "" : exampleKey))
-                        }
-                        aria-expanded={isExamplesExpanded}
-                      >
-                        {isExamplesExpanded ? "\u25B4 examples" : "\u25BE examples"}
-                      </button>
-                      <div className={`exampleListWrap ${isExamplesExpanded ? "isExpanded" : ""}`}>
-                        <div className="exampleList">
-                          {wordExamples.map((exampleText, exampleIndex) => (
-                            <p key={`${exampleKey}-example-${exampleIndex}`} className="exampleItem">
-                              {exampleText}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
             );
@@ -6430,6 +6351,16 @@ export default function App() {
           <div className="chapterControlField quizChapterField">
             <div className="quizSetupFieldHeader">
               <span>Step 1. Quiz Type</span>
+              <div className="quizSetupQuickActions">
+                <button
+                  type="button"
+                  className={`quizSetupActionBtn ${isQuickQuizSetupArmed ? "isActive" : ""}`}
+                  onClick={applyQuickQuizSetup}
+                  disabled={!lastQuizSetup}
+                >
+                  {lastQuizSetup ? "Quick Setup" : "No Last Setup"}
+                </button>
+              </div>
             </div>
             <div className="quizModeCardGrid" role="group" aria-label="Select quiz type">
               <button
@@ -6711,6 +6642,18 @@ export default function App() {
                 className="primaryBtn"
                 disabled={!canMoveForward}
                 onClick={() => {
+                  if (isAtTypeStep && isQuickQuizSetupArmed) {
+                    if (canStartQuiz) {
+                      startQuizSession();
+                      return;
+                    }
+                    setIsQuickQuizSetupArmed(false);
+                    openNoticeModal(
+                      "Your last quiz setup no longer matches available books/chapters. Please update setup and try again.",
+                      "Quick Setup Unavailable"
+                    );
+                    return;
+                  }
                   if (isAtTypeStep && quizMode === "mistake") {
                     requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global");
                     return;
@@ -6762,7 +6705,6 @@ export default function App() {
         onRecordMistake={recordMistakeForWord}
         onResolveMistake={resolveMistakeForWord}
         onQuizComplete={handleQuizComplete}
-        buildBlankQuizQuestions={buildBlankQuizQuestions}
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
         XP_GAIN_PER_QUIZ_CORRECT={XP_GAIN_PER_QUIZ_CORRECT}
@@ -6787,7 +6729,6 @@ export default function App() {
         onRecordMistake={recordMistakeForWord}
         onResolveMistake={resolveMistakeForWord}
         onQuizComplete={handleQuizComplete}
-        buildBlankQuizQuestions={buildBlankQuizQuestions}
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
         XP_GAIN_PER_QUIZ_CORRECT={XP_GAIN_PER_QUIZ_CORRECT}

@@ -15,7 +15,7 @@ export async function requireAuth(req, res, next) {
 
   let user = null;
   try {
-    const result = await query("SELECT id, username FROM users WHERE auth_token = $1", [token]);
+    const result = await query("SELECT id, username, plan FROM users WHERE auth_token = $1", [token]);
     user = result.rows[0] || null;
   } catch {
     res.status(500).json({ error: "auth-query-failed" });

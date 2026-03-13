@@ -41,6 +41,239 @@ function isValidUsername(value) {
   return /^[a-z0-9_]{3,24}$/.test(value);
 }
 
+const DEFAULT_BANNED_USERNAME_TOKENS = [
+  "fuck",
+  "fuk",
+  "phuck",
+  "fucker",
+  "fucking",
+  "fck",
+  "fcker",
+  "fcking",
+  "fucc",
+  "fuq",
+  "fux",
+  "fuker",
+  "fuking",
+  "motherfuker",
+  "motherfuking",
+  "motherfucker",
+  "mf",
+  "shit",
+  "sh1t",
+  "bullshit",
+  "shithead",
+  "shitface",
+  "shitbag",
+  "shitter",
+  "shitty",
+  "shyt",
+  "sh1tty",
+  "bitch",
+  "biatch",
+  "b1tch",
+  "bi7ch",
+  "bitchass",
+  "b!tch",
+  "btch",
+  "beotch",
+  "bytch",
+  "bich",
+  "bastard",
+  "bastardo",
+  "bastid",
+  "cunt",
+  "c0unt",
+  "kunt",
+  "cunty",
+  "cuntface",
+  "nigger",
+  "nigga",
+  "n1gger",
+  "n1gga",
+  "ni99er",
+  "ni99a",
+  "faggot",
+  "fag",
+  "f4ggot",
+  "fa99ot",
+  "spic",
+  "chink",
+  "kike",
+  "gook",
+  "wetback",
+  "beaner",
+  "raghead",
+  "sandnigger",
+  "dyke",
+  "tranny",
+  "coon",
+  "whore",
+  "wh0re",
+  "wh0r3",
+  "whoer",
+  "h0e",
+  "hoe",
+  "slut",
+  "slutty",
+  "slvt",
+  "skank",
+  "tramp",
+  "rape",
+  "rapist",
+  "raper",
+  "rapey",
+  "molester",
+  "molest",
+  "pedo",
+  "ped0",
+  "pedophile",
+  "paedophile",
+  "childmolester",
+  "incest",
+  "bestiality",
+  "zoophile",
+  "necrophile",
+  "porn",
+  "pornhub",
+  "xnxx",
+  "xvideos",
+  "onlyfans",
+  "blowjob",
+  "handjob",
+  "rimjob",
+  "titfuck",
+  "facefuck",
+  "deepthroat",
+  "cumshot",
+  "creampie",
+  "jizz",
+  "semen",
+  "dildo",
+  "vibrator",
+  "bdsm",
+  "fetish",
+  "nudes",
+  "nakedpics",
+  "sexting",
+  "dick",
+  "cock",
+  "pussy",
+  "asshole",
+  "ass",
+  "retard",
+  "retarded",
+  "ret4rd",
+  "ret@rd",
+  "spazz",
+  "mongoloid",
+  "killyourself",
+  "killurself",
+  "kys",
+  "suicide",
+  "selfharm",
+  "terrorist",
+  "isis",
+  "isislover",
+  "alqaeda",
+  "hamas",
+  "nazism",
+  "whitepower",
+  "heilhitler",
+  "genocide",
+  "massacre",
+  "methhead",
+  "cocaine",
+  "heroin",
+  "crackhead",
+  "fentanyl",
+  "drugdealer",
+  "dealer",
+  "nazi",
+  "hitler",
+  "kkk",
+];
+
+function parseExtraBlockedUsernameTokens(rawValue) {
+  return String(rawValue || "")
+    .split(/[\n,]+/)
+    .map((token) => token.trim().toLowerCase())
+    .map((token) => token.replace(/[^a-z0-9@$!+|]/g, ""))
+    .filter((token) => token.length >= 2)
+    .slice(0, 2000);
+}
+
+const EXTRA_BANNED_USERNAME_TOKENS = parseExtraBlockedUsernameTokens(
+  process.env.USERNAME_BLOCKLIST_EXTRA
+);
+
+const BANNED_USERNAME_TOKENS = Array.from(
+  new Set([...DEFAULT_BANNED_USERNAME_TOKENS, ...EXTRA_BANNED_USERNAME_TOKENS])
+);
+
+const SHORT_BANNED_USERNAME_TOKENS = new Set(
+  BANNED_USERNAME_TOKENS.filter((token) => token.length <= 3)
+);
+
+function normalizeModerationChunk(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[013456789@$!+|]/g, (char) => {
+      if (char === "0") return "o";
+      if (char === "1" || char === "!" || char === "|") return "i";
+      if (char === "3") return "e";
+      if (char === "4" || char === "@") return "a";
+      if (char === "5" || char === "$") return "s";
+      if (char === "6" || char === "8" || char === "9") return "g";
+      if (char === "7" || char === "+") return "t";
+      if (char === "2") return "z";
+      return char;
+    })
+    .replace(/[^a-z]/g, "");
+}
+
+function normalizeUsernameForModeration(value) {
+  const raw = normalizeModerationChunk(value);
+  const collapsed = raw.replace(/(.)\1{1,}/g, "$1");
+  const partVariants = String(value || "")
+    .toLowerCase()
+    .split(/_+/)
+    .map((part) => normalizeModerationChunk(part))
+    .filter(Boolean)
+    .map((part) => ({
+      raw: part,
+      collapsed: part.replace(/(.)\1{1,}/g, "$1"),
+    }));
+  return { raw, collapsed, partVariants };
+}
+
+function isAppropriateUsername(value) {
+  const normalized = normalizeUsernameForModeration(value);
+  if (!normalized.raw) return false;
+
+  const hasLongTokenMatch = BANNED_USERNAME_TOKENS.filter((token) => token.length > 3).some(
+    (token) => normalized.raw.includes(token) || normalized.collapsed.includes(token)
+  );
+  if (hasLongTokenMatch) return false;
+
+  // Short tokens are stricter to reduce false positives (e.g. "classmate").
+  const hasShortTokenMatch = Array.from(SHORT_BANNED_USERNAME_TOKENS).some((token) =>
+    normalized.partVariants.some((part) => {
+      if (part.raw === token || part.collapsed === token) return true;
+      const maxPaddedLength = token.length + 2;
+      const startsWithToken =
+        (part.raw.startsWith(token) || part.collapsed.startsWith(token)) &&
+        Math.min(part.raw.length, part.collapsed.length) <= maxPaddedLength;
+      const endsWithToken =
+        (part.raw.endsWith(token) || part.collapsed.endsWith(token)) &&
+        Math.min(part.raw.length, part.collapsed.length) <= maxPaddedLength;
+      return startsWithToken || endsWithToken;
+    })
+  );
+
+  return !hasShortTokenMatch;
+}
+
 function normalizeEmail(value) {
   return String(value || "")
     .trim()
@@ -117,6 +350,41 @@ function issueToken() {
 
 function issueEmailCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function getCurrentDayKey(date = new Date()) {
+  const localDate = new Date(date);
+  localDate.setHours(0, 0, 0, 0);
+  const year = localDate.getFullYear();
+  const month = String(localDate.getMonth() + 1).padStart(2, "0");
+  const day = String(localDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+async function trackRetentionEvent(userId, eventName = "session_start", metadata = {}) {
+  const safeUserId = Number(userId);
+  if (!Number.isFinite(safeUserId) || safeUserId <= 0) return;
+  const normalizedEventName = String(eventName || "").trim().toLowerCase();
+  const safeEventName =
+    normalizedEventName === "register" || normalizedEventName === "login"
+      ? normalizedEventName
+      : "session_start";
+  const now = new Date().toISOString();
+  const dayKey = getCurrentDayKey(new Date(now));
+  const safeMetadata = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
+
+  try {
+    await query(
+      `
+        INSERT INTO retention_events (user_id, event_name, event_day_key, event_at, metadata_json)
+        VALUES ($1, $2, $3, $4, $5::jsonb)
+        ON CONFLICT (user_id, event_name, event_day_key) DO NOTHING
+      `,
+      [safeUserId, safeEventName, dayKey, now, JSON.stringify(safeMetadata)]
+    );
+  } catch {
+    // Retention tracking should never block auth operations.
+  }
 }
 
 authRouter.post("/register/request-email-code", async (req, res) => {
@@ -263,6 +531,10 @@ authRouter.post("/register", async (req, res) => {
     res.status(400).json({ error: "invalid-username" });
     return;
   }
+  if (!isAppropriateUsername(username)) {
+    res.status(400).json({ error: "inappropriate-username" });
+    return;
+  }
   if (password.length < 8) {
     res.status(400).json({ error: "weak-password" });
     return;
@@ -343,6 +615,8 @@ authRouter.post("/register", async (req, res) => {
 
     await client.query("DELETE FROM email_verifications WHERE email = $1", [email]);
     await client.query("COMMIT");
+    await trackRetentionEvent(userId, "register", { source: "auth/register" });
+    await trackRetentionEvent(userId, "session_start", { source: "auth/register" });
     res.status(201).json({ userId, username, token });
   } catch (error) {
     await client.query("ROLLBACK");
@@ -712,6 +986,8 @@ authRouter.post("/login", async (req, res) => {
       `,
       [user.id, now]
     );
+    await trackRetentionEvent(user.id, "login", { source: "auth/login" });
+    await trackRetentionEvent(user.id, "session_start", { source: "auth/login" });
 
     res.json({ userId: Number(user.id), username: user.username, token });
   } catch {

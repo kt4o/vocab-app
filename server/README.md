@@ -19,10 +19,10 @@
    - `SMTP_USER=your-smtp-user`
    - `SMTP_PASS=your-smtp-password`
    - `EMAIL_FROM="Vocalibry <no-reply@yourdomain.com>"`
-   - `WORDNIK_API_KEY=your-wordnik-api-key` (optional, adds higher-quality dictionary example sentences)
    - `STRIPE_SECRET_KEY=sk_live_or_test_key`
    - `STRIPE_WEBHOOK_SECRET=whsec_...`
    - `STRIPE_PRICE_ID=price_...` (recurring subscription price id)
+   - `STRIPE_TRIAL_DAYS=30` (optional, applies trial days for first-time subscriptions only; set `0` to disable)
    - `APP_BASE_URL=https://your-frontend-domain.com` (used for Stripe success/cancel redirects)
 
 ### Endpoints
@@ -45,12 +45,13 @@
 - `GET /api/state` with `Authorization: Bearer <token>`
 - `PUT /api/state` with `Authorization: Bearer <token>` and JSON body:
   `{"appState":{"backupVersion":1,"exportedAt":"2026-03-07T00:00:00.000Z","data":{"theme":"light"}}}`
-- `GET /api/examples/:word` returns dictionary-backed example sentences (Wordnik + DictionaryAPI)
 - `GET /api/social/overview` with `Authorization: Bearer <token>`
 - `POST /api/social/requests` with `Authorization: Bearer <token>` body: `{"username":"friend_user"}`
 - `POST /api/social/requests/:requestId/respond` with `Authorization: Bearer <token>` body: `{"action":"accept"}` or `{"action":"decline"}`
 - `DELETE /api/social/requests/:requestId` with `Authorization: Bearer <token>` (cancel your own pending request)
 - `DELETE /api/social/friends/:friendUserId` with `Authorization: Bearer <token>`
+- `POST /api/analytics/retention/ping` with `Authorization: Bearer <token>` body: `{"eventName":"session_start","dayKey":"2026-03-14","metadata":{"source":"app/client"}}`
+- `GET /api/analytics/retention/summary?days=30` with `Authorization: Bearer <token>`
 - `GET /api/billing/status` with `Authorization: Bearer <token>`
 - `POST /api/billing/checkout-session` with `Authorization: Bearer <token>`
 - `POST /api/billing/portal-session` with `Authorization: Bearer <token>`

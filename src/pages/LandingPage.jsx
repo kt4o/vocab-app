@@ -95,9 +95,11 @@ export function LandingPage() {
         </a>
         <nav className="publicNav landingV2NotionNav" aria-label="Public pages">
           <a href="/register">Get Started</a>
+          <a href="/pricing">Pricing</a>
           <a href="/contact">Contact</a>
           <a href="/terms">Terms</a>
           <a href="/privacy">Privacy</a>
+          <a href="/disclaimer">Disclaimer</a>
         </nav>
         <div className="landingV2NotionActions">
           <a href="/login">Log in</a>
@@ -123,7 +125,15 @@ export function LandingPage() {
           </div>
 
           <div className="landingV2NotionPreview" aria-label="Product preview">
-            <img src="/landing/book-page.png" alt="Vocalibry chapter planner screenshot" />
+            <img
+              src="/landing/book-page.png"
+              alt="Vocalibry chapter planner screenshot"
+              width="1896"
+              height="1078"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+            />
           </div>
         </section>
 
@@ -170,8 +180,10 @@ export function LandingPage() {
       <footer className="publicFooter">
         <p>(c) {YEAR} Vocalibry. All rights reserved.</p>
         <div className="publicFooterLinks">
+          <a href="/pricing">Pricing</a>
           <a href="/terms">Terms & Conditions</a>
           <a href="/privacy">Privacy Policy</a>
+          <a href="/disclaimer">Disclaimer</a>
           <a href="/contact">Contact</a>
         </div>
       </footer>

@@ -8,8 +8,10 @@ export function ContactPage() {
           Vocalibry
         </a>
         <nav className="publicNav" aria-label="Public pages">
+          <a href="/pricing">Pricing</a>
           <a href="/terms">Terms</a>
           <a href="/privacy">Privacy</a>
+          <a href="/disclaimer">Disclaimer</a>
           <a className="publicHeaderCta" href="/login">
             Log in
           </a>

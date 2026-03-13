@@ -5,7 +5,9 @@ import App from "./App.jsx";
 import { LandingPage } from "./pages/LandingPage.jsx";
 import { TermsPage } from "./pages/TermsPage.jsx";
 import { PrivacyPage } from "./pages/PrivacyPage.jsx";
+import { DisclaimerPage } from "./pages/DisclaimerPage.jsx";
 import { ContactPage } from "./pages/ContactPage.jsx";
+import { PricingPage } from "./pages/PricingPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 
@@ -28,6 +30,8 @@ function getRoute(pathname) {
   if (normalizedPath === "/forgot-password") return "forgot-password";
   if (normalizedPath === "/terms" || normalizedPath === "/terms-and-conditions") return "terms";
   if (normalizedPath === "/privacy" || normalizedPath === "/privacy-policy") return "privacy";
+  if (normalizedPath === "/disclaimer" || normalizedPath === "/legal-disclaimer") return "disclaimer";
+  if (normalizedPath === "/pricing") return "pricing";
   if (normalizedPath === "/contact") return "contact";
   return "landing";
 }
@@ -46,6 +50,8 @@ function RootPage() {
   if (route === "forgot-password") return <ForgotPasswordPage />;
   if (route === "terms") return <TermsPage />;
   if (route === "privacy") return <PrivacyPage />;
+  if (route === "disclaimer") return <DisclaimerPage />;
+  if (route === "pricing") return <PricingPage />;
   if (route === "contact") return <ContactPage />;
   return <LandingPage />;
 }

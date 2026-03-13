@@ -1,4 +1,5 @@
-const LAST_UPDATED = "March 9, 2026";
+const LAST_UPDATED = "March 14, 2026";
+const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function TermsPage() {
   return (
@@ -8,7 +9,9 @@ export function TermsPage() {
           Vocalibry
         </a>
         <nav className="publicNav" aria-label="Public pages">
+          <a href="/pricing">Pricing</a>
           <a href="/privacy">Privacy</a>
+          <a href="/disclaimer">Disclaimer</a>
           <a className="publicHeaderCta" href="/login">
             Log in
           </a>
@@ -20,119 +23,129 @@ export function TermsPage() {
         <p className="legalUpdated">Last updated: {LAST_UPDATED}</p>
 
         <section>
-          <h2>1. Acceptance of Terms</h2>
+          <h2>1. Acceptance</h2>
           <p>
-            By accessing or using Vocalibry, you agree to these Terms and Conditions. If you do not agree,
-            do not use the service.
+            By using Vocalibry, you agree to these Terms. If you do not agree, do not use the service.
           </p>
         </section>
 
         <section>
-          <h2>2. Eligibility and Account Responsibility</h2>
+          <h2>2. Account Responsibility</h2>
           <p>
-            You are responsible for your account credentials and all activity under your account. Keep your
-            login details secure and notify us if you suspect unauthorized access.
+            You are responsible for your account credentials and activity under your account. Keep login
+            details secure and notify us if you suspect unauthorized access.
           </p>
         </section>
 
         <section>
-          <h2>3. Age Requirement</h2>
+          <h2>3. Eligibility</h2>
           <p>
-            By creating an account or using the service, you confirm that you meet the minimum digital
-            consent age required in your country or region. If you are below this age, you may only use the
-            service with permission and supervision from a parent or legal guardian.
-          </p>
-          <p>
-            If we become aware that an account was created in violation of applicable age requirements, we
-            may suspend or remove the account and associated data.
+            You must meet the minimum digital consent age in your jurisdiction, or use the service with
+            parent/guardian permission where required.
           </p>
         </section>
 
         <section>
           <h2>4. Acceptable Use</h2>
           <p>
-            You agree to use the app lawfully and not attempt to disrupt, reverse engineer, or misuse the
-            service.
+            You agree not to misuse, disrupt, abuse, or reverse-engineer the service, and not to manipulate
+            game/learning mechanics or social features.
           </p>
           <p>
-            You must not abuse social systems, automate harmful behavior, or attempt to manipulate rankings,
-            rewards, or other progression mechanics.
+            You also agree not to use offensive, hateful, or abusive account names, impersonate others, or
+            use social features to harass, spam, or intimidate users.
           </p>
         </section>
 
         <section>
           <h2>5. User Content</h2>
           <p>
-            You are responsible for the words, definitions, and learning data you enter. You confirm you
-            have rights to any content you add.
+            You are responsible for content you add (for example: words, definitions, notes). You confirm
+            you have rights to submit that content.
           </p>
         </section>
 
         <section>
-          <h2>6. Social and Community Features</h2>
+          <h2>6. Subscription and Billing</h2>
           <p>
-            Features such as friends, social requests, and leaderboards are provided to support learning
-            motivation. We may remove abusive content, restrict social actions, or suspend related access if
-            misuse is detected.
+            Paid features, trials, pricing, and billing terms may change over time. Subscription processing
+            is provided by third-party payment providers. You are responsible for reviewing billing details
+            before confirming purchase.
+          </p>
+          <p>
+            Paid subscriptions may auto-renew unless canceled. You can manage or cancel billing through the
+            billing provider flow available in your account settings.
           </p>
         </section>
 
         <section>
-          <h2>7. Virtual Economy (Coins, XP, Market)</h2>
+          <h2>7. Account Deletion and Subscription State</h2>
           <p>
-            In-app coins, XP, levels, and upgrades are virtual product features with no real-world monetary
-            value, are non-transferable, and are not redeemable for cash or property.
-          </p>
-          <p>
-            We may rebalance, adjust, or remove economy features to maintain fairness and service quality.
+            You may request account deletion from within the app. Where applicable, active paid subscriptions
+            may need to be canceled first before deletion is permitted.
           </p>
         </section>
 
         <section>
-          <h2>8. Service Availability and Changes</h2>
+          <h2>8. Ads and Third-Party Content</h2>
           <p>
-            The service is provided on an &quot;as is&quot; and &quot;as available&quot; basis. We may update,
-            pause, or discontinue features at any time.
+            We may introduce advertising in the future. Ads and third-party links/content may be provided by
+            partners. We do not guarantee or endorse third-party claims, offers, or products.
           </p>
         </section>
 
         <section>
-          <h2>9. Suspension or Termination</h2>
+          <h2>9. Intellectual Property</h2>
           <p>
-            We may suspend or terminate access if these terms are violated, if required for legal/security
-            reasons, or if operation of the service is threatened.
+            The service design, branding, and software are owned by Vocalibry or its licensors. You may not
+            copy, redistribute, or exploit service materials except as permitted by law or written permission.
           </p>
         </section>
 
         <section>
-          <h2>10. Limitation of Liability</h2>
+          <h2>10. Service Changes and Availability</h2>
           <p>
-            To the maximum extent allowed by law, Vocalibry is not liable for indirect, incidental, or
-            consequential damages resulting from your use of the service.
+            We may update, modify, suspend, or discontinue features at any time. The service is provided
+            on an &quot;as is&quot; and &quot;as available&quot; basis.
           </p>
         </section>
 
         <section>
-          <h2>11. Disclaimer</h2>
+          <h2>11. No Guarantee of Results</h2>
           <p>
-            The app is provided for educational and productivity use. We do not guarantee uninterrupted
-            availability, error-free operation, or specific learning outcomes.
+            Vocalibry is an educational tool and does not guarantee exam scores, fluency, employment, or any
+            specific outcome.
           </p>
         </section>
 
         <section>
-          <h2>12. Changes to These Terms</h2>
+          <h2>12. Limitation of Liability</h2>
           <p>
-            We may update these terms from time to time. Continued use of the app after updates means you
-            accept the revised terms.
+            To the maximum extent permitted by law, Vocalibry is not liable for indirect, incidental,
+            special, consequential, or punitive damages arising from use of the service.
           </p>
         </section>
 
         <section>
-          <h2>13. Contact</h2>
+          <h2>13. Indemnity</h2>
           <p>
-            For legal or support questions, contact us through the support channel listed in the app or
-            deployment profile.
+            You agree to indemnify and hold harmless Vocalibry from claims, damages, or expenses resulting
+            from your misuse of the service, violation of these Terms, or infringement of third-party rights.
+          </p>
+        </section>
+
+        <section>
+          <h2>14. Updates to Terms</h2>
+          <p>
+            We may revise these Terms from time to time. Continued use after updates means you accept the
+            revised Terms.
+          </p>
+        </section>
+
+        <section>
+          <h2>15. Contact</h2>
+          <p>
+            Questions about these Terms: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
           </p>
         </section>
       </main>

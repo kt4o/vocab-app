@@ -6,9 +6,10 @@ import { authRouter } from "./routes/auth.js";
 import { wordsRouter } from "./routes/words.js";
 import { progressRouter } from "./routes/progress.js";
 import { stateRouter } from "./routes/state.js";
-import { examplesRouter } from "./routes/examples.js";
 import { socialRouter } from "./routes/social.js";
+import { analyticsRouter } from "./routes/analytics.js";
 import { billingRouter, billingWebhookRouter } from "./routes/billing.js";
+import { consumeWriteRateLimit } from "./lib/rateLimit.js";
 
 dotenv.config({ path: "server/.env" });
 dotenv.config();
@@ -34,11 +35,23 @@ function getRequesterKey(req) {
   return forwardedFor || req.ip || "unknown";
 }
 
-const writeRateLimitBuckets = new Map();
-const WRITE_RATE_LIMIT_WINDOW_MS = Number(process.env.WRITE_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000);
-const WRITE_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.WRITE_RATE_LIMIT_MAX_ATTEMPTS || 180);
+function getSafePositiveInt(value, fallbackValue) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallbackValue;
+  const floored = Math.floor(parsed);
+  return floored > 0 ? floored : fallbackValue;
+}
 
-function enforceWriteRateLimit(req, res, next) {
+const WRITE_RATE_LIMIT_WINDOW_MS = getSafePositiveInt(
+  process.env.WRITE_RATE_LIMIT_WINDOW_MS,
+  15 * 60 * 1000
+);
+const WRITE_RATE_LIMIT_MAX_ATTEMPTS = getSafePositiveInt(
+  process.env.WRITE_RATE_LIMIT_MAX_ATTEMPTS,
+  180
+);
+
+async function enforceWriteRateLimit(req, res, next) {
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
     next();
     return;
@@ -46,20 +59,22 @@ function enforceWriteRateLimit(req, res, next) {
 
   const routeScope = req.baseUrl || req.path || "/api";
   const key = `${routeScope}:${getRequesterKey(req)}`;
-  const now = Date.now();
-  const current = writeRateLimitBuckets.get(key) || [];
-  const recent = current.filter((timestamp) => now - timestamp < WRITE_RATE_LIMIT_WINDOW_MS);
-  if (recent.length >= WRITE_RATE_LIMIT_MAX_ATTEMPTS) {
-    const retryAfterSeconds = Math.max(
-      1,
-      Math.ceil((WRITE_RATE_LIMIT_WINDOW_MS - (now - recent[0])) / 1000)
-    );
-    res.status(429).json({ error: "rate-limited", retryAfterSeconds });
-    return;
+  try {
+    const rateLimit = await consumeWriteRateLimit({
+      key,
+      windowMs: WRITE_RATE_LIMIT_WINDOW_MS,
+      maxAttempts: WRITE_RATE_LIMIT_MAX_ATTEMPTS,
+    });
+
+    if (!rateLimit.isAllowed) {
+      res.status(429).json({ error: "rate-limited", retryAfterSeconds: rateLimit.retryAfterSeconds });
+      return;
+    }
+  } catch (error) {
+    // Fail open so temporary DB issues do not block all writes.
+    console.error("Write rate limiter unavailable", error);
   }
 
-  recent.push(now);
-  writeRateLimitBuckets.set(key, recent);
   next();
 }
 
@@ -101,8 +116,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/words", wordsRouter);
 app.use("/api/progress", enforceWriteRateLimit, progressRouter);
 app.use("/api/state", enforceWriteRateLimit, stateRouter);
-app.use("/api/examples", examplesRouter);
 app.use("/api/social", enforceWriteRateLimit, socialRouter);
+app.use("/api/analytics", enforceWriteRateLimit, analyticsRouter);
 app.use("/api/billing", enforceWriteRateLimit, billingRouter);
 
 initDb()

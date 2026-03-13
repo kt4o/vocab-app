@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export function Flashcards({
   currentBook,
@@ -32,22 +32,22 @@ export function Flashcards({
   const current = filteredWords[index];
   const hasCards = filteredWords.length > 0;
 
-  function goToPreviousCard() {
+  const goToPreviousCard = useCallback(() => {
     if (!hasCards) return;
     setIndex((prev) => (prev - 1 + filteredWords.length) % filteredWords.length);
     setShowDef(false);
-  }
+  }, [hasCards, filteredWords.length]);
 
-  function goToNextCard() {
+  const goToNextCard = useCallback(() => {
     if (!hasCards) return;
     setIndex((prev) => (prev + 1) % filteredWords.length);
     setShowDef(false);
-  }
+  }, [hasCards, filteredWords.length]);
 
-  function flipCurrentCard() {
+  const flipCurrentCard = useCallback(() => {
     if (!hasCards) return;
     setShowDef((prev) => !prev);
-  }
+  }, [hasCards]);
 
   useEffect(() => {
     setIndex(0);
@@ -107,7 +107,7 @@ export function Flashcards({
 
     window.addEventListener("keydown", onWindowKeyDown);
     return () => window.removeEventListener("keydown", onWindowKeyDown);
-  }, [hasCards, filteredWords.length]);
+  }, [hasCards, flipCurrentCard, goToNextCard, goToPreviousCard]);
 
   return (
     <div className="page">

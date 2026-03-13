@@ -148,4 +148,39 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_friendships_status
     ON friendships(status);
   `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS retention_events (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      event_name TEXT NOT NULL,
+      event_day_key TEXT NOT NULL,
+      event_at TEXT NOT NULL,
+      metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb
+    );
+  `);
+
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_retention_events_unique_daily
+    ON retention_events(user_id, event_name, event_day_key);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_retention_events_user_day
+    ON retention_events(user_id, event_day_key DESC);
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS api_rate_limits (
+      key TEXT PRIMARY KEY,
+      window_start_ms BIGINT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_api_rate_limits_updated_at
+    ON api_rate_limits(updated_at);
+  `);
 }

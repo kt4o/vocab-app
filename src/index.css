@@ -852,6 +852,12 @@ body.theme-dark .xpBarFill {
   width: min(100%, 980px);
 }
 
+.accountLauncherGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .accountLayout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -873,6 +879,65 @@ body.theme-dark .xpBarFill {
 .accountCard h3 {
   font-size: 15px;
   margin-bottom: 14px;
+}
+
+.accountLauncherHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  margin-bottom: 12px;
+}
+
+.accountLauncherHead h3 {
+  margin: 0;
+  line-height: 1.2;
+  position: relative;
+  top: 4px;
+}
+
+.accountLauncherIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  line-height: 1;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface) 86%);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border) 78%);
+  font-size: 14px;
+}
+
+.accountLauncherCard {
+  width: 100%;
+  border: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.accountLauncherCard:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--border) 74%);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.accountLauncherAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+body.theme-dark .accountLauncherAction {
+  color: #ffffff;
 }
 
 .accountDangerCard {
@@ -904,6 +969,19 @@ body.theme-dark .xpBarFill {
   margin: 0 0 8px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.trialOfferNote {
+  margin: 2px 0 10px;
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border) 62%);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface) 86%);
+  color: color-mix(in srgb, var(--accent-strong) 85%, var(--text) 15%);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .accountInfoValue {
@@ -1225,6 +1303,66 @@ body.theme-dark .xpBarFill {
 
 .socialListRow .ghostBtn {
   margin-top: 0;
+}
+
+.socialFriendHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.socialFriendName {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.socialFriendBadgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.socialFriendBadgeRowInline {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.socialFriendBadge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.socialFriendBadge.level {
+  border-color: color-mix(in srgb, #f5b700 45%, var(--border) 55%);
+}
+
+.socialFriendBadge.streak {
+  border-color: color-mix(in srgb, #ff7a45 45%, var(--border) 55%);
+}
+
+@media (max-width: 640px) {
+  .socialFriendHeaderRow {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .socialFriendBadgeRowInline {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 .socialOutgoing {
@@ -2222,6 +2360,12 @@ body.theme-dark .inputRow button {
   color: var(--text);
 }
 
+.quizSetupActionBtn.isActive {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface) 82%);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border) 55%);
+  color: var(--text);
+}
+
 .quizSetupActionBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -3121,6 +3265,72 @@ body.theme-dark .definitionArrowBtn {
   margin-bottom: 14px;
 }
 
+.quizMomentumRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.quizStreakBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.quizStreakBadge span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.quizStreakBadge strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.quizStreakBadge.isHot {
+  border-color: #f4a259;
+  background: color-mix(in srgb, #f4a259 18%, var(--surface) 82%);
+  animation: quizStreakHotPulse 650ms ease;
+}
+
+.quizXpPulse {
+  color: #2f9e44;
+  font-size: 13px;
+  font-weight: 700;
+  animation: quizXpPop 420ms ease-out;
+}
+
+@keyframes quizXpPop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes quizStreakHotPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 162, 89, 0.38);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(244, 162, 89, 0);
+  }
+}
+
 .quizChapterRow {
   display: flex;
   align-items: flex-start;
@@ -3399,7 +3609,7 @@ body.theme-dark .quizOption.wrong {
 
 .quizResultStats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 10px;
   margin-bottom: 14px;
 }
@@ -3830,6 +4040,10 @@ body.theme-dark .recentSquare {
   .analyticsGrid {
     grid-template-columns: 1fr;
   }
+  .accountLauncherGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
   .accountLayout {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -3919,6 +4133,10 @@ body.theme-dark .recentSquare {
   .quizSetupStepChip {
     min-height: 32px;
     padding: 0 10px;
+  }
+  .quizMomentumRow {
+    flex-wrap: wrap;
+    align-items: flex-start;
   }
   .quizResultLayout {
     grid-template-columns: 1fr;
@@ -6125,7 +6343,7 @@ body.theme-dark .recentSquare {
 }
 
 .landingV2NotionPreview {
-  width: min(1280px, calc(100% - 44px));
+  width: min(948px, calc(100% - 44px));
   margin: 50px auto 0;
   border-radius: 16px 16px 0 0;
   overflow: hidden;
@@ -6138,8 +6356,11 @@ body.theme-dark .recentSquare {
 .landingV2NotionPreview img {
   width: 100%;
   height: auto;
+  aspect-ratio: 1896 / 1078;
   display: block;
   background: #f7f7f6;
+  object-fit: contain;
+  object-position: center top;
 }
 
 .landingV2NotionPartners {
@@ -6528,6 +6749,108 @@ body.theme-dark .recentSquare {
   border-top-color: var(--public-border);
 }
 
+.pricingMain {
+  display: grid;
+  gap: 16px;
+}
+
+.pricingHero {
+  background: #ffffff;
+  border: 1px solid var(--public-border);
+  border-radius: 14px;
+  padding: 24px 26px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 14px 30px rgba(15, 23, 42, 0.06);
+}
+
+.pricingHero h1 {
+  margin: 0 0 8px;
+  color: var(--public-text);
+}
+
+.pricingPlanGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pricingPlanCard {
+  border: 1px solid var(--public-border);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 18px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.pricingPlanCard h2 {
+  margin: 0 0 8px;
+  color: var(--public-text);
+}
+
+.pricingPlanCard.isPro {
+  border-color: color-mix(in srgb, var(--public-accent) 44%, var(--public-border) 56%);
+  background: linear-gradient(180deg, #ffffff, #f4f8ff);
+}
+
+.pricingPlanPrice {
+  margin: 0;
+  font-size: clamp(24px, 2.2vw, 34px);
+  line-height: 1.05;
+  color: var(--public-text);
+  font-weight: 700;
+}
+
+.pricingPlanCaption {
+  margin: 8px 0 14px;
+  color: var(--public-muted);
+}
+
+.pricingCompareCard {
+  border: 1px solid var(--public-border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.pricingCompareHead,
+.pricingCompareRow {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.pricingCompareHead {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--public-border);
+  background: #f7faff;
+  color: var(--public-text);
+}
+
+.pricingCompareRows {
+  display: grid;
+}
+
+.pricingCompareRow {
+  padding: 12px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--public-border) 76%, #ffffff 24%);
+  color: var(--public-muted);
+}
+
+.pricingCompareRow:last-child {
+  border-bottom: 0;
+}
+
+.pricingCompareRow span:first-child {
+  color: var(--public-text);
+}
+
 @media (max-width: 1024px) {
   .publicPage:not(.publicLanding) .publicHeader,
   .publicPage:not(.publicLanding) .landingMain,
@@ -6544,5 +6867,28 @@ body.theme-dark .recentSquare {
 
   .publicPage:not(.publicLanding) .legalMain {
     padding: 18px;
+  }
+
+  .pricingHero {
+    padding: 16px 18px;
+  }
+
+  .pricingPlanGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .pricingCompareHead,
+  .pricingCompareRow {
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .pricingCompareHead {
+    padding: 10px 10px;
+  }
+
+  .pricingCompareRow {
+    padding: 10px 10px;
   }
 }

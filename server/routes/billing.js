@@ -6,6 +6,10 @@ import { requireAuth } from "../middleware/auth.js";
 const stripeSecretKey = String(process.env.STRIPE_SECRET_KEY || "").trim();
 const stripeWebhookSecret = String(process.env.STRIPE_WEBHOOK_SECRET || "").trim();
 const stripePriceId = String(process.env.STRIPE_PRICE_ID || "").trim();
+const stripeTrialDaysRaw = Number(process.env.STRIPE_TRIAL_DAYS || 30);
+const stripeTrialDays = Number.isFinite(stripeTrialDaysRaw)
+  ? Math.max(0, Math.min(365, Math.floor(stripeTrialDaysRaw)))
+  : 30;
 const configuredAppBaseUrl = String(
   process.env.APP_BASE_URL || process.env.FRONTEND_BASE_URL || ""
 )
@@ -285,6 +289,10 @@ billingRouter.post("/checkout-session", async (req, res) => {
     }
 
     const appBaseUrl = getAppBaseUrl(req);
+    const isFirstSubscriptionCheckout =
+      !String(row.stripe_subscription_id || "").trim() &&
+      !normalizeSubscriptionStatus(row.subscription_status);
+    const shouldApplyTrial = stripeTrialDays > 0 && isFirstSubscriptionCheckout;
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
@@ -296,6 +304,13 @@ billingRouter.post("/checkout-session", async (req, res) => {
         userId: String(row.id),
       },
       allow_promotion_codes: true,
+      ...(shouldApplyTrial
+        ? {
+            subscription_data: {
+              trial_period_days: stripeTrialDays,
+            },
+          }
+        : {}),
     });
 
     res.json({ url: checkoutSession.url });

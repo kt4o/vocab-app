@@ -207,7 +207,7 @@ export function LoginPage({ initialMode = "login" }) {
       return;
     }
     if (mode === "register" && !acceptedLegal) {
-      setError("Please accept Terms & Conditions and Privacy Policy.");
+      setError("Please accept Terms, Privacy Policy, and Disclaimer.");
       return;
     }
 
@@ -245,6 +245,8 @@ export function LoginPage({ initialMode = "login" }) {
               :
           backendError === "invalid-username"
             ? "Use 3-24 chars: lowercase letters, numbers, underscore."
+            : backendError === "inappropriate-username"
+              ? "Choose a different username. Inappropriate names are not allowed."
             : backendError === "weak-password"
               ? "Password must be at least 8 characters."
               : backendError === "username-taken"
@@ -280,6 +282,7 @@ export function LoginPage({ initialMode = "login" }) {
           Vocalibry
         </a>
         <nav className="publicNav" aria-label="Public pages">
+          <a href="/pricing">Pricing</a>
           <a href="/terms">Terms</a>
           <a href="/privacy">Privacy</a>
         </nav>
@@ -510,7 +513,9 @@ export function LoginPage({ initialMode = "login" }) {
                     disabled={isSubmitting}
                   />
                   <span>
-                    I accept the <a href="/terms">Terms &amp; Conditions</a> and <a href="/privacy">Privacy Policy</a>
+                    I accept the <a href="/terms">Terms &amp; Conditions</a>,{" "}
+                    <a href="/privacy">Privacy Policy</a>, and{" "}
+                    <a href="/disclaimer">Disclaimer</a>
                   </span>
                 </label>
                 <label className="publicAuthCheckRow">

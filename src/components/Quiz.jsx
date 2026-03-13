@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import hintIconOn from "../assets/typing-hint-icon-on.svg";
 
+function getMomentumLabel(streak) {
+  if (streak >= 6) return "On Fire";
+  if (streak >= 4) return "Hot Streak";
+  if (streak >= 2) return "Locked In";
+  if (streak === 1) return "Warming Up";
+  return "Build Momentum";
+}
+
 export function Quiz({
   words: inputWords = [],
   title = "Quiz",
@@ -12,7 +20,6 @@ export function Quiz({
   onRecordMistake,
   onResolveMistake,
   onQuizComplete,
-  buildBlankQuizQuestions,
   buildQuizQuestions,
   isEquivalentTypingAnswer,
   XP_GAIN_PER_QUIZ_CORRECT,
@@ -24,9 +31,7 @@ export function Quiz({
   const lastAdvanceAtRef = useRef(0);
   const words = useMemo(() => inputWords || [], [inputWords]);
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
-  const [questions, setQuestions] = useState(() =>
-    mode === "blank" ? buildBlankQuizQuestions(words) : buildQuizQuestions(words)
-  );
+  const [questions, setQuestions] = useState(() => buildQuizQuestions(words));
   const [index, setIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [typedAnswer, setTypedAnswer] = useState("");
@@ -34,16 +39,16 @@ export function Quiz({
   const [isTypingHintVisible, setIsTypingHintVisible] = useState(false);
   const [mistakeReviewItems, setMistakeReviewItems] = useState([]);
   const [score, setScore] = useState(0);
+  const [answerStreak, setAnswerStreak] = useState(0);
+  const [bestAnswerStreak, setBestAnswerStreak] = useState(0);
+  const [xpPulseTick, setXpPulseTick] = useState(0);
   const [motivationPrompt, setMotivationPrompt] = useState("");
   const [isMotivationPositive, setIsMotivationPositive] = useState(false);
   const [quizCompletionReported, setQuizCompletionReported] = useState(false);
   const isTypingMode = mode === "typing";
-  const isBlankMode = mode === "blank";
 
   useEffect(() => {
-    setQuestions(
-      mode === "blank" ? buildBlankQuizQuestions(words) : buildQuizQuestions(words)
-    );
+    setQuestions(buildQuizQuestions(words));
     setIndex(0);
     setSelectedOption(null);
     setTypedAnswer("");
@@ -51,10 +56,13 @@ export function Quiz({
     setIsTypingHintVisible(false);
     setMistakeReviewItems([]);
     setScore(0);
+    setAnswerStreak(0);
+    setBestAnswerStreak(0);
+    setXpPulseTick(0);
     setMotivationPrompt("");
     setIsMotivationPositive(false);
     setQuizCompletionReported(false);
-  }, [mode, words, buildBlankQuizQuestions, buildQuizQuestions]);
+  }, [mode, words, buildQuizQuestions]);
 
   const current = questions[index];
   const isFinished = questions.length > 0 && index >= questions.length;
@@ -62,6 +70,8 @@ export function Quiz({
   const totalQuestions = questions.length;
   const correctAnswers = score;
   const wrongAnswers = Math.max(totalQuestions - correctAnswers, 0);
+  const xpEarned = correctAnswers * Math.max(1, Math.floor(Number(XP_GAIN_PER_QUIZ_CORRECT) || 0));
+  const momentumLabel = getMomentumLabel(answerStreak);
   const accuracyPercent = totalQuestions
     ? Math.round((correctAnswers / totalQuestions) * 100)
     : 0;
@@ -93,9 +103,7 @@ export function Quiz({
           : "\uD83D\uDE80";
 
   function restartQuiz() {
-    setQuestions(
-      mode === "blank" ? buildBlankQuizQuestions(words) : buildQuizQuestions(words)
-    );
+    setQuestions(buildQuizQuestions(words));
     setIndex(0);
     setSelectedOption(null);
     setTypedAnswer("");
@@ -103,6 +111,9 @@ export function Quiz({
     setIsTypingHintVisible(false);
     setMistakeReviewItems([]);
     setScore(0);
+    setAnswerStreak(0);
+    setBestAnswerStreak(0);
+    setXpPulseTick(0);
     setMotivationPrompt("");
     setIsMotivationPositive(false);
     setQuizCompletionReported(false);
@@ -113,12 +124,19 @@ export function Quiz({
     justAnsweredAtRef.current = Date.now();
     setSelectedOption(option);
     onQuestionCompleted?.(current.sourceBookId ?? null);
-    const isCorrect = isBlankMode ? option === current.word : option === current.correctDefinition;
+    const isCorrect = option === current.correctDefinition;
     if (isCorrect) {
       setScore((prev) => prev + 1);
+      setAnswerStreak((prev) => {
+        const next = prev + 1;
+        setBestAnswerStreak((prevBest) => Math.max(prevBest, next));
+        return next;
+      });
+      setXpPulseTick((prev) => prev + 1);
       onAwardXp?.(XP_GAIN_PER_QUIZ_CORRECT);
       onResolveMistake?.(current.word, current.sourceBookId, current.chapterId);
     } else {
+      setAnswerStreak(0);
       setMistakeReviewItems((prev) => [
         ...prev,
         {
@@ -147,9 +165,16 @@ export function Quiz({
 
     if (isCorrect) {
       setScore((prev) => prev + 1);
+      setAnswerStreak((prev) => {
+        const next = prev + 1;
+        setBestAnswerStreak((prevBest) => Math.max(prevBest, next));
+        return next;
+      });
+      setXpPulseTick((prev) => prev + 1);
       onAwardXp?.(XP_GAIN_PER_QUIZ_CORRECT);
       onResolveMistake?.(current.word, current.sourceBookId, current.chapterId);
     } else {
+      setAnswerStreak(0);
       setMistakeReviewItems((prev) => [
         ...prev,
         {
@@ -235,8 +260,6 @@ export function Quiz({
             ? " - Mistake Review"
             : mode === "typing"
               ? " - Typing Quiz"
-              : mode === "blank"
-                ? " - Fill in the Blank Quiz"
                 : ""}
         </h1>
       </div>
@@ -271,8 +294,6 @@ export function Quiz({
                       ? "Mistake Review Complete"
                       : mode === "typing"
                         ? "Typing Quiz Complete"
-                        : mode === "blank"
-                          ? "Fill in the Blank Quiz Complete"
                           : "Quiz Complete"}
                   </h2>
                   <p className="quizResultHeadline">{resultHeadline}</p>
@@ -291,6 +312,14 @@ export function Quiz({
                 <div className="quizResultStat">
                   <span className="quizResultStatLabel">Missed</span>
                   <strong>{wrongAnswers}</strong>
+                </div>
+                <div className="quizResultStat">
+                  <span className="quizResultStatLabel">XP Earned</span>
+                  <strong>{xpEarned}</strong>
+                </div>
+                <div className="quizResultStat">
+                  <span className="quizResultStatLabel">Best Streak</span>
+                  <strong>{bestAnswerStreak}</strong>
                 </div>
               </div>
               <div className="quizResultProgressTrack" aria-hidden="true">
@@ -334,6 +363,17 @@ export function Quiz({
               Question {index + 1} of {questions.length}
             </span>
             <span>Score: {score}</span>
+          </div>
+          <div className="quizMomentumRow">
+            <div className={`quizStreakBadge ${answerStreak >= 2 ? "isHot" : ""}`}>
+              <span>{momentumLabel}</span>
+              <strong>{answerStreak} streak</strong>
+            </div>
+            {isMotivationPositive && canGoToNext ? (
+              <span key={`xp-pulse-${xpPulseTick}`} className="quizXpPulse">
+                +{XP_GAIN_PER_QUIZ_CORRECT} XP
+              </span>
+            ) : null}
           </div>
 
           {isTypingMode ? (
@@ -391,15 +431,12 @@ export function Quiz({
             </>
           ) : (
             <>
-              <h2 className="quizPrompt">
-                {isBlankMode ? "Fill in the blank:" : `What is the definition of "${current.word}"?`}
-              </h2>
-              {isBlankMode && <p className="quizDefinitionPrompt">{current.sentenceWithBlank}</p>}
+              <h2 className="quizPrompt">{`What is the definition of "${current.word}"?`}</h2>
 
               <div className="quizOptions">
                 {current.options.map((option) => {
                   const isSelected = selectedOption === option;
-                  const isCorrect = isBlankMode ? option === current.word : option === current.correctDefinition;
+                  const isCorrect = option === current.correctDefinition;
                   const showCorrect = selectedOption && isCorrect;
                   const showWrong = isSelected && !isCorrect;
 
