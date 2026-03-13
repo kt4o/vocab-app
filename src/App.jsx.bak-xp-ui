@@ -10,13 +10,6 @@ const XP_LEVEL_GROWTH = 1.2;
 const INACTIVITY_TIMEOUT_MS = 7 * 60 * 1000;
 const STREAK_SAVER_EARN_EVERY_DAYS = 7;
 const MAX_STREAK_SAVERS = 2;
-const PRO_DAILY_GOAL_DEFAULT = 30;
-const PRO_DAILY_GOAL_MIN = 10;
-const PRO_DAILY_GOAL_MAX = 120;
-const PRO_DAILY_GOAL_STEP = 5;
-const FREE_DAILY_WORD_LIMIT = 5;
-const FREE_DAILY_TYPING_LIMIT = 3;
-const FREE_DAILY_MISTAKE_REVIEW_LIMIT = 3;
 const DEFAULT_CHAPTER_ID = "general";
 const WORD_MASTERY_MAX_XP = 10;
 const WORD_MASTERY_BAR_STEPS = 5;
@@ -48,17 +41,6 @@ const CEFR_WORDLIST_LEVEL_MAP = [
   { key: "C1", value: "c1" },
   { key: "C2", value: "c2" },
 ];
-
-function normalizeSubscriptionStatus(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
-function isCanceledSubscriptionStatus(value) {
-  const status = normalizeSubscriptionStatus(value);
-  return status === "canceled" || status === "cancelled";
-}
 
 function getXpRequiredForLevel(level) {
   return Math.floor(BASE_XP_PER_LEVEL * Math.pow(XP_LEVEL_GROWTH, Math.max(level - 1, 0)));
@@ -428,80 +410,6 @@ function parseStoredStreak(rawValue) {
 
 function parseStoredBoolean(value, fallbackValue = false) {
   return typeof value === "boolean" ? value : fallbackValue;
-}
-
-function createDefaultFreeDailyUsage(date = new Date()) {
-  return {
-    dayKey: getCurrentDayKey(date),
-    wordsAdded: 0,
-    typingAttempts: 0,
-    mistakeReviewAttempts: 0,
-  };
-}
-
-function ensureCurrentFreeDailyUsage(rawUsage, date = new Date()) {
-  const safeDayKey = getCurrentDayKey(date);
-  if (!rawUsage || typeof rawUsage !== "object" || Array.isArray(rawUsage)) {
-    return createDefaultFreeDailyUsage(date);
-  }
-
-  const usageDayKey = String(rawUsage.dayKey || "");
-  if (!usageDayKey || usageDayKey !== safeDayKey) {
-    return createDefaultFreeDailyUsage(date);
-  }
-
-  return {
-    dayKey: safeDayKey,
-    wordsAdded: Math.max(0, Math.floor(Number(rawUsage.wordsAdded) || 0)),
-    typingAttempts: Math.max(0, Math.floor(Number(rawUsage.typingAttempts) || 0)),
-    mistakeReviewAttempts: Math.max(0, Math.floor(Number(rawUsage.mistakeReviewAttempts) || 0)),
-  };
-}
-
-function parseDailyGoalTarget(value) {
-  const parsed = Math.floor(Number(value) || PRO_DAILY_GOAL_DEFAULT);
-  const clamped = Math.min(PRO_DAILY_GOAL_MAX, Math.max(PRO_DAILY_GOAL_MIN, parsed));
-  const offset = clamped - PRO_DAILY_GOAL_MIN;
-  return PRO_DAILY_GOAL_MIN + Math.round(offset / PRO_DAILY_GOAL_STEP) * PRO_DAILY_GOAL_STEP;
-}
-
-function buildWeakWordCandidates(books) {
-  return (books || [])
-    .flatMap((book) =>
-      (book?.words || [])
-        .filter((wordEntry) => getWordDefinitions(wordEntry).length > 0)
-        .map((wordEntry) => {
-          const mistakeCount = getMistakeCount(wordEntry);
-          const masteryXp = getWordMasteryXp(wordEntry);
-          const normalizedDifficulty = normalizeWordDifficulty(wordEntry?.difficulty);
-          const difficultyWeight =
-            normalizedDifficulty === "c2"
-              ? 3
-              : normalizedDifficulty === "c1"
-                ? 2.5
-                : normalizedDifficulty === "b2"
-                  ? 2
-                  : normalizedDifficulty === "b1"
-                    ? 1.5
-                    : normalizedDifficulty === "a2"
-                      ? 1
-                      : normalizedDifficulty === "a1"
-                        ? 0.5
-                        : 1;
-          const weaknessScore =
-            mistakeCount * 4 + (WORD_MASTERY_MAX_XP - masteryXp) * 1.8 + difficultyWeight;
-
-          return {
-            ...wordEntry,
-            sourceBookId: book.id,
-            sourceBookName: String(book?.name || "Book"),
-            mistakeCount,
-            masteryXp,
-            weaknessScore,
-          };
-        })
-    )
-    .sort((a, b) => b.weaknessScore - a.weaknessScore || b.mistakeCount - a.mistakeCount);
 }
 
 function shuffleArray(items) {
@@ -1392,12 +1300,6 @@ export default function App() {
     const saved = localStorage.getItem("vocab_activity_history");
     return parseStoredActivityHistory(saved);
   });
-  const [freeDailyUsage, setFreeDailyUsage] = useState(() =>
-    ensureCurrentFreeDailyUsage(parseJsonSafely(localStorage.getItem("vocab_free_daily_usage"), null))
-  );
-  const [proDailyGoalQuestions, setProDailyGoalQuestions] = useState(() =>
-    parseDailyGoalTarget(localStorage.getItem("vocab_pro_daily_goal_questions"))
-  );
   const [authToken, setAuthToken] = useState(() => localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "");
   const [authUsername, setAuthUsername] = useState(
     () => localStorage.getItem(AUTH_USERNAME_STORAGE_KEY) || ""
@@ -1415,14 +1317,10 @@ export default function App() {
   const [billingPlan, setBillingPlan] = useState("free");
   const [billingSubscriptionStatus, setBillingSubscriptionStatus] = useState("");
   const [billingCurrentPeriodEnd, setBillingCurrentPeriodEnd] = useState("");
-  const [accountEmail, setAccountEmail] = useState("");
   const [isStripeBillingConfigured, setIsStripeBillingConfigured] = useState(false);
-  const [isAccountProfileLoading, setIsAccountProfileLoading] = useState(false);
   const [isBillingStatusLoading, setIsBillingStatusLoading] = useState(false);
   const [isBillingCheckoutSubmitting, setIsBillingCheckoutSubmitting] = useState(false);
   const [isBillingPortalSubmitting, setIsBillingPortalSubmitting] = useState(false);
-  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
-  const [isDailyGoalModalOpen, setIsDailyGoalModalOpen] = useState(false);
   const [accountSecurityForm, setAccountSecurityForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -1503,19 +1401,6 @@ export default function App() {
   const activityWeeklyStats = getRecentPeriodTotals(activityHistory, 7);
   const activityMonthlyStats = getMonthTotals(activityHistory);
   const activityTotalStats = sumActivityHistory(activityHistory);
-  const currentFreeDailyUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-  const isProPlan = billingPlan === "pro";
-  const weakWordCandidates = buildWeakWordCandidates(books);
-  const smartReviewWords = weakWordCandidates.slice(0, 20).map((entry) => ({
-    ...entry,
-    sourceBookId: entry.sourceBookId ?? null,
-  }));
-  const proDailyGoalProgress = Math.max(0, Math.floor(Number(activityDailyStats.questionsCompleted) || 0));
-  const proDailyGoalPercent = Math.min(
-    100,
-    Math.round((proDailyGoalProgress / Math.max(proDailyGoalQuestions, 1)) * 100)
-  );
-  const hasMetProDailyGoal = proDailyGoalProgress >= proDailyGoalQuestions;
   const definitionTrend = buildDefinitionTrend(activityHistory, 14);
   const wordTrend = definitionTrend.map((item) => ({
     ...item,
@@ -1587,105 +1472,18 @@ export default function App() {
   );
 
   function startQuizSession() {
-    const selectedMode = normalizeQuizMode(quizMode, "normal");
-    if (!isProPlan && selectedMode === "typing") {
-      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-      if (safeUsage.typingAttempts >= FREE_DAILY_TYPING_LIMIT) {
-        openNoticeModal(
-          `Free plan limit reached: ${FREE_DAILY_TYPING_LIMIT} typing quiz starts per day.`,
-          "Daily Limit"
-        );
-        return;
-      }
-      setFreeDailyUsage((prev) => {
-        const current = ensureCurrentFreeDailyUsage(prev);
-        return {
-          ...current,
-          typingAttempts: current.typingAttempts + 1,
-        };
-      });
-    }
-
     const nextTitle =
       quizSetupSelection.bookIds.length === 1
         ? books.find((book) => String(book.id) === quizSetupSelection.bookIds[0])?.name || "Quiz"
         : "Multi-Book Quiz";
     setActiveQuizWords(quizSetupWords);
     setActiveQuizTitle(nextTitle);
-    setActiveQuizMode(selectedMode);
+    setActiveQuizMode(normalizeQuizMode(quizMode, "normal"));
     setActiveQuizIsMistakeReview(false);
     setScreen("quiz");
-  }
-
-  function startSmartReviewSession() {
-    if (!isProPlan) {
-      openNoticeModal("Smart Review is a Pro feature. Upgrade to unlock adaptive revision sessions.", "Pro Feature");
-      return;
-    }
-    if (smartReviewWords.length < 2) {
-      openNoticeModal("Add more words and quiz activity to generate a Smart Review queue.", "Not Enough Data");
-      return;
-    }
-
-    setQuizBackScreen("dashboard");
-    setActiveQuizWords(smartReviewWords);
-    setActiveQuizTitle("Smart Review");
-    setActiveQuizMode("normal");
-    setActiveQuizIsMistakeReview(false);
-    setScreen("quiz");
-  }
-
-  function exportWeakWordsCsv() {
-    if (!isProPlan) {
-      openNoticeModal("Weak Words CSV export is available on Pro.", "Pro Feature");
-      return;
-    }
-    if (!weakWordCandidates.length) {
-      openNoticeModal("No weak-word data yet. Complete some quizzes first.", "No Data");
-      return;
-    }
-
-    const header = ["word", "book", "mistakes", "masteryXp", "weaknessScore"];
-    const rows = weakWordCandidates.slice(0, 200).map((entry) => [
-      String(entry.word || ""),
-      String(entry.sourceBookName || ""),
-      String(entry.mistakeCount || 0),
-      String(entry.masteryXp || 0),
-      String(Math.round(Number(entry.weaknessScore) || 0)),
-    ]);
-    const csvContent = [header, ...rows]
-      .map((cols) =>
-        cols
-          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-          .join(",")
-      )
-      .join("\n");
-
-    const dateStamp = new Date().toISOString().slice(0, 10);
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `weak-words-${dateStamp}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    openNoticeModal("Weak words CSV exported.", "Export Complete");
   }
 
   const startMistakeReviewSession = useCallback((source = "global") => {
-    if (!isProPlan) {
-      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-      if (safeUsage.mistakeReviewAttempts >= FREE_DAILY_MISTAKE_REVIEW_LIMIT) {
-        openNoticeModal(
-          `Free plan limit reached: ${FREE_DAILY_MISTAKE_REVIEW_LIMIT} mistake review starts per day.`,
-          "Daily Limit"
-        );
-        return;
-      }
-    }
-
     const isBookSource = source === "book";
     const targetBookId = isBookSource ? String(currentBookId ?? "") : "";
     const scopedKeys = isBookSource
@@ -1715,18 +1513,9 @@ export default function App() {
     setActiveQuizTitle(nextTitle);
     setActiveQuizMode(reviewMode);
     setActiveQuizIsMistakeReview(true);
-    if (!isProPlan) {
-      setFreeDailyUsage((prev) => {
-        const current = ensureCurrentFreeDailyUsage(prev);
-        return {
-          ...current,
-          mistakeReviewAttempts: current.mistakeReviewAttempts + 1,
-        };
-      });
-    }
     pendingMistakeReviewSourceRef.current = null;
     setScreen("mistakeReview");
-  }, [books, currentBookId, freeDailyUsage, isProPlan, lastQuizMistakeKeysByBook, lastQuizMistakeKeys, lastQuizMistakeModeByBook, lastQuizMistakeMode]);
+  }, [books, currentBookId, lastQuizMistakeKeysByBook, lastQuizMistakeKeys, lastQuizMistakeModeByBook, lastQuizMistakeMode]);
 
   const requestMistakeReview = useCallback((source = "global") => {
     pendingMistakeReviewSourceRef.current = source;
@@ -1824,11 +1613,19 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={`sidebarNavBtn ${inSocial ? "isActive" : ""}`}
+                onClick={() => setScreen("socialLeaderboard")}
+              >
+                <span className="sidebarNavBtnLabel">Socials</span>
+                <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDC65"}</span>
+              </button>
+              <button
+                type="button"
                 className={`sidebarNavBtn ${inDefinitions ? "isActive" : ""}`}
                 onClick={() => setScreen("definitionsSelect")}
               >
                 <span className="sidebarNavBtnLabel">Definitions</span>
-                <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDCD8"}</span>
+                <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83E\uDDE0"}</span>
               </button>
               <button
                 type="button"
@@ -1850,30 +1647,6 @@ export default function App() {
               >
                 <span className="sidebarNavBtnLabel">Quiz</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\u2705"}</span>
-              </button>
-              <button
-                type="button"
-                className={`sidebarNavBtn ${screen === "quiz" && activeQuizTitle === "Smart Review" ? "isActive" : ""}`}
-                onClick={startSmartReviewSession}
-              >
-                <span className="proFeatureBadge proFeatureBadgeCorner">PRO</span>
-                <span className="sidebarNavBtnLabel hasProBadge">Smart Review</span>
-                <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83E\uDDE0"}</span>
-              </button>
-              <button
-                type="button"
-                className={`sidebarNavBtn ${inSocial ? "isActive" : ""}`}
-                onClick={() => {
-                  if (!isProPlan) {
-                    openNoticeModal("Socials is a Pro feature. Upgrade to unlock friends and leaderboards.", "Pro Feature");
-                    return;
-                  }
-                  setScreen("socialLeaderboard");
-                }}
-              >
-                <span className="proFeatureBadge proFeatureBadgeCorner">PRO</span>
-                <span className="sidebarNavBtnLabel hasProBadge">Socials</span>
-                <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDC65"}</span>
               </button>
             </nav>
 
@@ -1945,8 +1718,6 @@ export default function App() {
       vocab_sidebar_hidden: JSON.stringify(isSidebarHidden),
       vocab_weekly_stats: JSON.stringify(weeklyStats),
       vocab_activity_history: JSON.stringify(activityHistory),
-      vocab_pro_daily_goal_questions: JSON.stringify(proDailyGoalQuestions),
-      vocab_free_daily_usage: JSON.stringify(freeDailyUsage),
       vocab_last_quiz_mistakes: JSON.stringify(lastQuizMistakeKeys),
       vocab_last_quiz_mistakes_by_book: JSON.stringify(lastQuizMistakeKeysByBook),
       vocab_last_quiz_mistake_mode: lastQuizMistakeMode,
@@ -1967,8 +1738,6 @@ export default function App() {
     isSidebarHidden,
     weeklyStats,
     activityHistory,
-    proDailyGoalQuestions,
-    freeDailyUsage,
     lastQuizMistakeKeys,
     lastQuizMistakeKeysByBook,
     lastQuizMistakeMode,
@@ -2071,19 +1840,15 @@ export default function App() {
   function logoutAccount() {
     setAuthToken("");
     setAuthUsername("");
-    setAccountEmail("");
     setAuthError("");
     setBillingPlan("free");
     setBillingSubscriptionStatus("");
     setBillingCurrentPeriodEnd("");
     setIsStripeBillingConfigured(false);
-    setIsAccountProfileLoading(false);
     setFriendPendingRemove(null);
     setSocialOverview(null);
     setSocialError("");
     setAccountActionError("");
-    setIsChangePasswordModalOpen(false);
-    setIsDailyGoalModalOpen(false);
     setAuthForm({
       email: "",
       username: "",
@@ -2100,30 +1865,6 @@ export default function App() {
     });
     setIsCloudStateHydrated(false);
   }
-
-  const loadAccountProfile = useCallback(async () => {
-    if (!authToken) return;
-    setIsAccountProfileLoading(true);
-    try {
-      const response = await fetch(`${AUTH_API_PATH}/account`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (response.status === 401) {
-        logoutAccount();
-        setAuthError("Your session expired. Please log in again.");
-        return;
-      }
-      if (!response.ok) return;
-
-      const nextUsername = String(payload?.username || "").trim().toLowerCase();
-      const nextEmail = String(payload?.email || "").trim().toLowerCase();
-      if (nextUsername) setAuthUsername(nextUsername);
-      setAccountEmail(nextEmail);
-    } finally {
-      setIsAccountProfileLoading(false);
-    }
-  }, [authToken]);
 
   function mapBillingApiError(payload, fallbackMessage) {
     const backendError = String(payload?.error || "").trim().toLowerCase();
@@ -2253,9 +1994,6 @@ export default function App() {
     if (backendError === "invalid-current-password") return "Current password is incorrect.";
     if (backendError === "weak-password") return "New password must be at least 8 characters.";
     if (backendError === "new-password-same-as-current") return "Use a different new password.";
-    if (backendError === "pro-subscription-active") {
-      return "Cancel your Pro subscription first. Account deletion is available only after status is canceled.";
-    }
     if (backendError === "missing-auth-token" || backendError === "invalid-auth-token") {
       return "Your session expired. Please log in again.";
     }
@@ -2263,18 +2001,18 @@ export default function App() {
   }
 
   async function changeAccountPassword() {
-    if (isPasswordChangeSubmitting || !authToken) return false;
+    if (isPasswordChangeSubmitting || !authToken) return;
     const currentPassword = String(accountSecurityForm.currentPassword || "");
     const newPassword = String(accountSecurityForm.newPassword || "");
     const confirmNewPassword = String(accountSecurityForm.confirmNewPassword || "");
 
     if (!currentPassword || !newPassword) {
       setAccountActionError("Current password and new password are required.");
-      return false;
+      return;
     }
     if (newPassword !== confirmNewPassword) {
       setAccountActionError("New passwords do not match.");
-      return false;
+      return;
     }
 
     setIsPasswordChangeSubmitting(true);
@@ -2293,13 +2031,13 @@ export default function App() {
       if (response.status === 401) {
         logoutAccount();
         setAuthError("Your session expired. Please log in again.");
-        return false;
+        return;
       }
       if (!response.ok) {
         setAccountActionError(
           mapAccountApiError(payload, "Could not change password. Please try again.")
         );
-        return false;
+        return;
       }
 
       setAccountSecurityForm((prev) => ({
@@ -2309,10 +2047,8 @@ export default function App() {
         confirmNewPassword: "",
       }));
       openNoticeModal("Password changed successfully.", "Account Security");
-      return true;
     } catch {
       setAccountActionError("Could not reach auth service. Check backend and try again.");
-      return false;
     } finally {
       setIsPasswordChangeSubmitting(false);
     }
@@ -2355,12 +2091,6 @@ export default function App() {
 
   async function deleteAccountPermanently() {
     if (isDeleteAccountSubmitting || !authToken) return;
-    if (billingPlan === "pro" && !isCanceledSubscriptionStatus(billingSubscriptionStatus)) {
-      setAccountActionError(
-        "Cancel your Pro subscription first. Account deletion is available only after status is canceled."
-      );
-      return;
-    }
     const password = String(accountSecurityForm.deletePassword || "");
     if (!password) {
       setAccountActionError("Enter your password to delete your account.");
@@ -2569,27 +2299,21 @@ export default function App() {
   useEffect(() => {
     const onSocialScreen = screen === "socialLeaderboard" || screen === "socialFriends";
     if (!onSocialScreen) return;
-    if (!isProPlan) return;
     if (!authToken) return;
     loadSocialOverview();
-  }, [screen, authToken, isProPlan, loadSocialOverview]);
+  }, [screen, authToken, loadSocialOverview]);
 
   useEffect(() => {
     if (!authToken) {
       setBillingPlan("free");
       setBillingSubscriptionStatus("");
       setBillingCurrentPeriodEnd("");
-      setAccountEmail("");
       setIsStripeBillingConfigured(false);
-      setIsChangePasswordModalOpen(false);
-      setIsDailyGoalModalOpen(false);
       setIsBillingStatusLoading(false);
-      setIsAccountProfileLoading(false);
       return;
     }
     void loadBillingStatus();
-    void loadAccountProfile();
-  }, [authToken, loadBillingStatus, loadAccountProfile]);
+  }, [authToken, loadBillingStatus]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -3263,11 +2987,6 @@ export default function App() {
     const importedActivityHistory = parseStoredActivityHistory(
       JSON.stringify(rawData?.activityHistory || {})
     );
-    const importedFreeDailyUsage = ensureCurrentFreeDailyUsage(rawData?.freeDailyUsage);
-    const importedProDailyGoalQuestions =
-      rawData?.proDailyGoalQuestions === undefined
-        ? proDailyGoalQuestions
-        : parseDailyGoalTarget(rawData?.proDailyGoalQuestions);
     const importedLastQuizMistakeKeys = Array.isArray(rawData?.lastQuizMistakeKeys)
       ? rawData.lastQuizMistakeKeys.filter((item) => typeof item === "string")
       : [];
@@ -3302,8 +3021,6 @@ export default function App() {
     setIsSidebarHidden(importedSidebarHidden);
     setWeeklyStats(importedWeeklyStats);
     setActivityHistory(importedActivityHistory);
-    setFreeDailyUsage(importedFreeDailyUsage);
-    setProDailyGoalQuestions(importedProDailyGoalQuestions);
     setLastQuizMistakeKeys(importedLastQuizMistakeKeys);
     setLastQuizMistakeKeysByBook(importedLastQuizMistakeKeysByBook);
     setLastQuizMistakeMode(importedLastQuizMistakeMode);
@@ -3325,8 +3042,6 @@ export default function App() {
         isSidebarHidden,
         weeklyStats,
         activityHistory,
-        freeDailyUsage,
-        proDailyGoalQuestions,
         lastQuizMistakeKeys,
         lastQuizMistakeKeysByBook,
         lastQuizMistakeMode,
@@ -3382,8 +3097,6 @@ export default function App() {
   useEffect(() => {
     const isModalOpen =
       isAddBookModalOpen ||
-      isChangePasswordModalOpen ||
-      isDailyGoalModalOpen ||
       Boolean(bookPendingRename) ||
       Boolean(bookPendingDelete) ||
       Boolean(chapterPendingDelete) ||
@@ -3395,8 +3108,6 @@ export default function App() {
 
     const closeModal = () => {
       if (isAddBookModalOpen) setIsAddBookModalOpen(false);
-      if (isChangePasswordModalOpen) setIsChangePasswordModalOpen(false);
-      if (isDailyGoalModalOpen) setIsDailyGoalModalOpen(false);
       if (bookPendingRename) setBookPendingRename(null);
       if (bookPendingDelete) setBookPendingDelete(null);
       if (chapterPendingDelete) setChapterPendingDelete(null);
@@ -3435,18 +3146,7 @@ export default function App() {
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [
-    isAddBookModalOpen,
-    isChangePasswordModalOpen,
-    isDailyGoalModalOpen,
-    bookPendingRename,
-    bookPendingDelete,
-    chapterPendingDelete,
-    wordPendingDelete,
-    friendPendingRemove,
-    isStreakModalOpen,
-    noticeModal,
-  ]);
+  }, [isAddBookModalOpen, bookPendingRename, bookPendingDelete, chapterPendingDelete, wordPendingDelete, friendPendingRemove, isStreakModalOpen, noticeModal]);
 
   function renderModal() {
     if (isAddBookModalOpen) {
@@ -3518,207 +3218,6 @@ export default function App() {
                 Save
               </button>
             </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (isChangePasswordModalOpen) {
-      return (
-        <div className="modalOverlay" onClick={() => setIsChangePasswordModalOpen(false)}>
-          <div
-            className="modalCard"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="change-password-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="change-password-title">Change Password</h3>
-            <div className="settingsPasswordWrap">
-              <input
-                className="settingsInput settingsPasswordInput"
-                type={isPasswordVisible ? "text" : "password"}
-                value={accountSecurityForm.currentPassword}
-                onChange={(event) => {
-                  setAccountSecurityForm((prev) => ({ ...prev, currentPassword: event.target.value }));
-                  if (accountActionError) setAccountActionError("");
-                }}
-                placeholder="current password"
-                autoComplete="current-password"
-                autoFocus
-              />
-              <button
-                type="button"
-                className="settingsPasswordToggleBtn"
-                onClick={() => setIsPasswordVisible((prev) => !prev)}
-                aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                title={isPasswordVisible ? "Hide password" : "Show password"}
-              >
-                {"\uD83D\uDC41"}
-              </button>
-            </div>
-            <div className="settingsPasswordWrap">
-              <input
-                className="settingsInput settingsPasswordInput"
-                type={isPasswordVisible ? "text" : "password"}
-                value={accountSecurityForm.newPassword}
-                onChange={(event) => {
-                  setAccountSecurityForm((prev) => ({ ...prev, newPassword: event.target.value }));
-                  if (accountActionError) setAccountActionError("");
-                }}
-                placeholder="new password (min 8 chars)"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                className="settingsPasswordToggleBtn"
-                onClick={() => setIsPasswordVisible((prev) => !prev)}
-                aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                title={isPasswordVisible ? "Hide password" : "Show password"}
-              >
-                {"\uD83D\uDC41"}
-              </button>
-            </div>
-            <div className="settingsPasswordWrap">
-              <input
-                className="settingsInput settingsPasswordInput"
-                type={isPasswordVisible ? "text" : "password"}
-                value={accountSecurityForm.confirmNewPassword}
-                onChange={(event) => {
-                  setAccountSecurityForm((prev) => ({ ...prev, confirmNewPassword: event.target.value }));
-                  if (accountActionError) setAccountActionError("");
-                }}
-                placeholder="confirm new password"
-                autoComplete="new-password"
-                onKeyDown={async (event) => {
-                  if (event.key !== "Enter") return;
-                  event.preventDefault();
-                  const success = await changeAccountPassword();
-                  if (success) setIsChangePasswordModalOpen(false);
-                }}
-              />
-              <button
-                type="button"
-                className="settingsPasswordToggleBtn"
-                onClick={() => setIsPasswordVisible((prev) => !prev)}
-                aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                title={isPasswordVisible ? "Hide password" : "Show password"}
-              >
-                {"\uD83D\uDC41"}
-              </button>
-            </div>
-            <div className="modalActions">
-              <button
-                type="button"
-                className="modalBtn ghost"
-                onClick={() => setIsChangePasswordModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="modalBtn primary"
-                disabled={isPasswordChangeSubmitting}
-                onClick={async () => {
-                  const success = await changeAccountPassword();
-                  if (success) setIsChangePasswordModalOpen(false);
-                }}
-              >
-                {isPasswordChangeSubmitting ? "Please wait..." : "Change Password"}
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (isDailyGoalModalOpen) {
-      return (
-        <div className="modalOverlay" onClick={() => setIsDailyGoalModalOpen(false)}>
-          <div
-            className="modalCard"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="daily-goal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 id="daily-goal-title">Daily Goal</h3>
-            <p className="settingsHint">
-              Track today&apos;s target and jump into your highest-priority review words.
-            </p>
-            <div className="premiumFocusGrid">
-              <div className="premiumFocusMetric">
-                <span>Progress Today</span>
-                <strong>{proDailyGoalProgress} / {proDailyGoalQuestions} questions</strong>
-                <div className="premiumProgressTrack" aria-hidden="true">
-                  <div className="premiumProgressFill" style={{ width: `${proDailyGoalPercent}%` }} />
-                </div>
-                <small>{hasMetProDailyGoal ? "Goal complete today." : "Complete quizzes to close the goal."}</small>
-              </div>
-              <div className="premiumFocusMetric">
-                <span>Smart Queue</span>
-                <strong>{smartReviewWords.length} words ready</strong>
-                <small>Weak words prioritized by your recent performance.</small>
-              </div>
-            </div>
-            {isProPlan ? (
-              <div className="modalActions">
-                <button
-                  type="button"
-                  className="modalBtn ghost"
-                  onClick={() =>
-                    setProDailyGoalQuestions((prev) =>
-                      parseDailyGoalTarget(Math.max(PRO_DAILY_GOAL_MIN, prev - PRO_DAILY_GOAL_STEP))
-                    )
-                  }
-                >
-                  Goal -5
-                </button>
-                <button
-                  type="button"
-                  className="modalBtn ghost"
-                  onClick={() =>
-                    setProDailyGoalQuestions((prev) =>
-                      parseDailyGoalTarget(Math.min(PRO_DAILY_GOAL_MAX, prev + PRO_DAILY_GOAL_STEP))
-                    )
-                  }
-                >
-                  Goal +5
-                </button>
-                <button
-                  type="button"
-                  className="modalBtn primary"
-                  onClick={() => {
-                    setIsDailyGoalModalOpen(false);
-                    startSmartReviewSession();
-                  }}
-                >
-                  Start Smart Review
-                </button>
-              </div>
-            ) : (
-              <div className="modalActions">
-                <button
-                  type="button"
-                  className="modalBtn ghost"
-                  onClick={() => setIsDailyGoalModalOpen(false)}
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  className="modalBtn primary"
-                  onClick={() => {
-                    setIsDailyGoalModalOpen(false);
-                    setScreen("account");
-                  }}
-                >
-                  Upgrade to Pro
-                </button>
-              </div>
-            )}
           </div>
         </div>
       );
@@ -4144,16 +3643,6 @@ export default function App() {
   // Add / delete words
   async function addWord() {
     if (!inputWord.trim() || !currentBook) return;
-    if (!isProPlan) {
-      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-      if (safeUsage.wordsAdded >= FREE_DAILY_WORD_LIMIT) {
-        openNoticeModal(
-          `Free plan limit reached: ${FREE_DAILY_WORD_LIMIT} new words per day.`,
-          "Daily Limit"
-        );
-        return;
-      }
-    }
 
     const cleanWord = inputWord.trim();
     const normalizedInput = cleanWord.toLowerCase();
@@ -4240,15 +3729,6 @@ export default function App() {
       );
       awardXp(getWordXpGain(streak.count));
       updateStreak();
-      if (!isProPlan) {
-        setFreeDailyUsage((prev) => {
-          const current = ensureCurrentFreeDailyUsage(prev);
-          return {
-            ...current,
-            wordsAdded: current.wordsAdded + 1,
-          };
-        });
-      }
       setInputWord("");
     } catch {
       openNoticeModal("Failed to fetch definition.", "Network Error");
@@ -4578,7 +4058,7 @@ export default function App() {
       <div className="page dashboardPage">
         <div className="dashboardHeader">
           <div className="dashboardTitleRow">
-            <h1>{isProPlan ? "Vocalibry Pro" : "Vocalibry"}</h1>
+            <h1>Vocabulary</h1>
           </div>
           <div className="dashboardStatus isEconomyOff">
             <div className="streakWrap">
@@ -4696,25 +4176,6 @@ export default function App() {
               <strong className="weeklyOverviewValue">{currentWeekStats.wordsAdded}</strong>
             </div>
           </div>
-          {isProPlan ? (
-            <>
-              <div className="weeklyDailyDivider" aria-hidden="true" />
-              <button
-                type="button"
-                className="weeklyOverviewCard dailyGoalOverviewCard"
-                onClick={() => setIsDailyGoalModalOpen(true)}
-              >
-                <p className="weeklyOverviewLabel">Daily Goal</p>
-                <strong className="weeklyOverviewValue">
-                  {proDailyGoalProgress} / {proDailyGoalQuestions} questions
-                </strong>
-                <div className="premiumProgressTrack" aria-hidden="true">
-                  <div className="premiumProgressFill" style={{ width: `${proDailyGoalPercent}%` }} />
-                </div>
-                <span className="settingsHint">Tap to manage your daily goal.</span>
-              </button>
-            </>
-          ) : null}
         </div>
 
         <div className="recentSection">
@@ -4763,7 +4224,7 @@ export default function App() {
               }
             }}
           >
-            <span>{"\uD83D\uDCD8"} Definitions</span>
+            <span>{"\uD83E\uDDE0"} Definitions</span>
           </div>
           <div
             className="panelCard wide"
@@ -4833,40 +4294,14 @@ export default function App() {
             className="panelCard wide"
             role="button"
             tabIndex={0}
-            onClick={startSmartReviewSession}
+            onClick={() => setScreen("socialLeaderboard")}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                startSmartReviewSession();
-              }
-            }}
-          >
-            <span className="proFeatureBadge proFeatureBadgeCorner">PRO</span>
-            <span>{"\uD83E\uDDE0"} Smart Review</span>
-          </div>
-          <div
-            className="panelCard wide"
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              if (!isProPlan) {
-                openNoticeModal("Socials is a Pro feature. Upgrade to unlock friends and leaderboards.", "Pro Feature");
-                return;
-              }
-              setScreen("socialLeaderboard");
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                if (!isProPlan) {
-                  openNoticeModal("Socials is a Pro feature. Upgrade to unlock friends and leaderboards.", "Pro Feature");
-                  return;
-                }
                 setScreen("socialLeaderboard");
               }
             }}
           >
-            <span className="proFeatureBadge proFeatureBadgeCorner">PRO</span>
             <span>{"\uD83D\uDC65"} Socials</span>
           </div>
         </div>
@@ -4932,8 +4367,6 @@ export default function App() {
           day: "numeric",
         })
       : "";
-    const isAccountDeletionBlockedBySubscription =
-      billingPlan === "pro" && !isCanceledSubscriptionStatus(billingSubscriptionStatus);
 
     return renderWithSidebar(
       <div className="page">
@@ -4962,10 +4395,6 @@ export default function App() {
                       Stripe billing is not configured yet. Add Stripe env vars on the backend.
                     </p>
                   ) : null}
-                  <p className="settingsHint">
-                    Pro includes: Smart Review queue, weak-word analytics, CSV exports, and adjustable daily quiz
-                    goals.
-                  </p>
                   <div className="settingsRow">
                     <span>{billingPlan === "pro" ? "Manage billing" : "Upgrade account"}</span>
                     {billingPlan === "pro" ? (
@@ -5017,32 +4446,83 @@ export default function App() {
 
               <div className="accountStack">
                 <div className="analyticsCard settingsCard accountCard">
-                  <h3>Account Info</h3>
-                  <div className="settingsRow">
-                    <span>Email</span>
-                    <strong className="accountInfoValue">
-                      {isAccountProfileLoading ? "Loading..." : accountEmail || "No email available"}
-                    </strong>
+                  <h3>Change Password</h3>
+                  <div className="settingsPasswordWrap">
+                    <input
+                      className="settingsInput settingsPasswordInput"
+                      type={isPasswordVisible ? "text" : "password"}
+                      value={accountSecurityForm.currentPassword}
+                      onChange={(event) => {
+                        setAccountSecurityForm((prev) => ({ ...prev, currentPassword: event.target.value }));
+                        if (accountActionError) setAccountActionError("");
+                      }}
+                      placeholder="current password"
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      className="settingsPasswordToggleBtn"
+                      onClick={() => setIsPasswordVisible((prev) => !prev)}
+                      aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                      title={isPasswordVisible ? "Hide password" : "Show password"}
+                    >
+                      {"\uD83D\uDC41"}
+                    </button>
+                  </div>
+                  <div className="settingsPasswordWrap">
+                    <input
+                      className="settingsInput settingsPasswordInput"
+                      type={isPasswordVisible ? "text" : "password"}
+                      value={accountSecurityForm.newPassword}
+                      onChange={(event) => {
+                        setAccountSecurityForm((prev) => ({ ...prev, newPassword: event.target.value }));
+                        if (accountActionError) setAccountActionError("");
+                      }}
+                      placeholder="new password (min 8 chars)"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="settingsPasswordToggleBtn"
+                      onClick={() => setIsPasswordVisible((prev) => !prev)}
+                      aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                      title={isPasswordVisible ? "Hide password" : "Show password"}
+                    >
+                      {"\uD83D\uDC41"}
+                    </button>
+                  </div>
+                  <div className="settingsPasswordWrap">
+                    <input
+                      className="settingsInput settingsPasswordInput"
+                      type={isPasswordVisible ? "text" : "password"}
+                      value={accountSecurityForm.confirmNewPassword}
+                      onChange={(event) => {
+                        setAccountSecurityForm((prev) => ({ ...prev, confirmNewPassword: event.target.value }));
+                        if (accountActionError) setAccountActionError("");
+                      }}
+                      placeholder="confirm new password"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="settingsPasswordToggleBtn"
+                      onClick={() => setIsPasswordVisible((prev) => !prev)}
+                      aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                      title={isPasswordVisible ? "Hide password" : "Show password"}
+                    >
+                      {"\uD83D\uDC41"}
+                    </button>
                   </div>
                   <div className="settingsRow">
-                    <span>Username</span>
-                    <strong className="accountInfoValue">{authUsername || "Unknown"}</strong>
-                  </div>
-                  <div className="settingsRow accountPasswordRow">
-                    <span>Password</span>
-                    <div className="accountPasswordActions">
-                      <strong className="accountInfoValue">{"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}</strong>
-                      <button
-                        type="button"
-                        className="primaryBtn accountInlineBtn"
-                        onClick={() => {
-                          setAccountActionError("");
-                          setIsChangePasswordModalOpen(true);
-                        }}
-                      >
-                        Change Password
-                      </button>
-                    </div>
+                    <span>Update credentials</span>
+                    <button
+                      type="button"
+                      className="primaryBtn"
+                      onClick={changeAccountPassword}
+                      disabled={isPasswordChangeSubmitting}
+                    >
+                      {isPasswordChangeSubmitting ? "Please wait..." : "Change Password"}
+                    </button>
                   </div>
                 </div>
 
@@ -5051,12 +4531,6 @@ export default function App() {
                   <p className="settingsHint">
                     Deleting your account permanently removes cloud data and cannot be undone.
                   </p>
-                  {isAccountDeletionBlockedBySubscription ? (
-                    <p className="settingsHint">
-                      Cancel your Pro subscription first. You can delete your account only after status is
-                      canceled.
-                    </p>
-                  ) : null}
                   <div className="settingsPasswordWrap">
                     <input
                       className="settingsInput settingsPasswordInput"
@@ -5068,7 +4542,6 @@ export default function App() {
                       }}
                       placeholder="password to delete account"
                       autoComplete="current-password"
-                      disabled={isAccountDeletionBlockedBySubscription || isBillingStatusLoading}
                     />
                     <button
                       type="button"
@@ -5076,7 +4549,6 @@ export default function App() {
                       onClick={() => setIsPasswordVisible((prev) => !prev)}
                       aria-label={isPasswordVisible ? "Hide password" : "Show password"}
                       title={isPasswordVisible ? "Hide password" : "Show password"}
-                      disabled={isAccountDeletionBlockedBySubscription || isBillingStatusLoading}
                     >
                       {"\uD83D\uDC41"}
                     </button>
@@ -5087,11 +4559,7 @@ export default function App() {
                       type="button"
                       className="primaryBtn settingsDangerBtn"
                       onClick={deleteAccountPermanently}
-                      disabled={
-                        isDeleteAccountSubmitting ||
-                        isBillingStatusLoading ||
-                        isAccountDeletionBlockedBySubscription
-                      }
+                      disabled={isDeleteAccountSubmitting}
                     >
                       {isDeleteAccountSubmitting ? "Deleting..." : "Delete Account"}
                     </button>
@@ -5249,32 +4717,6 @@ export default function App() {
 
   // ---------- SOCIAL ----------
   if (screen === "socialLeaderboard") {
-    if (!isProPlan) {
-      return renderWithSidebar(
-        <div className="page">
-          <div className="pageHeader">
-            <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-            <h1>Socials</h1>
-          </div>
-          <div className="analyticsSection">
-            <div className="analyticsCard settingsCard accountCard">
-              <h3>Pro Feature</h3>
-              <p className="settingsHint">
-                Socials (friends + leaderboards) is available on Pro.
-              </p>
-              <div className="settingsRow">
-                <span>Unlock now</span>
-                <button type="button" className="primaryBtn" onClick={() => setScreen("account")}>
-                  Upgrade to Pro
-                </button>
-              </div>
-            </div>
-          </div>
-          {renderModal()}
-        </div>
-      );
-    }
-
     const currentUserProfile = socialOverview?.currentUser || null;
     const friendProfiles = Array.isArray(socialOverview?.friends) ? socialOverview.friends : [];
     const timeframeKey = socialTimeframe === "monthly"
@@ -5466,32 +4908,6 @@ export default function App() {
   }
 
   if (screen === "socialFriends") {
-    if (!isProPlan) {
-      return renderWithSidebar(
-        <div className="page">
-          <div className="pageHeader">
-            <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-            <h1>Socials</h1>
-          </div>
-          <div className="analyticsSection">
-            <div className="analyticsCard settingsCard accountCard">
-              <h3>Pro Feature</h3>
-              <p className="settingsHint">
-                Socials (friends + leaderboards) is available on Pro.
-              </p>
-              <div className="settingsRow">
-                <span>Unlock now</span>
-                <button type="button" className="primaryBtn" onClick={() => setScreen("account")}>
-                  Upgrade to Pro
-                </button>
-              </div>
-            </div>
-          </div>
-          {renderModal()}
-        </div>
-      );
-    }
-
     const friendProfiles = Array.isArray(socialOverview?.friends) ? socialOverview.friends : [];
     const incomingRequests = Array.isArray(socialOverview?.incomingRequests)
       ? socialOverview.incomingRequests
@@ -5825,51 +5241,6 @@ export default function App() {
             </div>
           </div>
 
-          <div className="analyticsCard premiumDataCard">
-            <div className="premiumFocusHeader">
-              <h3>
-                Weak-Words Lab <span className="proFeatureBadge">PRO</span>
-              </h3>
-              <span className={`premiumBadge ${isProPlan ? "isActive" : ""}`}>
-                {isProPlan ? "PRO ACTIVE" : "PRO"}
-              </span>
-            </div>
-            <p className="settingsHint">
-              Find the exact words that cost you points and export them for focused drills.
-            </p>
-            {isProPlan ? (
-              <>
-                <div className="premiumWeakList">
-                  {weakWordCandidates.slice(0, 8).map((entry, index) => (
-                    <div key={`${entry.sourceBookId}:${entry.word}:${index}`} className="premiumWeakRow">
-                      <strong>{entry.word}</strong>
-                      <span>{entry.sourceBookName}</span>
-                      <span>Mistakes: {entry.mistakeCount}</span>
-                      <span>Mastery XP: {entry.masteryXp}</span>
-                    </div>
-                  ))}
-                  {weakWordCandidates.length === 0 ? (
-                    <p className="quizSetupHint">No weak-word data yet. Complete quizzes to build insights.</p>
-                  ) : null}
-                </div>
-                <div className="premiumActionRow">
-                  <button type="button" className="primaryBtn" onClick={startSmartReviewSession}>
-                    Start Smart Review
-                  </button>
-                  <button type="button" className="primaryBtn" onClick={exportWeakWordsCsv}>
-                    Export Weak Words CSV
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="premiumActionRow">
-                <button type="button" className="primaryBtn" onClick={() => setScreen("account")}>
-                  Unlock Pro Insights - A$6/month
-                </button>
-              </div>
-            )}
-          </div>
-
           <div className="analyticsCard backupRestoreCard">
             <h3>Backup & Restore</h3>
             <p className="quizSetupHint">
@@ -5939,7 +5310,7 @@ export default function App() {
               }
             }}
           >
-            <span className="bookModeIcon" aria-hidden="true">{"\uD83D\uDCD8"}</span>
+            <span className="bookModeIcon" aria-hidden="true">{"\uD83E\uDDE0"}</span>
             <strong>Definitions</strong>
             <p>Add and manage words, meanings, and chapter placement.</p>
           </div>
@@ -5998,17 +5369,13 @@ export default function App() {
           <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
           <h1>Select a Book</h1>
         </div>
-        {sortedBooksByRecent.length === 0 ? (
-          <p className="quizSetupHint">No books found. Create a new book in the My Books tab first.</p>
-        ) : (
-          <div className="bookGrid selectBookGrid">
-            {sortedBooksByRecent.map((book) =>
-              renderSelectBookCard(book, () => {
-                openBookFromSelect(book.id, "definitions");
-              })
-            )}
-          </div>
-        )}
+        <div className="bookGrid selectBookGrid">
+          {sortedBooksByRecent.map((book) =>
+            renderSelectBookCard(book, () => {
+              openBookFromSelect(book.id, "definitions");
+            })
+          )}
+        </div>
         {renderModal()}
       </div>
     );
@@ -6031,11 +5398,6 @@ export default function App() {
           />
           <button onClick={addWord}>+</button>
         </div>
-        {!isProPlan ? (
-          <p className="quizSetupHint">
-            Free limit: {currentFreeDailyUsage.wordsAdded} / {FREE_DAILY_WORD_LIMIT} new words added today.
-          </p>
-        ) : null}
         <div className="chapterControlsRow">
           <div className="chapterControlField">
             <span>Chapter for New Words</span>
@@ -6314,17 +5676,13 @@ export default function App() {
           <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
           <h1>Select a Book</h1>
         </div>
-        {sortedBooksByRecent.length === 0 ? (
-          <p className="quizSetupHint">No books found. Create a new book in the My Books tab first.</p>
-        ) : (
-          <div className="bookGrid selectBookGrid">
-            {sortedBooksByRecent.map((book) =>
-              renderSelectBookCard(book, () => {
-                openBookFromSelect(book.id, "flashcards");
-              })
-            )}
-          </div>
-        )}
+        <div className="bookGrid selectBookGrid">
+          {sortedBooksByRecent.map((book) =>
+            renderSelectBookCard(book, () => {
+              openBookFromSelect(book.id, "flashcards");
+            })
+          )}
+        </div>
         {renderModal()}
       </div>
     );
@@ -6339,16 +5697,6 @@ export default function App() {
     const selectedBookCount = quizSetupSelection.bookIds.length;
     const selectedChapterCount = quizSetupSelection.chapterKeys.length;
     const selectedDifficultyCount = quizSetupSelection.difficultyKeys.length;
-    const freeTypingRemaining = Math.max(
-      0,
-      FREE_DAILY_TYPING_LIMIT - currentFreeDailyUsage.typingAttempts
-    );
-    const freeMistakeRemaining = Math.max(
-      0,
-      FREE_DAILY_MISTAKE_REVIEW_LIMIT - currentFreeDailyUsage.mistakeReviewAttempts
-    );
-    const isTypingLimitReached = !isProPlan && freeTypingRemaining <= 0;
-    const isMistakeLimitReached = !isProPlan && freeMistakeRemaining <= 0;
     const quizSetupChapterGroups = quizSetupBooks.map((book) => ({
       bookId: String(book.id),
       bookName: book.name,
@@ -6449,11 +5797,7 @@ export default function App() {
                 type="button"
                 className={`quizModeCard ${quizMode === "typing" ? "isActive" : ""}`}
                 onClick={() => setQuizMode("typing")}
-                disabled={isTypingLimitReached}
               >
-                {!isProPlan ? (
-                  <span className="quizLimitBadge">{freeTypingRemaining} left</span>
-                ) : null}
                 <span className="quizModeCardIcon" aria-hidden="true">{"\u2328"}</span>
                 <strong>Typing</strong>
                 <small>
@@ -6466,11 +5810,7 @@ export default function App() {
                 type="button"
                 className={`quizModeCard ${quizMode === "mistake" ? "isActive" : ""}`}
                 onClick={() => setQuizMode("mistake")}
-                disabled={isMistakeLimitReached}
               >
-                {!isProPlan ? (
-                  <span className="quizLimitBadge">{freeMistakeRemaining} left</span>
-                ) : null}
                 <span className="quizModeCardIcon" aria-hidden="true">{"\uD83D\uDD01"}</span>
                 <strong>Mistake Review</strong>
                 <small>Practice only words you previously got wrong.</small>

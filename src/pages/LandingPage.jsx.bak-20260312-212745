@@ -1,0 +1,426 @@
+
+import { useEffect, useRef, useState } from "react";
+
+const YEAR = new Date().getFullYear();
+
+function LandingIcon({ name }) {
+  const common = {
+    width: 20,
+    height: 20,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "1.8",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true",
+  };
+
+  if (name === "cards") {
+    return (
+      <svg {...common}>
+        <rect x="3" y="5" width="14" height="10" rx="2" />
+        <path d="M7 19h10a2 2 0 0 0 2-2V9" />
+      </svg>
+    );
+  }
+
+  if (name === "book") {
+    return (
+      <svg {...common}>
+        <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H20v14.5a1.5 1.5 0 0 1-1.5 1.5H6.5A2.5 2.5 0 0 1 4 17.5z" />
+        <path d="M8 8h8M8 12h8" />
+      </svg>
+    );
+  }
+
+  if (name === "chart") {
+    return (
+      <svg {...common}>
+        <path d="M4 19V5" />
+        <path d="M8 19v-6" />
+        <path d="M12 19V9" />
+        <path d="M16 19V7" />
+        <path d="M20 19V11" />
+      </svg>
+    );
+  }
+
+  if (name === "cloud") {
+    return (
+      <svg {...common}>
+        <path d="M7 18h10a4 4 0 0 0 .3-8 5.5 5.5 0 0 0-10.6 1.3A3.5 3.5 0 0 0 7 18z" />
+      </svg>
+    );
+  }
+
+  if (name === "spark") {
+    return (
+      <svg {...common}>
+        <path d="m12 3 1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7z" />
+      </svg>
+    );
+  }
+
+  if (name === "target") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <circle cx="12" cy="12" r="8" />
+    </svg>
+  );
+}
+
+const HIGHLIGHT_STATS = [
+  { value: "3", label: "Practice modes", icon: "cards" },
+  { value: "Chapter-based", label: "Learning structure", icon: "book" },
+  { value: "Daily", label: "Progress tracking", icon: "chart" },
+  { value: "Cloud sync", label: "Account backup", icon: "cloud" },
+];
+
+const FEATURE_CARDS = [
+  {
+    icon: "book",
+    title: "Structured Learning Workspace",
+    description:
+      "Organize vocabulary by book and chapter so revision follows your course material with less context switching.",
+  },
+  {
+    icon: "cards",
+    title: "Flashcards + Quiz Flow",
+    description:
+      "Move from quick recall to active testing in one loop, making it easier to reinforce memory and close weak spots.",
+  },
+  {
+    icon: "chart",
+    title: "Progress You Can Read Fast",
+    description:
+      "Track streaks, XP, and completion snapshots so you always know what to review next and where your momentum is.",
+  },
+  {
+    icon: "cloud",
+    title: "Account-Backed Continuity",
+    description:
+      "Sign in to keep your progress synchronized with the backend, so your study history is preserved across sessions.",
+  },
+  {
+    icon: "target",
+    title: "Built for Consistency",
+    description:
+      "Focused screens, chapter filtering, and quick actions reduce friction so daily practice feels practical and repeatable.",
+  },
+  {
+    icon: "spark",
+    title: "Clean, Modern Interface",
+    description:
+      "Simple navigation and clear hierarchy keep attention on learning outcomes instead of unnecessary UI complexity.",
+  },
+];
+
+const WORKFLOW_STEPS = [
+  {
+    icon: "book",
+    title: "Add and organize words",
+    description: "Create books and chapters that mirror your textbook or class structure.",
+  },
+  {
+    icon: "cards",
+    title: "Practice in focused sessions",
+    description: "Use flashcards and quizzes to reinforce recall and accuracy over time.",
+  },
+  {
+    icon: "chart",
+    title: "Review progress and repeat",
+    description: "Use streaks and performance signals to plan your next high-value revision.",
+  },
+];
+
+const MASTERY_FLOW_STEPS = [
+  {
+    icon: "book",
+    stage: "Capture",
+    title: "Add word + definition",
+    detail: "Save words into the right book and chapter for context.",
+    progress: 20,
+  },
+  {
+    icon: "cards",
+    stage: "Reinforce",
+    title: "Review with flashcards",
+    detail: "Build recall quickly with repeated short sessions.",
+    progress: 45,
+  },
+  {
+    icon: "target",
+    stage: "Challenge",
+    title: "Pass typing quizzes",
+    detail: "Convert recognition into accurate active recall.",
+    progress: 75,
+  },
+  {
+    icon: "chart",
+    stage: "Master",
+    title: "Track streak + mastery",
+    detail: "Use progress signals to lock words into long-term memory.",
+    progress: 100,
+  },
+];
+
+const APP_SCREEN_PREVIEWS = [
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    title: "Overview and quick access",
+    points: ["XP and streak status", "Weekly overview cards", "Fast mode navigation"],
+    accentClass: "isDashboard",
+    imageSrc: "/landing/dashboard.png",
+    imageAlt: "Vocalibry dashboard screenshot",
+  },
+  {
+    key: "definitions",
+    label: "Definitions workspace",
+    title: "Book and chapter vocabulary flow",
+    points: ["Quick word entry", "Chapter management", "Mastery controls per word"],
+    accentClass: "isDefinitions",
+    imageSrc: "/landing/book-page.png",
+    imageAlt: "My Book 1 definitions page screenshot",
+  },
+  {
+    key: "quiz",
+    label: "Typing quiz",
+    title: "Focused quiz session layout",
+    points: ["Definition-first prompt", "Typing input with hint", "Score and question tracking"],
+    accentClass: "isQuiz",
+    imageSrc: "/landing/typing-quiz.png",
+    imageAlt: "My Book 1 typing quiz screenshot",
+  },
+];
+
+export function LandingPage() {
+  const masteryFlowRef = useRef(null);
+  const [isMasteryFlowVisible, setIsMasteryFlowVisible] = useState(false);
+
+  useEffect(() => {
+    const node = masteryFlowRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          setIsMasteryFlowVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.28 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="publicPage publicLanding">
+      <header className="publicHeader">
+        <a className="publicLogo" href="/">
+          Vocalibry
+        </a>
+        <nav className="publicNav" aria-label="Public pages">
+          <a href="/terms">Terms</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/contact">Contact</a>
+          <a href="/register">Register</a>
+          <a className="publicHeaderCta" href="/login">
+            Log in
+          </a>
+        </nav>
+      </header>
+
+      <main className="landingMain">
+        <section className="heroSection">
+          <div className="heroContent">
+            <p className="heroEyebrow">Vocabulary practice that sticks</p>
+            <h1>Never forget a word again.</h1>
+            <p className="heroCopy">
+              Learn new words, review by chapter, and reinforce memory with flashcards and quizzes in one
+              clean workspace.
+            </p>
+            <div className="heroActions">
+              <a className="publicPrimaryBtn" href="/login">
+                Log in
+              </a>
+              <a className="publicSecondaryBtn" href="/register">
+                Register
+              </a>
+            </div>
+            <div className="heroMiniHighlights" aria-label="Product highlights">
+              <span>Chapter-based workflow</span>
+              <span>Flashcards and quizzes</span>
+              <span>Progress tracking</span>
+            </div>
+          </div>
+          <div className="heroVisual">
+            <img
+              className="heroScreenshot"
+              src="/landing/dashboard.png"
+              alt="Vocalibry dashboard screenshot"
+            />
+          </div>
+        </section>
+
+        <section className="landingStats" aria-label="Product summary">
+          {HIGHLIGHT_STATS.map((item) => (
+            <article key={item.label} className="landingStatCard">
+              <span className="landingInlineIcon">
+                <LandingIcon name={item.icon} />
+              </span>
+              <strong>{item.value}</strong>
+              <span>{item.label}</span>
+            </article>
+          ))}
+        </section>
+
+        <section className="landingImageShowcase" aria-label="Visual highlights">
+          <div className="landingSectionHead">
+            <p className="landingSectionEyebrow">Real product feel</p>
+            <h2>Built around the exact workflows you use every day</h2>
+          </div>
+          <div className="landingScreenGrid">
+            {APP_SCREEN_PREVIEWS.map((screen) => (
+              <article key={screen.key} className={`landingScreenCard ${screen.accentClass}`}>
+                <div className="landingScreenTop">
+                  <span className="landingScreenTag">{screen.label}</span>
+                  <span className="landingScreenDots" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                </div>
+                <p className="landingScreenTitle">{screen.title}</p>
+                <img
+                  className="landingScreenImage"
+                  src={screen.imageSrc}
+                  alt={screen.imageAlt}
+                  loading="lazy"
+                />
+                <ul className="landingScreenPoints">
+                  {screen.points.map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          ref={masteryFlowRef}
+          className={`masteryFlowSection ${isMasteryFlowVisible ? "isVisible" : ""}`}
+          aria-label="Word mastery flow"
+        >
+          <div className="landingSectionHead">
+            <p className="landingSectionEyebrow">Mastery flow</p>
+            <h2>How one word moves from first sight to mastery</h2>
+          </div>
+          <div className="masteryFlowWrap">
+            <ol className="masteryFlowGrid">
+              {MASTERY_FLOW_STEPS.map((step, index) => (
+                <li
+                  key={step.title}
+                  className="masteryFlowCard"
+                  style={{ "--flow-delay": `${index * 130}ms` }}
+                >
+                  <div className="masteryFlowTop">
+                    <span className="masteryFlowIndex">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="masteryFlowIcon">
+                      <LandingIcon name={step.icon} />
+                    </span>
+                  </div>
+                  <p className="masteryFlowStage">{step.stage}</p>
+                  <h3>{step.title}</h3>
+                  <p>{step.detail}</p>
+                  <div className="masteryFlowMeter" aria-hidden="true">
+                    <span style={{ "--meter-target": `${step.progress}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section className="landingSection">
+          <div className="landingSectionHead">
+            <p className="landingSectionEyebrow">Core features</p>
+            <h2>Everything you need for a reliable daily vocab routine</h2>
+          </div>
+          <div className="featureGrid" aria-label="Core features">
+            {FEATURE_CARDS.map((feature) => (
+              <article key={feature.title} className="featureCard">
+                <span className="featureIcon">
+                  <LandingIcon name={feature.icon} />
+                </span>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="workflowSection" aria-label="How it works">
+          <div className="landingSectionHead">
+            <p className="landingSectionEyebrow">How it works</p>
+            <h2>A straightforward flow from input to mastery</h2>
+          </div>
+          <ol className="workflowGrid">
+            {WORKFLOW_STEPS.map((step, index) => (
+              <li key={step.title} className="workflowCard">
+                <div className="workflowCardTop">
+                  <span className="workflowIndex">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="workflowIcon">
+                    <LandingIcon name={step.icon} />
+                  </span>
+                </div>
+                <h3>{step.title}</h3>
+                <p>{step.description}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="landingFinalCta" aria-label="Get started">
+          <h2>Start building your vocabulary system today.</h2>
+          <p>
+            Create your account and keep your learning organized, measurable, and easy to maintain.
+          </p>
+          <div className="heroActions">
+            <a className="publicPrimaryBtn" href="/register">
+              Create account
+            </a>
+            <a className="publicSecondaryBtn" href="/login">
+              I already have an account
+            </a>
+          </div>
+        </section>
+      </main>
+
+      <footer className="publicFooter">
+        <p>(c) {YEAR} Vocalibry. All rights reserved.</p>
+        <div className="publicFooterLinks">
+          <a href="/terms">Terms & Conditions</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/contact">Contact</a>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+

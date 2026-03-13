@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "node --watch server/index.js",
+    "dev:server": "node server/index.js",
+    "dev:server:watch": "node --watch server/index.js",
     "build": "vite build",
     "lint": "eslint .",
+    "test:smoke": "node scripts/smoke.mjs",
     "preview": "vite preview",
     "start:server": "node server/index.js"
   },
@@ -15,9 +17,11 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "nodemailer": "^8.0.1",
     "pg": "^8.16.3",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "stripe": "^20.4.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 104" role="img" aria-label="Hint available">
+  <circle cx="36" cy="36" r="34" fill="#595959" />
+  <rect x="33" y="19" width="6" height="28" rx="3" fill="#ffffff" />
+  <circle cx="36" cy="58" r="4" fill="#ffffff" />
+  <rect x="18" y="67" width="36" height="18" rx="4" fill="#595959" />
+  <rect x="20" y="81" width="32" height="8" rx="3" fill="#595959" />
+  <rect x="24" y="89" width="24" height="9" rx="3" fill="#595959" />
+</svg>

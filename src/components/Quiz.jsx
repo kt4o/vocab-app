@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import hintIconOn from "../assets/typing-hint-icon-on.svg";
 
 export function Quiz({
   words: inputWords = [],
@@ -7,7 +8,6 @@ export function Quiz({
   mode = "normal",
   isMistakeReview = false,
   onAwardXp,
-  onAwardCoins,
   onQuestionCompleted,
   onRecordMistake,
   onResolveMistake,
@@ -19,11 +19,10 @@ export function Quiz({
   DEFAULT_CHAPTER_ID,
   QUIZ_SUCCESS_PROMPTS,
   QUIZ_MISS_PROMPTS,
-  getQuizCoinReward,
 }) {
   const justAnsweredAtRef = useRef(0);
   const lastAdvanceAtRef = useRef(0);
-  const words = inputWords || [];
+  const words = useMemo(() => inputWords || [], [inputWords]);
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [questions, setQuestions] = useState(() =>
     mode === "blank" ? buildBlankQuizQuestions(words) : buildQuizQuestions(words)
@@ -37,7 +36,6 @@ export function Quiz({
   const [score, setScore] = useState(0);
   const [motivationPrompt, setMotivationPrompt] = useState("");
   const [isMotivationPositive, setIsMotivationPositive] = useState(false);
-  const [completionBonusAwarded, setCompletionBonusAwarded] = useState(false);
   const [quizCompletionReported, setQuizCompletionReported] = useState(false);
   const isTypingMode = mode === "typing";
   const isBlankMode = mode === "blank";
@@ -55,7 +53,6 @@ export function Quiz({
     setScore(0);
     setMotivationPrompt("");
     setIsMotivationPositive(false);
-    setCompletionBonusAwarded(false);
     setQuizCompletionReported(false);
   }, [mode, words, buildBlankQuizQuestions, buildQuizQuestions]);
 
@@ -86,6 +83,14 @@ export function Quiz({
     accuracyPercent >= 80
       ? "Challenge yourself and beat this score on the next run."
       : "Review missed words once, then run the quiz again for a higher score.";
+  const resultIcon =
+    accuracyPercent === 100
+      ? "\uD83C\uDFC6"
+      : accuracyPercent >= 80
+        ? "\u2728"
+        : accuracyPercent >= 60
+          ? "\uD83D\uDCAA"
+          : "\uD83D\uDE80";
 
   function restartQuiz() {
     setQuestions(
@@ -100,7 +105,6 @@ export function Quiz({
     setScore(0);
     setMotivationPrompt("");
     setIsMotivationPositive(false);
-    setCompletionBonusAwarded(false);
     setQuizCompletionReported(false);
   }
 
@@ -164,7 +168,7 @@ export function Quiz({
     setIsMotivationPositive(isCorrect);
   }
 
-  function goToNext() {
+  const goToNext = useCallback(() => {
     if (!current || !canGoToNext) return;
     const now = Date.now();
     if (now - lastAdvanceAtRef.current < 300) return;
@@ -177,7 +181,7 @@ export function Quiz({
     setIsTypingHintVisible(false);
     setMotivationPrompt("");
     setIsMotivationPositive(false);
-  }
+  }, [current, canGoToNext]);
 
   function handleBackAttempt() {
     const hasActiveQuestionFlow = questions.length > 0 && Boolean(current) && !isFinished;
@@ -187,19 +191,6 @@ export function Quiz({
     }
     setIsExitConfirmOpen(true);
   }
-
-  useEffect(() => {
-    if (!isFinished || completionBonusAwarded || questions.length === 0) return;
-
-    const accuracy = Math.round((score / questions.length) * 100);
-    const completionBonus =
-      accuracy === 100 ? 50 : accuracy >= 80 ? 30 : accuracy >= 60 ? 20 : 10;
-    const totalCoinReward = getQuizCoinReward(questions.length, score);
-
-    onAwardXp?.(completionBonus);
-    onAwardCoins?.(totalCoinReward);
-    setCompletionBonusAwarded(true);
-  }, [isFinished, completionBonusAwarded, score, questions.length, onAwardXp, onAwardCoins, getQuizCoinReward]);
 
   useEffect(() => {
     if (!isFinished || quizCompletionReported) return;
@@ -232,7 +223,7 @@ export function Quiz({
 
     window.addEventListener("keydown", handleEnterForNext);
     return () => window.removeEventListener("keydown", handleEnterForNext);
-  }, [isFinished, current, canGoToNext]);
+  }, [isFinished, current, canGoToNext, goToNext]);
 
   return (
     <div className="page">
@@ -268,57 +259,73 @@ export function Quiz({
             : "Could not generate quiz questions yet. Add more words with definitions."}
         </p>
       ) : isFinished ? (
-        <div className="quizResultCard">
-          <p className="quizResultBadge">{resultBadge}</p>
-          <h2>
-            {isMistakeReview
-              ? "Mistake Review Complete"
-              : mode === "typing"
-                ? "Typing Quiz Complete"
-                : mode === "blank"
-                  ? "Fill in the Blank Quiz Complete"
-                  : "Quiz Complete"}
-          </h2>
-          <p className="quizResultHeadline">{resultHeadline}</p>
-          <div className="quizResultStats">
-            <div className="quizResultStat">
-              <span className="quizResultStatLabel">Accuracy</span>
-              <strong>{accuracyPercent}%</strong>
-            </div>
-            <div className="quizResultStat">
-              <span className="quizResultStatLabel">Correct</span>
-              <strong>{correctAnswers}</strong>
-            </div>
-            <div className="quizResultStat">
-              <span className="quizResultStatLabel">Missed</span>
-              <strong>{wrongAnswers}</strong>
-            </div>
-          </div>
-          <div className="quizResultProgressTrack" aria-hidden="true">
-            <div className="quizResultProgressFill" style={{ width: `${accuracyPercent}%` }} />
-          </div>
-          <p className="quizScoreLine">
-            Final score: {score} / {questions.length}
-          </p>
-          <p className="quizResultMotivation">{resultMotivation}</p>
-          {mistakeReviewItems.length > 0 && (
-            <div className="quizMistakeReviewCard">
-              <h3>Review Mistakes</h3>
-              <div className="quizMistakeReviewList">
-                {mistakeReviewItems.map((item, itemIndex) => (
-                  <div className="quizMistakeReviewItem" key={`${item.word}-${itemIndex}`}>
-                    <strong>{item.word}</strong>
-                    <p className="quizMistakeDefinition">
-                      {item.definition || item.correctAnswer || "Not available"}
-                    </p>
-                  </div>
-                ))}
+        <div className={`quizResultCard ${mistakeReviewItems.length > 0 ? "hasMistakes" : ""}`}>
+          <div className="quizResultLayout">
+            <div className="quizResultMain">
+              <div className="quizResultHero">
+                <span className="quizResultIcon" aria-hidden="true">{resultIcon}</span>
+                <div>
+                  <p className="quizResultBadge">{resultBadge}</p>
+                  <h2>
+                    {isMistakeReview
+                      ? "Mistake Review Complete"
+                      : mode === "typing"
+                        ? "Typing Quiz Complete"
+                        : mode === "blank"
+                          ? "Fill in the Blank Quiz Complete"
+                          : "Quiz Complete"}
+                  </h2>
+                  <p className="quizResultHeadline">{resultHeadline}</p>
+                </div>
               </div>
+
+              <div className="quizResultStats">
+                <div className="quizResultStat">
+                  <span className="quizResultStatLabel">Accuracy</span>
+                  <strong>{accuracyPercent}%</strong>
+                </div>
+                <div className="quizResultStat">
+                  <span className="quizResultStatLabel">Correct</span>
+                  <strong>{correctAnswers}</strong>
+                </div>
+                <div className="quizResultStat">
+                  <span className="quizResultStatLabel">Missed</span>
+                  <strong>{wrongAnswers}</strong>
+                </div>
+              </div>
+              <div className="quizResultProgressTrack" aria-hidden="true">
+                <div className="quizResultProgressFill" style={{ width: `${accuracyPercent}%` }} />
+              </div>
+              <p className="quizScoreLine">
+                Final score: {score} / {questions.length}
+              </p>
+              <p className="quizResultMotivation">{resultMotivation}</p>
             </div>
-          )}
-          <button className="primaryBtn" onClick={restartQuiz}>
-            Try Again
-          </button>
+
+            {mistakeReviewItems.length > 0 && (
+              <div className="quizMistakeReviewCard">
+                <h3>Review Mistakes</h3>
+                <div className="quizMistakeReviewList">
+                  {mistakeReviewItems.map((item, itemIndex) => (
+                    <div className="quizMistakeReviewItem" key={`${item.word}-${itemIndex}`}>
+                      <strong>{item.word}</strong>
+                      <p className="quizMistakeDefinition">
+                        {item.definition || item.correctAnswer || "Not available"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="quizResultActions">
+            <button className="primaryBtn" onClick={restartQuiz}>
+              Try Again
+            </button>
+            <button className="primaryBtn" onClick={goBack}>
+              Back
+            </button>
+          </div>
         </div>
       ) : (
         <div className="quizCard">
@@ -343,16 +350,23 @@ export function Quiz({
                   autoComplete="off"
                   disabled={typedSubmitted}
                 />
-                <button
-                  type="button"
-                  className="quizHintBtn"
-                  aria-label="Show typing hint"
-                  title="Show hint"
-                  onClick={() => setIsTypingHintVisible(true)}
-                  disabled={typedSubmitted}
-                >
-                  {"\uD83D\uDCA1"}
-                </button>
+                {!isTypingHintVisible && (
+                  <button
+                    type="button"
+                    className="quizHintBtn"
+                    aria-label="Show typing hint"
+                    title="Show hint"
+                    onClick={() => setIsTypingHintVisible(true)}
+                    disabled={typedSubmitted}
+                  >
+                    <img
+                      src={hintIconOn}
+                      alt=""
+                      aria-hidden="true"
+                      className="quizHintBtnIcon"
+                    />
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="primaryBtn"

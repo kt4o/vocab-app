@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" role="img" aria-label="Vocabulary cards illustration">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffd36e"/>
+      <stop offset="100%" stop-color="#ff9c66"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="220" rx="18" fill="#fff8ee"/>
+  <rect x="26" y="26" width="150" height="168" rx="14" fill="url(#g1)"/>
+  <rect x="186" y="40" width="148" height="66" rx="12" fill="#ffffff" stroke="#f1d3b5"/>
+  <rect x="186" y="116" width="148" height="78" rx="12" fill="#ffffff" stroke="#f1d3b5"/>
+  <circle cx="74" cy="82" r="20" fill="#ffffff" fill-opacity=".8"/>
+  <rect x="55" y="118" width="92" height="12" rx="6" fill="#fff2d9"/>
+  <rect x="55" y="138" width="76" height="12" rx="6" fill="#fff2d9"/>
+  <rect x="204" y="58" width="88" height="10" rx="5" fill="#f2f6ff"/>
+  <rect x="204" y="74" width="56" height="10" rx="5" fill="#f2f6ff"/>
+  <rect x="204" y="136" width="108" height="10" rx="5" fill="#f2f6ff"/>
+  <rect x="204" y="154" width="96" height="10" rx="5" fill="#f2f6ff"/>
+</svg>

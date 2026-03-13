@@ -30,6 +30,24 @@ export function Flashcards({
             (wordEntry) => normalizeWordDifficulty(wordEntry.difficulty) === selectedDifficulty
           );
   const current = filteredWords[index];
+  const hasCards = filteredWords.length > 0;
+
+  function goToPreviousCard() {
+    if (!hasCards) return;
+    setIndex((prev) => (prev - 1 + filteredWords.length) % filteredWords.length);
+    setShowDef(false);
+  }
+
+  function goToNextCard() {
+    if (!hasCards) return;
+    setIndex((prev) => (prev + 1) % filteredWords.length);
+    setShowDef(false);
+  }
+
+  function flipCurrentCard() {
+    if (!hasCards) return;
+    setShowDef((prev) => !prev);
+  }
 
   useEffect(() => {
     setIndex(0);
@@ -45,6 +63,51 @@ export function Flashcards({
       setShowDef(false);
     }
   }, [index, filteredWords.length]);
+
+  useEffect(() => {
+    function isEditableTarget(target) {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName;
+      return (
+        target.isContentEditable ||
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT"
+      );
+    }
+
+    function onWindowKeyDown(event) {
+      if (!hasCards) return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (isEditableTarget(event.target)) return;
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goToPreviousCard();
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goToNextCard();
+        return;
+      }
+
+      if (event.key === "Enter" || event.key === " " || event.code === "Space") {
+        event.preventDefault();
+        flipCurrentCard();
+        return;
+      }
+
+      if (event.key.toLowerCase() === "l") {
+        event.preventDefault();
+        setShowWordList((prev) => !prev);
+      }
+    }
+
+    window.addEventListener("keydown", onWindowKeyDown);
+    return () => window.removeEventListener("keydown", onWindowKeyDown);
+  }, [hasCards, filteredWords.length]);
 
   return (
     <div className="page">
@@ -136,34 +199,27 @@ export function Flashcards({
             className="flashcard"
             role="button"
             tabIndex={0}
-            onClick={() => setShowDef(!showDef)}
+            onClick={flipCurrentCard}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                setShowDef((prev) => !prev);
+                flipCurrentCard();
               }
             }}
           >
             {showDef ? getSelectedDefinition(current) : current.word}
           </div>
           <div className="flashControls">
-            <button
-              onClick={() => {
-                setIndex((index - 1 + filteredWords.length) % filteredWords.length);
-                setShowDef(false);
-              }}
-            >
+            <button onClick={goToPreviousCard}>
               Prev
             </button>
-            <button
-              onClick={() => {
-                setIndex((index + 1) % filteredWords.length);
-                setShowDef(false);
-              }}
-            >
+            <button onClick={goToNextCard}>
               Next
             </button>
           </div>
+          <p className="flashKeybindHint" aria-label="Flashcard keyboard shortcuts">
+            Keys: Left/Right to navigate, Space or Enter to flip, L to toggle word list.
+          </p>
         </>
       )}
     </div>

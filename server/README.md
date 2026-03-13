@@ -10,12 +10,34 @@
    - `PORT=4000`
    - `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/my_vocab_app`
    - `PGSSLMODE=disable` (set `require` in production if your provider requires SSL)
+   - `CORS_ORIGIN=https://your-frontend-domain.com` (or comma-separated list via `CORS_ORIGINS`)
+   - `WRITE_RATE_LIMIT_WINDOW_MS=900000`
+   - `WRITE_RATE_LIMIT_MAX_ATTEMPTS=180`
+   - `SMTP_HOST=smtp.your-provider.com`
+   - `SMTP_PORT=587`
+   - `SMTP_SECURE=false` (`true` for port 465)
+   - `SMTP_USER=your-smtp-user`
+   - `SMTP_PASS=your-smtp-password`
+   - `EMAIL_FROM="Vocalibry <no-reply@yourdomain.com>"`
+   - `WORDNIK_API_KEY=your-wordnik-api-key` (optional, adds higher-quality dictionary example sentences)
+   - `STRIPE_SECRET_KEY=sk_live_or_test_key`
+   - `STRIPE_WEBHOOK_SECRET=whsec_...`
+   - `STRIPE_PRICE_ID=price_...` (recurring subscription price id)
+   - `APP_BASE_URL=https://your-frontend-domain.com` (used for Stripe success/cancel redirects)
 
 ### Endpoints
 
 - `GET /api/health`
-- `POST /api/auth/register` body: `{"username":"demo_user","password":"yourpass123"}`
+- `POST /api/auth/register/request-email-code` body: `{"email":"demo@example.com"}`
+- `POST /api/auth/register/verify-email-code` body: `{"email":"demo@example.com","code":"123456"}`
+- `POST /api/auth/register` body: `{"email":"demo@example.com","verifiedEmailToken":"<token>","username":"demo_user","password":"yourpass123"}`
+- `POST /api/auth/password-reset/request-code` body: `{"email":"demo@example.com"}`
+- `POST /api/auth/password-reset/verify-code` body: `{"email":"demo@example.com","code":"123456"}`
+- `POST /api/auth/password-reset/complete` body: `{"email":"demo@example.com","resetToken":"<token>","password":"newpass123"}`
 - `POST /api/auth/login` body: `{"username":"demo_user","password":"yourpass123"}`
+- `POST /api/auth/account/change-password` with `Authorization: Bearer <token>` body: `{"currentPassword":"oldpass123","newPassword":"newpass123"}`
+- `POST /api/auth/account/logout-all` with `Authorization: Bearer <token>`
+- `DELETE /api/auth/account` with `Authorization: Bearer <token>` body: `{"password":"yourpass123"}`
 - `GET /api/words?difficulty=a1&q=ab`
 - `GET /api/progress` with `Authorization: Bearer <token>`
 - `PUT /api/progress` with `Authorization: Bearer <token>` and JSON body:
@@ -23,6 +45,16 @@
 - `GET /api/state` with `Authorization: Bearer <token>`
 - `PUT /api/state` with `Authorization: Bearer <token>` and JSON body:
   `{"appState":{"backupVersion":1,"exportedAt":"2026-03-07T00:00:00.000Z","data":{"theme":"light"}}}`
+- `GET /api/examples/:word` returns dictionary-backed example sentences (Wordnik + DictionaryAPI)
+- `GET /api/social/overview` with `Authorization: Bearer <token>`
+- `POST /api/social/requests` with `Authorization: Bearer <token>` body: `{"username":"friend_user"}`
+- `POST /api/social/requests/:requestId/respond` with `Authorization: Bearer <token>` body: `{"action":"accept"}` or `{"action":"decline"}`
+- `DELETE /api/social/requests/:requestId` with `Authorization: Bearer <token>` (cancel your own pending request)
+- `DELETE /api/social/friends/:friendUserId` with `Authorization: Bearer <token>`
+- `GET /api/billing/status` with `Authorization: Bearer <token>`
+- `POST /api/billing/checkout-session` with `Authorization: Bearer <token>`
+- `POST /api/billing/portal-session` with `Authorization: Bearer <token>`
+- `POST /api/billing/webhook` (Stripe webhook endpoint)
 
 ### Notes
 
