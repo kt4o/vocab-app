@@ -95,7 +95,22 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2>9. Intellectual Property</h2>
+          <h2>9. Dictionary Data Sources and Attribution</h2>
+          <p>
+            Definitions and related lexical content may be retrieved from third-party dictionary providers,
+            including Free Dictionary API (dictionaryapi.dev). Upstream content may include material sourced
+            from collaborative dictionaries such as Wiktionary.
+          </p>
+          <p>
+            Where applicable, dictionary text remains subject to its original license terms (for example
+            attribution and share-alike requirements under Creative Commons licenses). You agree not to remove
+            required attribution notices or represent third-party dictionary content as exclusively owned by
+            Vocalibry.
+          </p>
+        </section>
+
+        <section>
+          <h2>10. Intellectual Property</h2>
           <p>
             The service design, branding, and software are owned by Vocalibry or its licensors. You may not
             copy, redistribute, or exploit service materials except as permitted by law or written permission.
@@ -103,7 +118,7 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2>10. Service Changes and Availability</h2>
+          <h2>11. Service Changes and Availability</h2>
           <p>
             We may update, modify, suspend, or discontinue features at any time. The service is provided
             on an &quot;as is&quot; and &quot;as available&quot; basis.
@@ -111,7 +126,7 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2>11. No Guarantee of Results</h2>
+          <h2>12. No Guarantee of Results</h2>
           <p>
             Vocalibry is an educational tool and does not guarantee exam scores, fluency, employment, or any
             specific outcome.
@@ -119,7 +134,7 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2>12. Limitation of Liability</h2>
+          <h2>13. Limitation of Liability</h2>
           <p>
             To the maximum extent permitted by law, Vocalibry is not liable for indirect, incidental,
             special, consequential, or punitive damages arising from use of the service.
@@ -127,7 +142,7 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2>13. Indemnity</h2>
+          <h2>14. Indemnity</h2>
           <p>
             You agree to indemnify and hold harmless Vocalibry from claims, damages, or expenses resulting
             from your misuse of the service, violation of these Terms, or infringement of third-party rights.
@@ -135,7 +150,7 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2>14. Updates to Terms</h2>
+          <h2>15. Updates to Terms</h2>
           <p>
             We may revise these Terms from time to time. Continued use after updates means you accept the
             revised Terms.
@@ -143,7 +158,7 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2>15. Contact</h2>
+          <h2>16. Contact</h2>
           <p>
             Questions about these Terms: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
           </p>

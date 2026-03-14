@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.jsx";
@@ -12,6 +12,11 @@ import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
+const BETA_ACCESS_STORAGE_KEY = "vocab_beta_access_code";
+const EARLY_ACCESS_STORAGE_KEY = "vocab_early_access_code";
+const EARLY_ACCESS_CODE = String(
+  import.meta.env.VITE_EARLY_ACCESS_CODE || import.meta.env.VITE_BETA_CODE || ""
+).trim();
 
 function getStoredAuthToken() {
   const raw = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
@@ -36,9 +41,64 @@ function getRoute(pathname) {
   return "landing";
 }
 
+function hasEarlyAccess() {
+  if (!EARLY_ACCESS_CODE) return true;
+  const storedEarlyAccessCode = String(localStorage.getItem(EARLY_ACCESS_STORAGE_KEY) || "").trim();
+  const storedBetaAccessCode = String(localStorage.getItem(BETA_ACCESS_STORAGE_KEY) || "").trim();
+  return storedEarlyAccessCode === EARLY_ACCESS_CODE || storedBetaAccessCode === EARLY_ACCESS_CODE;
+}
+
+function EarlyAccessGate({ onUnlock }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (!EARLY_ACCESS_CODE || code.trim() === EARLY_ACCESS_CODE) {
+      localStorage.setItem(EARLY_ACCESS_STORAGE_KEY, EARLY_ACCESS_CODE);
+      localStorage.setItem(BETA_ACCESS_STORAGE_KEY, EARLY_ACCESS_CODE);
+      onUnlock(true);
+      return;
+    }
+    setError("Invalid access code.");
+  }
+
+  return (
+    <main className="betaGateWrap">
+      <section className="betaGateCard">
+        <p className="betaGateEyebrow">Early Access</p>
+        <h1>Invite-Only Preview</h1>
+        <p className="betaGateHint">Enter your access code to continue to Vocalibry.</p>
+        <form onSubmit={handleSubmit} className="betaGateForm">
+          <label className="visuallyHidden" htmlFor="early-access-code">Access code</label>
+          <input
+            id="early-access-code"
+            className="betaGateInput"
+            value={code}
+            onChange={(event) => {
+              setCode(event.target.value);
+              if (error) setError("");
+            }}
+            autoComplete="off"
+            placeholder="Early access code"
+            autoFocus
+          />
+          <button type="submit" className="betaGateBtn">Enter</button>
+        </form>
+        {error ? <p className="betaGateError">{error}</p> : null}
+      </section>
+    </main>
+  );
+}
+
 function RootPage() {
   const route = getRoute(window.location.pathname);
   const authToken = getStoredAuthToken();
+  const [isEarlyAccessUnlocked, setIsEarlyAccessUnlocked] = useState(() => hasEarlyAccess());
+
+  if (route === "landing" && !isEarlyAccessUnlocked) {
+    return <EarlyAccessGate onUnlock={setIsEarlyAccessUnlocked} />;
+  }
 
   if (route === "app" && !authToken) {
     return <LoginPage initialMode="login" />;

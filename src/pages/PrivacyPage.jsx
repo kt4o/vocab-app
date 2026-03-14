@@ -76,7 +76,8 @@ export function PrivacyPage() {
           </p>
           <p>
             This can include infrastructure, authentication/security tooling, email delivery providers, and
-            payment processors for billing (for example Stripe, where enabled).
+            payment processors for billing (for example Stripe, where enabled), and third-party dictionary
+            providers used to return definition content.
           </p>
           <p>
             We may also disclose information if required by law, legal process, or valid government request.

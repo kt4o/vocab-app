@@ -5993,6 +5993,10 @@ export default function App() {
             Free limit: {currentFreeDailyUsage.wordsAdded} / {FREE_DAILY_WORD_LIMIT} new words added today.
           </p>
         ) : null}
+        <p className="definitionAttributionNote">
+          Definition data is fetched via Free Dictionary API (dictionaryapi.dev). Upstream source URLs and
+          license details are provided by that API response.
+        </p>
         <div className="chapterControlsRow">
           <div className="chapterControlField">
             <span>Chapter for New Words</span>

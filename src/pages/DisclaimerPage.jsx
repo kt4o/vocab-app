@@ -72,7 +72,20 @@ export function DisclaimerPage() {
         </section>
 
         <section>
-          <h2>7. Limitation of Responsibility</h2>
+          <h2>7. Dictionary Content and Licensing</h2>
+          <p>
+            Definitions may be delivered by third-party dictionary services, including Free Dictionary API
+            (dictionaryapi.dev), and may include upstream collaborative dictionary content.
+          </p>
+          <p>
+            Such content may be governed by separate license terms from its original source, including
+            attribution or share-alike obligations. You are responsible for complying with applicable
+            third-party license requirements when reusing dictionary text outside normal in-app study use.
+          </p>
+        </section>
+
+        <section>
+          <h2>8. Limitation of Responsibility</h2>
           <p>
             To the maximum extent allowed by law, your use of the app is at your own risk, and we are not
             responsible for indirect or consequential loss arising from use of the service.
@@ -80,7 +93,7 @@ export function DisclaimerPage() {
         </section>
 
         <section>
-          <h2>8. Contact</h2>
+          <h2>9. Contact</h2>
           <p>
             Questions about this Disclaimer: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
           </p>

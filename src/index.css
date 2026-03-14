@@ -3713,6 +3713,13 @@ body.theme-dark .quizResultProgressFill {
   color: var(--muted);
 }
 
+.definitionAttributionNote {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 .quizResultMotivation {
   color: var(--muted);
   margin-bottom: 14px;
