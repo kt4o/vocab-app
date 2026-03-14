@@ -31,6 +31,7 @@ const ANALYTICS_API_PATH = `${API_BASE_URL}/api/analytics`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
+const LEGAL_VERSION = "2026-03-14";
 const RETENTION_PING_DAY_KEY_STORAGE = "vocab_retention_ping_day";
 const WORD_DIFFICULTY_OPTIONS = [
   { value: "a1", label: "A1" },
@@ -1816,7 +1817,14 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           mode === "register"
-            ? { email, username, password, marketingOptIn: Boolean(authForm.marketingOptIn) }
+            ? {
+                email,
+                username,
+                password,
+                marketingOptIn: Boolean(authForm.marketingOptIn),
+                acceptedLegal: Boolean(authForm.acceptedLegal),
+                legalVersion: LEGAL_VERSION,
+              }
             : { username, password }
         ),
       });
@@ -1831,6 +1839,8 @@ export default function App() {
               ? "That email is already connected to an account."
               : backendError === "email-not-verified"
                 ? "Verify your email on the Register page before creating an account."
+                : backendError === "legal-not-accepted"
+                  ? "Please accept Terms, Privacy Policy, and Disclaimer."
                 : backendError === "invalid-username"
                   ? "Use 3-24 chars: lowercase letters, numbers, underscore."
                   : backendError === "inappropriate-username"

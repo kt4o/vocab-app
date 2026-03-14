@@ -11,6 +11,9 @@
    - `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/my_vocab_app`
    - `PGSSLMODE=disable` (set `require` in production if your provider requires SSL)
    - `CORS_ORIGIN=https://your-frontend-domain.com` (or comma-separated list via `CORS_ORIGINS`)
+   - `ALLOW_LOCALHOST_IN_PRODUCTION=false` (optional safety override; defaults to `false`)
+   - `ALLOWED_COUNTRIES=US,CA,AU` (optional allowlist by ISO country code from proxy headers)
+   - `BLOCKED_COUNTRIES=CU,IR,KP,SY` (optional blocklist by ISO country code from proxy headers)
    - `WRITE_RATE_LIMIT_WINDOW_MS=900000`
    - `WRITE_RATE_LIMIT_MAX_ATTEMPTS=180`
    - `SMTP_HOST=smtp.your-provider.com`
@@ -24,13 +27,15 @@
    - `STRIPE_PRICE_ID=price_...` (recurring subscription price id)
    - `STRIPE_TRIAL_DAYS=30` (optional, applies trial days for first-time subscriptions only; set `0` to disable)
    - `APP_BASE_URL=https://your-frontend-domain.com` (used for Stripe success/cancel redirects)
+   - `ALLOW_UNSAFE_APP_BASE_URL_IN_PRODUCTION=false` (optional safety override; defaults to `false`)
+   - `LEGAL_VERSION=2026-03-14` (optional; tracked on account creation when legal consent is accepted)
 
 ### Endpoints
 
 - `GET /api/health`
 - `POST /api/auth/register/request-email-code` body: `{"email":"demo@example.com"}`
 - `POST /api/auth/register/verify-email-code` body: `{"email":"demo@example.com","code":"123456"}`
-- `POST /api/auth/register` body: `{"email":"demo@example.com","verifiedEmailToken":"<token>","username":"demo_user","password":"yourpass123"}`
+- `POST /api/auth/register` body: `{"email":"demo@example.com","verifiedEmailToken":"<token>","username":"demo_user","password":"yourpass123","acceptedLegal":true,"legalVersion":"2026-03-14","marketingOptIn":false}`
 - `POST /api/auth/password-reset/request-code` body: `{"email":"demo@example.com"}`
 - `POST /api/auth/password-reset/verify-code` body: `{"email":"demo@example.com","code":"123456"}`
 - `POST /api/auth/password-reset/complete` body: `{"email":"demo@example.com","resetToken":"<token>","password":"newpass123"}`

@@ -8,6 +8,7 @@ export const authRouter = Router();
 
 const authRateBuckets = new Map();
 const EMAIL_CODE_COOLDOWN_MS = 60 * 1000;
+const DEFAULT_LEGAL_VERSION = String(process.env.LEGAL_VERSION || "2026-03-14").trim() || "2026-03-14";
 
 function getRequesterKey(req) {
   const forwardedFor = String(req.headers["x-forwarded-for"] || "")
@@ -522,6 +523,10 @@ authRouter.post("/register", async (req, res) => {
   const verifiedEmailToken = String(req.body?.verifiedEmailToken || "").trim();
   const username = normalizeUsername(req.body?.username);
   const password = String(req.body?.password || "");
+  const marketingOptIn = Boolean(req.body?.marketingOptIn);
+  const acceptedLegal = Boolean(req.body?.acceptedLegal);
+  const legalVersionRaw = String(req.body?.legalVersion || DEFAULT_LEGAL_VERSION).trim();
+  const legalVersion = (legalVersionRaw || DEFAULT_LEGAL_VERSION).slice(0, 64);
 
   if (!isValidEmail(email)) {
     res.status(400).json({ error: "invalid-email" });
@@ -537,6 +542,10 @@ authRouter.post("/register", async (req, res) => {
   }
   if (password.length < 8) {
     res.status(400).json({ error: "weak-password" });
+    return;
+  }
+  if (!acceptedLegal) {
+    res.status(400).json({ error: "legal-not-accepted" });
     return;
   }
   if (!verifiedEmailToken) {
@@ -590,11 +599,22 @@ authRouter.post("/register", async (req, res) => {
 
     const userInsert = await client.query(
       `
-        INSERT INTO users (username, email, password_hash, created_at, auth_token, auth_token_created_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO users (
+          username,
+          email,
+          password_hash,
+          created_at,
+          auth_token,
+          auth_token_created_at,
+          marketing_opt_in,
+          marketing_opt_in_updated_at,
+          legal_accepted_at,
+          legal_version
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id
       `,
-      [username, email, passwordHash, now, token, now]
+      [username, email, passwordHash, now, token, now, marketingOptIn, now, now, legalVersion]
     );
     const userId = Number(userInsert.rows[0].id);
 

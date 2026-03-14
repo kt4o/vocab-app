@@ -15,7 +15,20 @@ const configuredAppBaseUrl = String(
 )
   .trim()
   .replace(/\/$/, "");
+const isProduction = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+const allowUnsafeAppBaseUrlInProduction =
+  String(process.env.ALLOW_UNSAFE_APP_BASE_URL_IN_PRODUCTION || "").trim().toLowerCase() === "true";
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
+
+if (isProduction && stripeSecretKey.startsWith("sk_test_")) {
+  console.warn(
+    "[billing] STRIPE_SECRET_KEY appears to be a test key in production. Switch to a live key before public launch."
+  );
+}
+
+function isLocalhostUrl(value) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(String(value || "").trim());
+}
 
 function normalizePlan(value) {
   const normalized = String(value || "").trim().toLowerCase();
@@ -55,6 +68,24 @@ function getAppBaseUrl(req) {
   }
 
   return "http://localhost:5173";
+}
+
+function resolveSafeAppBaseUrl(req, res) {
+  const appBaseUrl = getAppBaseUrl(req);
+
+  if (isProduction) {
+    if (!/^https:\/\//i.test(appBaseUrl)) {
+      res.status(503).json({ error: "billing-base-url-invalid" });
+      return "";
+    }
+
+    if (!allowUnsafeAppBaseUrlInProduction && isLocalhostUrl(appBaseUrl)) {
+      res.status(503).json({ error: "billing-base-url-invalid" });
+      return "";
+    }
+  }
+
+  return appBaseUrl;
 }
 
 function ensureStripeCheckoutConfigured(res) {
@@ -288,7 +319,8 @@ billingRouter.post("/checkout-session", async (req, res) => {
       await query("UPDATE users SET stripe_customer_id = $1 WHERE id = $2", [customerId, row.id]);
     }
 
-    const appBaseUrl = getAppBaseUrl(req);
+    const appBaseUrl = resolveSafeAppBaseUrl(req, res);
+    if (!appBaseUrl) return;
     const isFirstSubscriptionCheckout =
       !String(row.stripe_subscription_id || "").trim() &&
       !normalizeSubscriptionStatus(row.subscription_status);
@@ -331,7 +363,8 @@ billingRouter.post("/portal-session", async (req, res) => {
       return;
     }
 
-    const appBaseUrl = getAppBaseUrl(req);
+    const appBaseUrl = resolveSafeAppBaseUrl(req, res);
+    if (!appBaseUrl) return;
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${appBaseUrl}/app`,

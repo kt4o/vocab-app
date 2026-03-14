@@ -68,6 +68,26 @@ export async function initDb() {
   `);
 
   await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE;
+  `);
+
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS marketing_opt_in_updated_at TEXT;
+  `);
+
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS legal_accepted_at TEXT;
+  `);
+
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS legal_version TEXT;
+  `);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS progress (
       user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       total_xp INTEGER NOT NULL DEFAULT 0,

@@ -6,6 +6,7 @@ const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
 const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
+const LEGAL_VERSION = "2026-03-14";
 
 function getStoredAuthToken() {
   const raw = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
@@ -227,6 +228,8 @@ export function LoginPage({ initialMode = "login" }) {
                 username: normalizedUsername,
                 password,
                 marketingOptIn,
+                acceptedLegal,
+                legalVersion: LEGAL_VERSION,
               }
             : { username: normalizedUsername, password }
         ),
@@ -240,8 +243,10 @@ export function LoginPage({ initialMode = "login" }) {
             ? "Enter a valid email address."
             : backendError === "email-taken"
               ? "That email is already connected to an account."
-              : backendError === "email-not-verified"
+            : backendError === "email-not-verified"
                 ? "Verify your email before creating an account."
+              : backendError === "legal-not-accepted"
+                ? "Please accept Terms, Privacy Policy, and Disclaimer."
               :
           backendError === "invalid-username"
             ? "Use 3-24 chars: lowercase letters, numbers, underscore."
