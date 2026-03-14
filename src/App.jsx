@@ -2533,7 +2533,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [authToken, applyAppDataSnapshot]);
+  }, [authToken]);
 
   useEffect(() => {
     if (!authToken || !isCloudStateHydrated) return undefined;
