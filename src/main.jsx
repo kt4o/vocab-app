@@ -11,20 +11,11 @@ import { PricingPage } from "./pages/PricingPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 
-const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const BETA_ACCESS_STORAGE_KEY = "vocab_beta_access_code";
 const EARLY_ACCESS_STORAGE_KEY = "vocab_early_access_code";
 const EARLY_ACCESS_CODE = String(
   import.meta.env.VITE_EARLY_ACCESS_CODE || import.meta.env.VITE_BETA_CODE || ""
 ).trim();
-
-function getStoredAuthToken() {
-  const raw = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
-  if (!raw) return "";
-  const lowered = raw.toLowerCase();
-  if (lowered === "null" || lowered === "undefined") return "";
-  return raw;
-}
 
 function getRoute(pathname) {
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
@@ -93,15 +84,10 @@ function EarlyAccessGate({ onUnlock }) {
 
 function RootPage() {
   const route = getRoute(window.location.pathname);
-  const authToken = getStoredAuthToken();
   const [isEarlyAccessUnlocked, setIsEarlyAccessUnlocked] = useState(() => hasEarlyAccess());
 
   if (route === "landing" && !isEarlyAccessUnlocked) {
     return <EarlyAccessGate onUnlock={setIsEarlyAccessUnlocked} />;
-  }
-
-  if (route === "app" && !authToken) {
-    return <LoginPage initialMode="login" />;
   }
 
   if (route === "app") return <App />;

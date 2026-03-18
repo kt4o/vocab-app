@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const YEAR = new Date().getFullYear();
 
@@ -47,6 +47,10 @@ const MASTERY_FLOW = [
 
 export function LandingPage() {
   const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
+
+  useEffect(() => {
+    document.title = "Vocalibry | Learn Vocabulary";
+  }, []);
 
   return (
     <div className="publicPage publicLanding landingV2 landingV2Notion">
@@ -112,10 +116,10 @@ export function LandingPage() {
       <main className="landingV2NotionMain">
         <section className="landingV2NotionHero">
           <div className="landingV2NotionHeroCopy">
-            <h1>Meet your vocab command center.</h1>
+            <h1>Turn new words into permanent memory.</h1>
             <p>
-              Build chapter-based word banks, review with flashcards and quizzes, and track progress
-              across every session, all in one focused workspace.
+              Organize definitions, practice with flashcards and quizzes, and fix forgetting with
+              targeted review.
             </p>
             <div className="heroActions landingV2NotionHeroActions">
               <a className="publicPrimaryBtn" href="/register">

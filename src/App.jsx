@@ -8,8 +8,6 @@ const XP_GAIN_PER_QUIZ_CORRECT = 10;
 const BASE_XP_PER_LEVEL = 100;
 const XP_LEVEL_GROWTH = 1.2;
 const INACTIVITY_TIMEOUT_MS = 7 * 60 * 1000;
-const STREAK_SAVER_EARN_EVERY_DAYS = 7;
-const MAX_STREAK_SAVERS = 2;
 const PRO_DAILY_GOAL_DEFAULT = 30;
 const PRO_DAILY_GOAL_MIN = 10;
 const PRO_DAILY_GOAL_MAX = 120;
@@ -17,6 +15,8 @@ const PRO_DAILY_GOAL_STEP = 5;
 const FREE_DAILY_WORD_LIMIT = 5;
 const FREE_DAILY_TYPING_LIMIT = 3;
 const FREE_DAILY_MISTAKE_REVIEW_LIMIT = 3;
+const WEAK_WORDS_RECENT_DAY_WINDOW = 21;
+const WEAK_WORDS_RECENT_QUESTION_WINDOW = 120;
 const DEFAULT_CHAPTER_ID = "general";
 const WORD_MASTERY_MAX_XP = 10;
 const WORD_MASTERY_BAR_STEPS = 5;
@@ -29,8 +29,8 @@ const SOCIAL_API_PATH = `${API_BASE_URL}/api/social`;
 const BILLING_API_PATH = `${API_BASE_URL}/api/billing`;
 const ANALYTICS_API_PATH = `${API_BASE_URL}/api/analytics`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
-const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
+const COOKIE_SESSION_AUTH_MARKER = "__cookie_session__";
 const LEGAL_VERSION = "2026-03-14";
 const RETENTION_PING_DAY_KEY_STORAGE = "vocab_retention_ping_day";
 const WORD_DIFFICULTY_OPTIONS = [
@@ -50,6 +50,18 @@ const CEFR_WORDLIST_LEVEL_MAP = [
   { key: "C1", value: "c1" },
   { key: "C2", value: "c2" },
 ];
+
+function isBearerAuthToken(value) {
+  return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
+}
+
+function buildAuthHeaders(authToken, baseHeaders = {}) {
+  const headers = { ...(baseHeaders || {}) };
+  if (isBearerAuthToken(authToken)) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  return headers;
+}
 
 function normalizeSubscriptionStatus(value) {
   return String(value || "")
@@ -229,10 +241,8 @@ function parseStoredScoreNumber(rawValue, fallbackValue = 0) {
 function parseStoredStreak(rawValue) {
   const parsed = parseJsonSafely(rawValue, null);
   const count = Math.max(1, Math.floor(Number(parsed?.count) || 1));
-  const parsedSavers = Math.floor(Number(parsed?.savers) || 0);
-  const savers = Math.max(0, Math.min(MAX_STREAK_SAVERS, parsedSavers));
   const lastDate = parsed?.lastDate ? getCurrentDayKey(new Date(parsed.lastDate)) : null;
-  return { count, lastDate, savers };
+  return { count, lastDate };
 }
 
 function parseStoredBoolean(value, fallbackValue = false) {
@@ -299,6 +309,97 @@ function parseDailyGoalTarget(value) {
   return PRO_DAILY_GOAL_MIN + Math.round(offset / PRO_DAILY_GOAL_STEP) * PRO_DAILY_GOAL_STEP;
 }
 
+function normalizeTrackedQuizMode(mode) {
+  const normalized = String(mode || "")
+    .trim()
+    .toLowerCase();
+  return normalized === "normal" || normalized === "typing" ? normalized : "";
+}
+
+function sanitizeWordQuizPerformanceHistory(rawHistory, options = {}) {
+  const maxAgeDays = Math.max(
+    1,
+    Math.floor(Number(options?.maxAgeDays) || WEAK_WORDS_RECENT_DAY_WINDOW)
+  );
+  const maxEntries = Math.max(
+    1,
+    Math.floor(Number(options?.maxEntries) || WEAK_WORDS_RECENT_QUESTION_WINDOW)
+  );
+  const nowTs = Math.max(0, Math.floor(Number(options?.nowTs) || Date.now()));
+  const cutoffTs = nowTs - maxAgeDays * 24 * 60 * 60 * 1000;
+
+  if (!Array.isArray(rawHistory)) return [];
+
+  return rawHistory
+    .map((entry) => {
+      const ts = Math.max(0, Math.floor(Number(entry?.ts) || 0));
+      const mode = normalizeTrackedQuizMode(entry?.mode);
+      if (!ts || !mode) return null;
+      return {
+        ts,
+        mode,
+        correct: Boolean(entry?.correct),
+      };
+    })
+    .filter(Boolean)
+    .filter((entry) => entry.ts >= cutoffTs)
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, maxEntries);
+}
+
+function appendWordQuizPerformance(rawHistory, attempt, nowTs = Date.now()) {
+  const mode = normalizeTrackedQuizMode(attempt?.mode);
+  if (!mode) {
+    return sanitizeWordQuizPerformanceHistory(rawHistory, { nowTs });
+  }
+  const ts = Math.max(0, Math.floor(Number(attempt?.timestamp) || Number(nowTs) || Date.now()));
+  const next = [
+    {
+      ts,
+      mode,
+      correct: Boolean(attempt?.correct),
+    },
+    ...(Array.isArray(rawHistory) ? rawHistory : []),
+  ];
+  return sanitizeWordQuizPerformanceHistory(next, { nowTs: ts });
+}
+
+function getWordQuizPerformanceStats(rawHistory) {
+  const history = sanitizeWordQuizPerformanceHistory(rawHistory);
+  const byMode = {
+    normal: { attempts: 0, correct: 0, accuracyPercent: null },
+    typing: { attempts: 0, correct: 0, accuracyPercent: null },
+  };
+  let totalCorrect = 0;
+
+  history.forEach((entry) => {
+    byMode[entry.mode].attempts += 1;
+    if (entry.correct) {
+      byMode[entry.mode].correct += 1;
+      totalCorrect += 1;
+    }
+  });
+
+  Object.keys(byMode).forEach((modeKey) => {
+    const modeStats = byMode[modeKey];
+    modeStats.accuracyPercent = modeStats.attempts
+      ? Math.round((modeStats.correct / modeStats.attempts) * 100)
+      : null;
+  });
+
+  const totalAttempts = history.length;
+  const accuracyPercent = totalAttempts ? Math.round((totalCorrect / totalAttempts) * 100) : null;
+
+  return {
+    attempts: totalAttempts,
+    correct: totalCorrect,
+    accuracyPercent,
+    byMode,
+    windowDays: WEAK_WORDS_RECENT_DAY_WINDOW,
+    windowQuestions: WEAK_WORDS_RECENT_QUESTION_WINDOW,
+  };
+}
+
 function buildWeakWordCandidates(books) {
   return (books || [])
     .flatMap((book) =>
@@ -307,6 +408,7 @@ function buildWeakWordCandidates(books) {
         .map((wordEntry) => {
           const mistakeCount = getMistakeCount(wordEntry);
           const masteryXp = getWordMasteryXp(wordEntry);
+          const performance = getWordQuizPerformanceStats(wordEntry?.quizPerformanceHistory);
           const normalizedDifficulty = normalizeWordDifficulty(wordEntry?.difficulty);
           const difficultyWeight =
             normalizedDifficulty === "c2"
@@ -320,10 +422,21 @@ function buildWeakWordCandidates(books) {
                     : normalizedDifficulty === "a2"
                       ? 1
                       : normalizedDifficulty === "a1"
-                        ? 0.5
-                        : 1;
+                      ? 0.5
+                      : 1;
+          const recentAccuracyPenalty = performance.attempts
+            ? (100 - (performance.accuracyPercent || 0)) / 10
+            : 0;
+          const recentAttemptSignal = Math.min(
+            performance.attempts,
+            WEAK_WORDS_RECENT_QUESTION_WINDOW
+          ) * 0.12;
           const weaknessScore =
-            mistakeCount * 4 + (WORD_MASTERY_MAX_XP - masteryXp) * 1.8 + difficultyWeight;
+            mistakeCount * 4 +
+            (WORD_MASTERY_MAX_XP - masteryXp) * 1.8 +
+            difficultyWeight +
+            recentAccuracyPenalty * 3 +
+            recentAttemptSignal;
 
           return {
             ...wordEntry,
@@ -331,11 +444,25 @@ function buildWeakWordCandidates(books) {
             sourceBookName: String(book?.name || "Book"),
             mistakeCount,
             masteryXp,
+            recentAttempts: performance.attempts,
+            recentCorrect: performance.correct,
+            recentAccuracyPercent: performance.accuracyPercent,
+            recentNormalAttempts: performance.byMode.normal.attempts,
+            recentNormalAccuracyPercent: performance.byMode.normal.accuracyPercent,
+            recentTypingAttempts: performance.byMode.typing.attempts,
+            recentTypingAccuracyPercent: performance.byMode.typing.accuracyPercent,
+            recentWindowDays: performance.windowDays,
+            recentWindowQuestions: performance.windowQuestions,
             weaknessScore,
           };
         })
     )
-    .sort((a, b) => b.weaknessScore - a.weaknessScore || b.mistakeCount - a.mistakeCount);
+    .sort(
+      (a, b) =>
+        b.weaknessScore - a.weaknessScore ||
+        b.recentAttempts - a.recentAttempts ||
+        b.mistakeCount - a.mistakeCount
+    );
 }
 
 function shuffleArray(items) {
@@ -585,6 +712,16 @@ function sanitizeActivityEntry(entry) {
   };
 }
 
+function isActivityEntryActive(entry) {
+  const safe = sanitizeActivityEntry(entry);
+  return (
+    safe.wordsAdded > 0 ||
+    safe.questionsCompleted > 0 ||
+    safe.definitionsAdded > 0 ||
+    safe.timeSpentSeconds >= 60
+  );
+}
+
 function parseStoredActivityHistory(rawValue) {
   if (!rawValue) return {};
 
@@ -685,68 +822,6 @@ function buildDefinitionTrend(history, days = 14) {
   return bars;
 }
 
-function buildStreakVisualization(history, streak, days = 56) {
-  const safeDays = Math.max(14, Math.floor(Number(days) || 56));
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayKey = getCurrentDayKey(today);
-  const streakLastDate = typeof streak?.lastDate === "string" ? streak.lastDate : null;
-  const streakCount = Math.max(1, Math.floor(Number(streak?.count) || 1));
-  const daysData = [];
-
-  for (let i = safeDays - 1; i >= 0; i -= 1) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    const key = getCurrentDayKey(date);
-    const entry = sanitizeActivityEntry(history?.[key]);
-    const engagementScore =
-      entry.wordsAdded * 3 +
-      entry.questionsCompleted +
-      Math.floor(entry.timeSpentSeconds / 300) +
-      Math.min(entry.definitionsAdded, 3);
-    const isActive = engagementScore > 0 || key === streakLastDate;
-    let level = 0;
-    if (engagementScore >= 8) level = 4;
-    else if (engagementScore >= 5) level = 3;
-    else if (engagementScore >= 2) level = 2;
-    else if (engagementScore >= 1 || isActive) level = 1;
-
-    const distanceFromLast =
-      streakLastDate && key ? getDayKeyDifference(key, streakLastDate) : Number.NaN;
-    const isInCurrentStreak =
-      Number.isFinite(distanceFromLast) &&
-      distanceFromLast >= 0 &&
-      distanceFromLast < streakCount;
-
-    daysData.push({
-      key,
-      isToday: key === todayKey,
-      isActive,
-      isInCurrentStreak,
-      level,
-      stats: entry,
-      dateLabel: date.toLocaleDateString(),
-    });
-  }
-
-  let bestRun = 0;
-  let currentRun = 0;
-  daysData.forEach((day) => {
-    if (day.isActive) {
-      currentRun += 1;
-      if (currentRun > bestRun) bestRun = currentRun;
-    } else {
-      currentRun = 0;
-    }
-  });
-
-  return {
-    days: daysData,
-    activeDays: daysData.filter((day) => day.isActive).length,
-    bestRun,
-  };
-}
-
 function createDefaultChapter() {
   return { id: DEFAULT_CHAPTER_ID, name: "General" };
 }
@@ -787,6 +862,7 @@ function ensureBookChapters(book) {
       chapterId: safeChapterId,
       difficulty: normalizeWordDifficulty(wordEntry?.difficulty),
       masteryXp: getWordMasteryXp(wordEntry),
+      quizPerformanceHistory: sanitizeWordQuizPerformanceHistory(wordEntry?.quizPerformanceHistory),
     };
   });
 
@@ -905,7 +981,7 @@ function areStringArraysEqual(left, right) {
 }
 
 function normalizeQuizMode(value, fallback = "normal") {
-  const allowed = new Set(["normal", "typing", "mistake"]);
+  const allowed = new Set(["normal", "typing", "mistake", "smart"]);
   const normalized = String(value || "").trim().toLowerCase();
   return allowed.has(normalized) ? normalized : fallback;
 }
@@ -1109,7 +1185,6 @@ export default function App() {
   const [chapterPendingDelete, setChapterPendingDelete] = useState(null);
   const [wordPendingDelete, setWordPendingDelete] = useState(null);
   const [friendPendingRemove, setFriendPendingRemove] = useState(null);
-  const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
   const [noticeModal, setNoticeModal] = useState(null);
   const [quizBackScreen, setQuizBackScreen] = useState("dashboard");
   const [quizMode, setQuizMode] = useState("normal");
@@ -1196,7 +1271,7 @@ export default function App() {
   const [proDailyGoalQuestions, setProDailyGoalQuestions] = useState(() =>
     parseDailyGoalTarget(localStorage.getItem("vocab_pro_daily_goal_questions"))
   );
-  const [authToken, setAuthToken] = useState(() => localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "");
+  const [authToken, setAuthToken] = useState("");
   const [authUsername, setAuthUsername] = useState(
     () => localStorage.getItem(AUTH_USERNAME_STORAGE_KEY) || ""
   );
@@ -1277,28 +1352,6 @@ export default function App() {
   const sidebarBookShortcuts = quickAccessBooks.slice(0, 6);
   const currentWeekStats = ensureCurrentWeekStats(weeklyStats);
   const weeklyTimeSpent = formatWeeklyTime(currentWeekStats.timeSpentSeconds);
-  const todayDayKey = getCurrentDayKey();
-  const hasStreakActivityLoggedToday = Boolean(streak.lastDate && todayDayKey && streak.lastDate === todayDayKey);
-  const dayGapSinceLastStreakAction =
-    streak.lastDate && todayDayKey
-      ? getDayKeyDifference(streak.lastDate, todayDayKey)
-      : null;
-  const streakVisualization = buildStreakVisualization(activityHistory, streak, 56);
-  const daysUntilNextSaver = STREAK_SAVER_EARN_EVERY_DAYS - ((streak.count - 1) % STREAK_SAVER_EARN_EVERY_DAYS + 1);
-  let streakStatusText = "Add a word or finish a quiz to start your streak.";
-  if (hasStreakActivityLoggedToday) {
-    streakStatusText = `Streak is safe today. Come back tomorrow to reach ${streak.count + 1} days.`;
-  } else if (dayGapSinceLastStreakAction === 1) {
-    streakStatusText = "Complete one quiz or add one word today to keep your streak alive.";
-  } else if (dayGapSinceLastStreakAction === 2 && streak.savers > 0) {
-    streakStatusText = "You missed yesterday. Complete one action today to auto-use a streak saver.";
-  } else if (dayGapSinceLastStreakAction !== null && dayGapSinceLastStreakAction > 1 && streak.savers === 0) {
-    streakStatusText = "Your streak will restart today. One action is enough to begin again.";
-  }
-  const streakProgressText =
-    streak.savers >= MAX_STREAK_SAVERS
-      ? `Streak savers full (${streak.savers}/${MAX_STREAK_SAVERS}).`
-      : `${daysUntilNextSaver} day${daysUntilNextSaver !== 1 ? "s" : ""} until next streak saver.`;
   const activityDailyStats = getRecentPeriodTotals(activityHistory, 1);
   const activityWeeklyStats = getWeekTotals(activityHistory);
   const activityMonthlyStats = getMonthTotals(activityHistory);
@@ -1388,6 +1441,10 @@ export default function App() {
 
   function startQuizSession() {
     const selectedMode = normalizeQuizMode(quizMode, "normal");
+    if (selectedMode === "smart") {
+      startSmartReviewSession();
+      return;
+    }
     if (!isProPlan && selectedMode === "typing") {
       const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
       if (safeUsage.typingAttempts >= FREE_DAILY_TYPING_LIMIT) {
@@ -1425,6 +1482,13 @@ export default function App() {
     setScreen("quiz");
   }
 
+  function openSmartReviewSetup() {
+    setQuizBackScreen("quizSelect");
+    initializeQuizSetupSelection();
+    setQuizMode("smart");
+    setScreen("quizSelect");
+  }
+
   function startSmartReviewSession() {
     if (!isProPlan) {
       return;
@@ -1451,12 +1515,32 @@ export default function App() {
       return;
     }
 
-    const header = ["word", "book", "mistakes", "masteryXp", "weaknessScore"];
+    const header = [
+      "word",
+      "book",
+      "mistakes",
+      "masteryXp",
+      "recentAttempts",
+      "recentAccuracyPercent",
+      "mcAccuracyPercent",
+      "typingAccuracyPercent",
+      "weaknessScore",
+    ];
     const rows = weakWordCandidates.slice(0, 200).map((entry) => [
       String(entry.word || ""),
       String(entry.sourceBookName || ""),
       String(entry.mistakeCount || 0),
       String(entry.masteryXp || 0),
+      String(entry.recentAttempts || 0),
+      entry.recentAccuracyPercent === null || entry.recentAccuracyPercent === undefined
+        ? ""
+        : String(entry.recentAccuracyPercent),
+      entry.recentNormalAccuracyPercent === null || entry.recentNormalAccuracyPercent === undefined
+        ? ""
+        : String(entry.recentNormalAccuracyPercent),
+      entry.recentTypingAccuracyPercent === null || entry.recentTypingAccuracyPercent === undefined
+        ? ""
+        : String(entry.recentTypingAccuracyPercent),
       String(Math.round(Number(entry.weaknessScore) || 0)),
     ]);
     const csvContent = [header, ...rows]
@@ -1657,16 +1741,6 @@ export default function App() {
                 <span className="sidebarNavBtnLabel">Quiz</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\u2705"}</span>
               </button>
-              {isProPlan ? (
-                <button
-                  type="button"
-                  className={`sidebarNavBtn ${screen === "quiz" && activeQuizTitle === "Smart Review" ? "isActive" : ""}`}
-                  onClick={startSmartReviewSession}
-                >
-                  <span className="sidebarNavBtnLabel">Smart Review</span>
-                  <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83E\uDDE0"}</span>
-                </button>
-              ) : null}
               <button
                 type="button"
                 className={`sidebarNavBtn ${inSocial ? "isActive" : ""}`}
@@ -1753,13 +1827,13 @@ export default function App() {
       vocab_last_quiz_mistake_mode_by_book: JSON.stringify(lastQuizMistakeModeByBook),
       vocab_last_quiz_setup: JSON.stringify(lastQuizSetup),
       vocab_streak: JSON.stringify(streak),
-      [AUTH_TOKEN_STORAGE_KEY]: authToken,
       [AUTH_USERNAME_STORAGE_KEY]: authUsername,
     };
 
     Object.entries(persistedState).forEach(([key, value]) => {
       localStorage.setItem(key, value);
     });
+    localStorage.removeItem("vocab_auth_token");
   }, [
     books,
     xp,
@@ -1776,7 +1850,6 @@ export default function App() {
     lastQuizMistakeModeByBook,
     lastQuizSetup,
     streak,
-    authToken,
     authUsername,
   ]);
 
@@ -1814,6 +1887,7 @@ export default function App() {
       const endpoint = mode === "register" ? "register" : "login";
       const response = await fetch(`${AUTH_API_PATH}/${endpoint}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           mode === "register"
@@ -1856,14 +1930,8 @@ export default function App() {
         return;
       }
 
-      const nextToken = String(payload?.token || "").trim();
       const nextUsername = String(payload?.username || username).trim().toLowerCase();
-      if (!nextToken) {
-        setAuthError("Auth token was not returned by the server.");
-        return;
-      }
-
-      setAuthToken(nextToken);
+      setAuthToken(COOKIE_SESSION_AUTH_MARKER);
       setAuthUsername(nextUsername);
       setAuthForm({
         email: "",
@@ -1881,9 +1949,19 @@ export default function App() {
     }
   }
 
-  function logoutAccount() {
+  async function logoutAccount() {
+    try {
+      await fetch(`${AUTH_API_PATH}/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, { "Content-Type": "application/json" }),
+      });
+    } catch {
+      // Keep local logout reliable even if backend is temporarily unavailable.
+    }
     setAuthToken("");
     setAuthUsername("");
+    localStorage.removeItem("vocab_auth_token");
     setAccountEmail("");
     setAuthError("");
     setBillingPlan("free");
@@ -1916,12 +1994,39 @@ export default function App() {
     window.location.replace("/login");
   }
 
+  useEffect(() => {
+    if (authToken) return;
+    let cancelled = false;
+    async function restoreCookieSession() {
+      try {
+        const response = await fetch(`${AUTH_API_PATH}/account`, {
+          credentials: "include",
+        });
+        if (!response.ok || cancelled) return;
+        const payload = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        const nextUsername = String(payload?.username || "").trim().toLowerCase();
+        const nextEmail = String(payload?.email || "").trim().toLowerCase();
+        setAuthToken(COOKIE_SESSION_AUTH_MARKER);
+        if (nextUsername) setAuthUsername(nextUsername);
+        setAccountEmail(nextEmail);
+      } catch {
+        // Keep local-only mode available if session restore fails.
+      }
+    }
+    void restoreCookieSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken]);
+
   const loadAccountProfile = useCallback(async () => {
     if (!authToken) return;
     setIsAccountProfileLoading(true);
     try {
       const response = await fetch(`${AUTH_API_PATH}/account`, {
-        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: "include",
+        headers: buildAuthHeaders(authToken),
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -1965,7 +2070,8 @@ export default function App() {
     setIsBillingStatusLoading(true);
     try {
       const response = await fetch(`${BILLING_API_PATH}/status`, {
-        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: "include",
+        headers: buildAuthHeaders(authToken),
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -1994,10 +2100,10 @@ export default function App() {
     try {
       const response = await fetch(`${BILLING_API_PATH}/checkout-session`, {
         method: "POST",
-        headers: {
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -2032,10 +2138,10 @@ export default function App() {
     try {
       const response = await fetch(`${BILLING_API_PATH}/portal-session`, {
         method: "POST",
-        headers: {
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -2098,10 +2204,10 @@ export default function App() {
     try {
       const response = await fetch(`${AUTH_API_PATH}/account/change-password`, {
         method: "POST",
-        headers: {
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        }),
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -2141,10 +2247,10 @@ export default function App() {
     try {
       const response = await fetch(`${AUTH_API_PATH}/account/logout-all`, {
         method: "POST",
-        headers: {
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -2205,10 +2311,10 @@ export default function App() {
     try {
       const response = await fetch(`${AUTH_API_PATH}/account`, {
         method: "DELETE",
-        headers: {
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        }),
         body: JSON.stringify({ password }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -2240,11 +2346,11 @@ export default function App() {
     try {
       const response = await fetch(`${SOCIAL_API_PATH}${path}`, {
         ...options,
-        headers: {
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
           ...(options.headers || {}),
-        },
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       return { ok: response.ok, status: response.status, payload };
@@ -2450,10 +2556,10 @@ export default function App() {
       try {
         const response = await fetch(`${ANALYTICS_API_PATH}/retention/ping`, {
           method: "POST",
-          headers: {
+          credentials: "include",
+          headers: buildAuthHeaders(authToken, {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
+          }),
           body: JSON.stringify({
             eventName: "session_start",
             dayKey,
@@ -2503,7 +2609,8 @@ export default function App() {
 
       try {
         const response = await fetch(STATE_API_PATH, {
-          headers: { Authorization: `Bearer ${authToken}` },
+          credentials: "include",
+          headers: buildAuthHeaders(authToken),
         });
 
         if (response.status === 401) {
@@ -2551,10 +2658,10 @@ export default function App() {
     const timeoutId = window.setTimeout(() => {
       fetch(STATE_API_PATH, {
         method: "PUT",
-        headers: {
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        }),
         body: JSON.stringify({
           appState: {
             backupVersion: 1,
@@ -2853,51 +2960,26 @@ export default function App() {
     if (!todayDayKey) return;
 
     const previousCount = Math.max(1, Math.floor(Number(streak.count) || 1));
-    const previousSavers = Math.max(0, Math.min(MAX_STREAK_SAVERS, Math.floor(Number(streak.savers) || 0)));
     const lastDayKey = streak.lastDate;
 
     let nextCount = previousCount;
-    let nextSavers = previousSavers;
-    let usedSaver = false;
-    let shouldAwardSaver = false;
 
     if (!lastDayKey) {
       nextCount = 1;
     } else {
       const dayGap = getDayKeyDifference(lastDayKey, todayDayKey);
+      if (dayGap <= 0) return;
       if (dayGap === 1) {
         nextCount += 1;
-        shouldAwardSaver = true;
-      } else if (dayGap === 2 && nextSavers > 0) {
-        nextCount += 1;
-        nextSavers -= 1;
-        usedSaver = true;
-        shouldAwardSaver = true;
       } else if (dayGap > 1) {
         nextCount = 1;
       }
     }
 
-    if (
-      shouldAwardSaver &&
-      nextCount % STREAK_SAVER_EARN_EVERY_DAYS === 0 &&
-      nextSavers < MAX_STREAK_SAVERS
-    ) {
-      nextSavers += 1;
-    }
-
     setStreak({
       count: nextCount,
       lastDate: todayDayKey,
-      savers: nextSavers,
     });
-
-    if (usedSaver) {
-      openNoticeModal(
-        `Your streak was saved with a streak saver. ${nextSavers} saver${nextSavers !== 1 ? "s" : ""} left.`,
-        "Streak Saved"
-      );
-    }
   }
 
   // Add / delete books
@@ -3261,7 +3343,6 @@ export default function App() {
       Boolean(chapterPendingDelete) ||
       Boolean(wordPendingDelete) ||
       Boolean(friendPendingRemove) ||
-      isStreakModalOpen ||
       Boolean(noticeModal);
     if (!isModalOpen) return;
 
@@ -3275,7 +3356,6 @@ export default function App() {
       if (chapterPendingDelete) setChapterPendingDelete(null);
       if (wordPendingDelete) setWordPendingDelete(null);
       if (friendPendingRemove) setFriendPendingRemove(null);
-      if (isStreakModalOpen) setIsStreakModalOpen(false);
       if (noticeModal) setNoticeModal(null);
     };
 
@@ -3318,7 +3398,6 @@ export default function App() {
     chapterPendingDelete,
     wordPendingDelete,
     friendPendingRemove,
-    isStreakModalOpen,
     isDeleteAccountConfirmOpen,
     noticeModal,
   ]);
@@ -3798,10 +3877,10 @@ export default function App() {
                   className="modalBtn primary"
                   onClick={() => {
                     setIsDailyGoalModalOpen(false);
-                    startSmartReviewSession();
+                    openSmartReviewSetup();
                   }}
                 >
-                  Start Smart Review
+                  Open Quiz Setup
                 </button>
               </div>
             ) : (
@@ -3922,63 +4001,6 @@ export default function App() {
               </button>
               <button type="button" className="modalBtn danger" onClick={confirmRemoveFriend}>
                 Remove
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (isStreakModalOpen) {
-      return (
-        <div className="modalOverlay" onClick={() => setIsStreakModalOpen(false)}>
-          <div
-            className="modalCard streakModalCard"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="streak-visual-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 id="streak-visual-title">Streak Activity</h3>
-            <p className="streakModalSubtitle">
-              Last 8 weeks of activity. Darker cells indicate stronger daily study.
-            </p>
-            <div className="streakModalSummary">
-              <div className="streakModalStat">
-                <span>Current Streak</span>
-                <strong>{streak.count} days</strong>
-              </div>
-              <div className="streakModalStat">
-                <span>Active Days</span>
-                <strong>{streakVisualization.activeDays} / {streakVisualization.days.length}</strong>
-              </div>
-              <div className="streakModalStat">
-                <span>Best Run (8 weeks)</span>
-                <strong>{streakVisualization.bestRun} days</strong>
-              </div>
-            </div>
-            <div className="streakModalLegend" aria-hidden="true">
-              <span>Low</span>
-              <i className="streakHeatmapCell level0" />
-              <i className="streakHeatmapCell level1" />
-              <i className="streakHeatmapCell level2" />
-              <i className="streakHeatmapCell level3" />
-              <i className="streakHeatmapCell level4" />
-              <span>High</span>
-            </div>
-            <div className="streakHeatmapGrid" role="img" aria-label="Streak activity heatmap">
-              {streakVisualization.days.map((day) => (
-                <div
-                  key={day.key}
-                  className={`streakHeatmapCell level${day.level} ${day.isToday ? "isToday" : ""} ${day.isInCurrentStreak ? "isInCurrentStreak" : ""}`.trim()}
-                  title={`${day.dateLabel}: ${day.stats.wordsAdded} words, ${day.stats.questionsCompleted} questions, ${formatWeeklyTime(day.stats.timeSpentSeconds)}`}
-                />
-              ))}
-            </div>
-            <div className="modalActions">
-              <button type="button" className="modalBtn primary" onClick={() => setIsStreakModalOpen(false)}>
-                Close
               </button>
             </div>
           </div>
@@ -4316,6 +4338,7 @@ export default function App() {
                   definition: definitions[0],
                   chapterId: safeSelectedChapterIdForNewWords,
                   difficulty: estimateCefrLevel(cleanWord),
+                  quizPerformanceHistory: [],
                 },
                 ...book.words,
               ],
@@ -4551,8 +4574,10 @@ export default function App() {
   function resolveMistakeForWord(
     wordToUpdate,
     sourceBookId = currentBookId,
-    sourceChapterId = DEFAULT_CHAPTER_ID
+    sourceChapterId = DEFAULT_CHAPTER_ID,
+    options = {}
   ) {
+    const shouldAwardMastery = options?.awardMastery !== false;
     setBooks((prevBooks) =>
       prevBooks.map((book) => {
         if (book.id !== sourceBookId) return book;
@@ -4565,7 +4590,9 @@ export default function App() {
               ? {
                   ...wordEntry,
                   mistakeCount: Math.max(getMistakeCount(wordEntry) - 1, 0),
-                  masteryXp: Math.min(getWordMasteryXp(wordEntry) + 1, WORD_MASTERY_MAX_XP),
+                  masteryXp: shouldAwardMastery
+                    ? Math.min(getWordMasteryXp(wordEntry) + 1, WORD_MASTERY_MAX_XP)
+                    : getWordMasteryXp(wordEntry),
                 }
               : wordEntry
           ),
@@ -4581,7 +4608,16 @@ export default function App() {
     setXp((prevXp) => prevXp + boostedAmount);
   }
 
-  function recordQuizQuestionCompleted(sourceBookId = null) {
+  function recordQuizQuestionCompleted(payload = null) {
+    const isPayloadObject = payload && typeof payload === "object" && !Array.isArray(payload);
+    const sourceBookId = isPayloadObject ? payload.sourceBookId ?? null : payload;
+    const sourceChapterId = isPayloadObject ? payload.sourceChapterId ?? DEFAULT_CHAPTER_ID : DEFAULT_CHAPTER_ID;
+    const sourceWord = isPayloadObject ? String(payload.word || "").trim() : "";
+    const sourceMode = normalizeTrackedQuizMode(isPayloadObject ? payload.mode : "");
+    const isCorrect = isPayloadObject ? Boolean(payload.isCorrect) : false;
+    const isMistakeReviewAttempt = isPayloadObject ? Boolean(payload.isMistakeReview) : false;
+    const shouldTrackWeakWordPerformance = !(isMistakeReviewAttempt && isCorrect);
+
     setWeeklyStats((prev) => {
       const current = ensureCurrentWeekStats(prev);
       return {
@@ -4601,15 +4637,36 @@ export default function App() {
     if (sourceBookId === null || sourceBookId === undefined) return;
     setBooks((prevBooks) =>
       prevBooks.map((book) =>
-        book.id === sourceBookId
-          ? {
+        book.id !== sourceBookId
+          ? book
+          : {
               ...book,
               questionsCompleted: Math.max(
                 0,
                 Math.floor(Number(book.questionsCompleted) || 0)
               ) + 1,
+              words:
+                sourceWord && sourceMode && shouldTrackWeakWordPerformance
+                  ? (book.words || []).map((wordEntry) => {
+                      const wordKey = normalizeQuizAnswer(wordEntry?.word);
+                      const targetKey = normalizeQuizAnswer(sourceWord);
+                      const chapterKey = String(wordEntry?.chapterId || DEFAULT_CHAPTER_ID);
+                      const targetChapterKey = String(sourceChapterId || DEFAULT_CHAPTER_ID);
+                      if (wordKey !== targetKey || chapterKey !== targetChapterKey) return wordEntry;
+
+                      return {
+                        ...wordEntry,
+                        quizPerformanceHistory: appendWordQuizPerformance(
+                          wordEntry?.quizPerformanceHistory,
+                          {
+                            mode: sourceMode,
+                            correct: isCorrect,
+                          }
+                        ),
+                      };
+                    })
+                  : book.words,
             }
-          : book
       )
     );
   }
@@ -4767,18 +4824,10 @@ export default function App() {
                   )}
                 </div>
                 )}
-                <button
-                  type="button"
-                  className="streakBadge streakBadgeBtn"
-                  onClick={() => setIsStreakModalOpen(true)}
-                  aria-label="Open streak activity view"
-                >
+                <div className="streakBadge" aria-label="Current streak">
                   {"\uD83D\uDD25"} {streak.count} day{streak.count !== 1 && "s"}
-                  <span className="streakSaverBadge">{"\uD83E\uDDCA"} {streak.savers ?? 0}</span>
-                </button>
+                </div>
               </div>
-              <p className="streakStatusText">{streakStatusText}</p>
-              <p className="streakProgressText">{streakProgressText}</p>
             </div>
           </div>
         </div>
@@ -4932,22 +4981,6 @@ export default function App() {
           >
             <span>{"\uD83D\uDCCA"} Data</span>
           </div>
-          {isProPlan ? (
-            <div
-              className="panelCard wide"
-              role="button"
-              tabIndex={0}
-              onClick={startSmartReviewSession}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  startSmartReviewSession();
-                }
-              }}
-            >
-              <span>{"\uD83E\uDDE0"} Smart Review</span>
-            </div>
-          ) : null}
           <div
             className="panelCard wide"
             role="button"
@@ -5532,11 +5565,6 @@ export default function App() {
               ) : (
                 <div className="socialList">
                   {friendProfiles.map((friend) => {
-                    const totalStats = getProfileStatsForPeriod(friend, "total");
-                    const estimatedTotalXp =
-                      totalStats.wordsAdded * BASE_XP_GAIN_PER_WORD +
-                      totalStats.questionsCompleted * XP_GAIN_PER_QUIZ_CORRECT;
-                    const friendLevel = getLevelFromXp(estimatedTotalXp);
                     const friendStreak = Math.max(
                       0,
                       Math.floor(Number(friend?.stats?.streakCount) || 0)
@@ -5547,17 +5575,11 @@ export default function App() {
                           <div className="socialFriendHeaderRow">
                             <strong className="socialFriendName">@{friend.username}</strong>
                             <div className="socialFriendBadgeRow socialFriendBadgeRowInline">
-                              <span className="socialFriendBadge level">
-                                {"\u2B50"} Level {friendLevel}
-                              </span>
                               <span className="socialFriendBadge streak">
                                 {"\uD83D\uDD25"} {friendStreak}-day streak
                               </span>
                             </div>
                           </div>
-                          <p className="settingsHint">
-                            Total - Words {totalStats.wordsAdded} | Questions {totalStats.questionsCompleted} | Time {formatWeeklyTime(totalStats.timeSpentSeconds)}
-                          </p>
                         </div>
                         <button
                           type="button"
@@ -5803,13 +5825,32 @@ export default function App() {
               <p className="settingsHint">
                 Find the exact words that cost you points and export them for focused drills.
               </p>
+              <p className="quizSetupHint">
+                Rolling window: last {WEAK_WORDS_RECENT_DAY_WINDOW} days and up to{" "}
+                {WEAK_WORDS_RECENT_QUESTION_WINDOW} recent answers per word.
+              </p>
               <div className="premiumWeakList">
                 {weakWordCandidates.slice(0, 8).map((entry, index) => (
                   <div key={`${entry.sourceBookId}:${entry.word}:${index}`} className="premiumWeakRow">
                     <strong>{entry.word}</strong>
                     <span>{entry.sourceBookName}</span>
-                    <span>Mistakes: {entry.mistakeCount}</span>
-                    <span>Mastery XP: {entry.masteryXp}</span>
+                    <span>
+                      Recent:{" "}
+                      {entry.recentAccuracyPercent === null || entry.recentAccuracyPercent === undefined
+                        ? "N/A"
+                        : `${entry.recentAccuracyPercent}%`}{" "}
+                      ({entry.recentAttempts})
+                    </span>
+                    <span>
+                      MC:{" "}
+                      {entry.recentNormalAccuracyPercent === null || entry.recentNormalAccuracyPercent === undefined
+                        ? "N/A"
+                        : `${entry.recentNormalAccuracyPercent}%`}{" "}
+                      | Typing:{" "}
+                      {entry.recentTypingAccuracyPercent === null || entry.recentTypingAccuracyPercent === undefined
+                        ? "N/A"
+                        : `${entry.recentTypingAccuracyPercent}%`}
+                    </span>
                   </div>
                 ))}
                 {weakWordCandidates.length === 0 ? (
@@ -5817,8 +5858,8 @@ export default function App() {
                 ) : null}
               </div>
               <div className="premiumActionRow">
-                <button type="button" className="primaryBtn" onClick={startSmartReviewSession}>
-                  Start Smart Review
+                <button type="button" className="primaryBtn" onClick={openSmartReviewSetup}>
+                  Open Quiz Setup
                 </button>
                 <button type="button" className="primaryBtn" onClick={exportWeakWordsCsv}>
                   Export Weak Words CSV
@@ -6420,6 +6461,21 @@ export default function App() {
                 <strong>Mistake Review</strong>
                 <small>Practice only words you previously got wrong.</small>
               </button>
+              <button
+                type="button"
+                className={`quizModeCard ${quizMode === "smart" ? "isActive" : ""}`}
+                onClick={() => setQuizMode("smart")}
+                disabled={!isProPlan}
+              >
+                {!isProPlan ? (
+                  <span className="quizLimitBadge">Pro</span>
+                ) : null}
+                <span className="quizModeCardIcon" aria-hidden="true">{"\uD83E\uDDE0"}</span>
+                <strong>Smart Review</strong>
+                <small>
+                  Auto-build a focused quiz from weak words based on your recent accuracy.
+                </small>
+              </button>
             </div>
           </div>
         )}
@@ -6612,7 +6668,7 @@ export default function App() {
           <div className="quizSetupReviewCard">
             <h3>Review & Start</h3>
             <div className="quizSetupSummary">
-              <span>Mode: {quizMode === "typing" ? "Typing" : quizMode === "mistake" ? "Mistake Review" : "Multiple Choice"}</span>
+              <span>Mode: {quizMode === "typing" ? "Typing" : quizMode === "mistake" ? "Mistake Review" : quizMode === "smart" ? "Smart Review" : "Multiple Choice"}</span>
               <span>Books: {selectedBookCount}</span>
               <span>Chapters: {selectedChapterCount}</span>
               <span>Levels: {selectedDifficultyCount}</span>
@@ -6648,7 +6704,7 @@ export default function App() {
                 disabled={!canStartQuiz}
                 onClick={startQuizSession}
               >
-                Start {quizMode === "typing" ? "Typing Quiz" : quizMode === "mistake" ? "Mistake Review" : "Quiz"}
+                Start {quizMode === "typing" ? "Typing Quiz" : quizMode === "mistake" ? "Mistake Review" : quizMode === "smart" ? "Smart Review" : "Quiz"}
               </button>
             ) : (
               <button
@@ -6656,6 +6712,14 @@ export default function App() {
                 className="primaryBtn"
                 disabled={!canMoveForward}
                 onClick={() => {
+                  if (isAtTypeStep && quizMode === "mistake") {
+                    requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global");
+                    return;
+                  }
+                  if (isAtTypeStep && quizMode === "smart") {
+                    startSmartReviewSession();
+                    return;
+                  }
                   if (isAtTypeStep && isQuickQuizSetupArmed) {
                     if (canStartQuiz) {
                       startQuizSession();
@@ -6666,10 +6730,6 @@ export default function App() {
                       "Your last quiz setup no longer matches available books/chapters. Please update setup and try again.",
                       "Quick Setup Unavailable"
                     );
-                    return;
-                  }
-                  if (isAtTypeStep && quizMode === "mistake") {
-                    requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global");
                     return;
                   }
                   setQuizSetupStep((prev) => Math.min(reviewStepIndex, prev + 1));
@@ -6719,6 +6779,7 @@ export default function App() {
         onRecordMistake={recordMistakeForWord}
         onResolveMistake={resolveMistakeForWord}
         onQuizComplete={handleQuizComplete}
+        onStartMistakeReview={() => requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global")}
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
         XP_GAIN_PER_QUIZ_CORRECT={XP_GAIN_PER_QUIZ_CORRECT}
@@ -6743,6 +6804,7 @@ export default function App() {
         onRecordMistake={recordMistakeForWord}
         onResolveMistake={resolveMistakeForWord}
         onQuizComplete={handleQuizComplete}
+        onStartMistakeReview={() => requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global")}
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
         XP_GAIN_PER_QUIZ_CORRECT={XP_GAIN_PER_QUIZ_CORRECT}

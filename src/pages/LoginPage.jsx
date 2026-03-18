@@ -4,17 +4,8 @@ const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
   .replace(/\/$/, "");
 const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
-const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const LEGAL_VERSION = "2026-03-14";
-
-function getStoredAuthToken() {
-  const raw = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
-  if (!raw) return "";
-  const lowered = raw.toLowerCase();
-  if (lowered === "null" || lowered === "undefined") return "";
-  return raw;
-}
 
 export function LoginPage({ initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode === "register" ? "register" : "login");
@@ -33,10 +24,24 @@ export function LoginPage({ initialMode = "login" }) {
   const [registerCodeCooldownSeconds, setRegisterCodeCooldownSeconds] = useState(0);
 
   useEffect(() => {
-    const existingToken = getStoredAuthToken();
-    if (existingToken) {
-      window.location.replace("/app");
+    let cancelled = false;
+    localStorage.removeItem("vocab_auth_token");
+    async function restoreSession() {
+      try {
+        const response = await fetch(`${AUTH_API_PATH}/account`, {
+          credentials: "include",
+        });
+        if (!cancelled && response.ok) {
+          window.location.replace("/app");
+        }
+      } catch {
+        // Ignore temporary auth-check failures on public login page.
+      }
     }
+    void restoreSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -91,6 +96,7 @@ export function LoginPage({ initialMode = "login" }) {
     try {
       const response = await fetch(`${AUTH_API_PATH}/register/request-email-code`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: normalizedEmail }),
       });
@@ -148,6 +154,7 @@ export function LoginPage({ initialMode = "login" }) {
     try {
       const response = await fetch(`${AUTH_API_PATH}/register/verify-email-code`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: normalizedEmail, code: normalizedCode }),
       });
@@ -219,6 +226,7 @@ export function LoginPage({ initialMode = "login" }) {
       const endpoint = mode === "register" ? "register" : "login";
       const response = await fetch(`${AUTH_API_PATH}/${endpoint}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           mode === "register"
@@ -263,14 +271,8 @@ export function LoginPage({ initialMode = "login" }) {
         return;
       }
 
-      const token = String(payload?.token || "").trim();
       const savedUsername = String(payload?.username || normalizedUsername).trim().toLowerCase();
-      if (!token) {
-        setError("Auth token was not returned by the server.");
-        return;
-      }
-
-      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+      localStorage.removeItem("vocab_auth_token");
       localStorage.setItem(AUTH_USERNAME_STORAGE_KEY, savedUsername);
       window.location.replace("/app");
     } catch {
@@ -549,6 +551,12 @@ export function LoginPage({ initialMode = "login" }) {
                   ? "Create account"
                   : "Log in"}
             </button>
+            {mode === "login" ? (
+              <p className="publicAuthLegalNotice">
+                By logging in, you confirm you agree to the <a href="/terms">Terms &amp; Conditions</a> and{" "}
+                <a href="/privacy">Privacy Policy</a>.
+              </p>
+            ) : null}
             {mode === "login" ? (
               <p className="legalUpdated" style={{ marginTop: "6px" }}>
                 <a href="/forgot-password">Forgot password?</a>

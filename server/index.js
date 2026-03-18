@@ -127,6 +127,7 @@ async function enforceWriteRateLimit(req, res, next) {
 }
 
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -139,6 +140,7 @@ app.use((req, res, next) => {
 });
 app.use(
   cors({
+    credentials: true,
     origin(origin, callback) {
       if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);

@@ -15,6 +15,7 @@ export function Flashcards({
   const [showWordList, setShowWordList] = useState(false);
   const [selectedChapterId, setSelectedChapterId] = useState("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState("all");
+  const [cardPromptMode, setCardPromptMode] = useState("word-to-definition");
   const words = currentBook?.words || [];
   const chapterList = getBookChapterList(currentBook);
   const chapterFilteredWords =
@@ -31,6 +32,15 @@ export function Flashcards({
           );
   const current = filteredWords[index];
   const hasCards = filteredWords.length > 0;
+  const currentDefinition = current ? getSelectedDefinition(current) : "";
+  const flashcardFrontText =
+    cardPromptMode === "definition-to-word"
+      ? currentDefinition || "No definition available"
+      : current?.word || "";
+  const flashcardBackText =
+    cardPromptMode === "definition-to-word"
+      ? current?.word || ""
+      : currentDefinition || "No definition available";
 
   const goToPreviousCard = useCallback(() => {
     if (!hasCards) return;
@@ -55,6 +65,7 @@ export function Flashcards({
     setShowWordList(false);
     setSelectedChapterId("all");
     setSelectedDifficulty("all");
+    setCardPromptMode("word-to-definition");
   }, [currentBook?.id]);
 
   useEffect(() => {
@@ -165,6 +176,23 @@ export function Flashcards({
                 menuClassName="isFlashCompact"
               />
             </div>
+            <div className="chapterControlField flashChapterField">
+              <span>Prompt</span>
+              <Dropdown
+                value={cardPromptMode}
+                options={[
+                  { value: "word-to-definition", label: "Word -> Definition" },
+                  { value: "definition-to-word", label: "Definition -> Word" },
+                ]}
+                onChange={(nextMode) => {
+                  setCardPromptMode(nextMode);
+                  setShowDef(false);
+                }}
+                className="flashChapterDropdown"
+                triggerClassName="isFlashCompact"
+                menuClassName="isFlashCompact"
+              />
+            </div>
             <button
               type="button"
               className="flashListToggleBtn"
@@ -207,7 +235,7 @@ export function Flashcards({
               }
             }}
           >
-            {showDef ? getSelectedDefinition(current) : current.word}
+            {showDef ? flashcardBackText : flashcardFrontText}
           </div>
           <div className="flashControls">
             <button onClick={goToPreviousCard}>

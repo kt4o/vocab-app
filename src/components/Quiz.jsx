@@ -20,6 +20,7 @@ export function Quiz({
   onRecordMistake,
   onResolveMistake,
   onQuizComplete,
+  onStartMistakeReview,
   buildQuizQuestions,
   isEquivalentTypingAnswer,
   XP_GAIN_PER_QUIZ_CORRECT,
@@ -123,8 +124,15 @@ export function Quiz({
     if (!current || selectedOption) return;
     justAnsweredAtRef.current = Date.now();
     setSelectedOption(option);
-    onQuestionCompleted?.(current.sourceBookId ?? null);
     const isCorrect = option === current.correctDefinition;
+    onQuestionCompleted?.({
+      sourceBookId: current.sourceBookId ?? null,
+      sourceChapterId: current.chapterId || DEFAULT_CHAPTER_ID,
+      word: current.word,
+      mode: "normal",
+      isCorrect,
+      isMistakeReview,
+    });
     if (isCorrect) {
       setScore((prev) => prev + 1);
       setAnswerStreak((prev) => {
@@ -134,7 +142,9 @@ export function Quiz({
       });
       setXpPulseTick((prev) => prev + 1);
       onAwardXp?.(XP_GAIN_PER_QUIZ_CORRECT);
-      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId);
+      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId, {
+        awardMastery: !isMistakeReview,
+      });
     } else {
       setAnswerStreak(0);
       setMistakeReviewItems((prev) => [
@@ -158,9 +168,16 @@ export function Quiz({
     event.preventDefault();
     if (!current || typedSubmitted) return;
     justAnsweredAtRef.current = Date.now();
-    onQuestionCompleted?.(current.sourceBookId ?? null);
 
     const isCorrect = isEquivalentTypingAnswer(typedAnswer, current.word);
+    onQuestionCompleted?.({
+      sourceBookId: current.sourceBookId ?? null,
+      sourceChapterId: current.chapterId || DEFAULT_CHAPTER_ID,
+      word: current.word,
+      mode: "typing",
+      isCorrect,
+      isMistakeReview,
+    });
     setTypedSubmitted(true);
 
     if (isCorrect) {
@@ -172,7 +189,9 @@ export function Quiz({
       });
       setXpPulseTick((prev) => prev + 1);
       onAwardXp?.(XP_GAIN_PER_QUIZ_CORRECT);
-      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId);
+      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId, {
+        awardMastery: !isMistakeReview,
+      });
     } else {
       setAnswerStreak(0);
       setMistakeReviewItems((prev) => [
@@ -348,6 +367,15 @@ export function Quiz({
             )}
           </div>
           <div className="quizResultActions">
+            {mistakeReviewItems.length > 0 && !isMistakeReview ? (
+              <button
+                type="button"
+                className="primaryBtn"
+                onClick={() => onStartMistakeReview?.()}
+              >
+                Start Mistake Review
+              </button>
+            ) : null}
             <button className="primaryBtn" onClick={restartQuiz}>
               Try Again
             </button>

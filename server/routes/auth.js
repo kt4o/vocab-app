@@ -2,13 +2,56 @@ import crypto from "node:crypto";
 import { Router } from "express";
 import { pool, query } from "../db/client.js";
 import { sendPasswordResetCodeEmail, sendVerificationCodeEmail } from "../lib/email.js";
-import { requireAuth } from "../middleware/auth.js";
+import { getAuthTokenFromRequest, requireAuth } from "../middleware/auth.js";
 
 export const authRouter = Router();
 
 const authRateBuckets = new Map();
 const EMAIL_CODE_COOLDOWN_MS = 60 * 1000;
 const DEFAULT_LEGAL_VERSION = String(process.env.LEGAL_VERSION || "2026-03-14").trim() || "2026-03-14";
+const SESSION_COOKIE_NAME = String(process.env.AUTH_COOKIE_NAME || "vocab_session").trim() || "vocab_session";
+
+function resolveCookieSameSite() {
+  const configured = String(process.env.AUTH_COOKIE_SAMESITE || "lax")
+    .trim()
+    .toLowerCase();
+  if (configured === "strict" || configured === "none") return configured;
+  return "lax";
+}
+
+function shouldUseSecureCookies(req) {
+  const forceSecure = String(process.env.AUTH_COOKIE_SECURE || "")
+    .trim()
+    .toLowerCase();
+  if (forceSecure === "true") return true;
+  if (forceSecure === "false") return false;
+
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "")
+    .trim()
+    .toLowerCase();
+  if (forwardedProto === "https") return true;
+  return String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+}
+
+function getSessionCookieOptions(req, { clear = false } = {}) {
+  const sameSite = resolveCookieSameSite();
+  const secure = shouldUseSecureCookies(req) || sameSite === "none";
+  return {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: "/",
+    maxAge: clear ? 0 : 1000 * 60 * 60 * 24 * 30,
+  };
+}
+
+function setSessionCookie(req, res, token) {
+  res.cookie(SESSION_COOKIE_NAME, token, getSessionCookieOptions(req));
+}
+
+function clearSessionCookie(req, res) {
+  res.clearCookie(SESSION_COOKIE_NAME, getSessionCookieOptions(req, { clear: true }));
+}
 
 function getRequesterKey(req) {
   const forwardedFor = String(req.headers["x-forwarded-for"] || "")
@@ -637,6 +680,7 @@ authRouter.post("/register", async (req, res) => {
     await client.query("COMMIT");
     await trackRetentionEvent(userId, "register", { source: "auth/register" });
     await trackRetentionEvent(userId, "session_start", { source: "auth/register" });
+    setSessionCookie(req, res, token);
     res.status(201).json({ userId, username, token });
   } catch (error) {
     await client.query("ROLLBACK");
@@ -836,6 +880,7 @@ authRouter.post("/password-reset/complete", async (req, res) => {
 
     await client.query("DELETE FROM password_resets WHERE email = $1", [email]);
     await client.query("COMMIT");
+    clearSessionCookie(req, res);
     res.json({ ok: true });
   } catch {
     await client.query("ROLLBACK");
@@ -891,6 +936,7 @@ authRouter.post("/account/logout-all", requireAuth, async (req, res) => {
   const userId = Number(req.authUser?.id || 0);
   try {
     await query("UPDATE users SET auth_token = NULL, auth_token_created_at = NULL WHERE id = $1", [userId]);
+    clearSessionCookie(req, res);
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "logout-all-failed" });
@@ -953,12 +999,30 @@ authRouter.delete("/account", requireAuth, async (req, res) => {
     }
     await client.query("DELETE FROM users WHERE id = $1", [userId]);
     await client.query("COMMIT");
+    clearSessionCookie(req, res);
     res.json({ ok: true });
   } catch {
     await client.query("ROLLBACK");
     res.status(500).json({ error: "account-delete-failed" });
   } finally {
     client.release();
+  }
+});
+
+authRouter.post("/logout", async (req, res) => {
+  const token = getAuthTokenFromRequest(req);
+  if (!token) {
+    clearSessionCookie(req, res);
+    res.json({ ok: true });
+    return;
+  }
+
+  try {
+    await query("UPDATE users SET auth_token = NULL, auth_token_created_at = NULL WHERE auth_token = $1", [token]);
+    clearSessionCookie(req, res);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "logout-failed" });
   }
 });
 
@@ -1009,6 +1073,7 @@ authRouter.post("/login", async (req, res) => {
     await trackRetentionEvent(user.id, "login", { source: "auth/login" });
     await trackRetentionEvent(user.id, "session_start", { source: "auth/login" });
 
+    setSessionCookie(req, res, token);
     res.json({ userId: Number(user.id), username: user.username, token });
   } catch {
     res.status(500).json({ error: "login-failed" });
