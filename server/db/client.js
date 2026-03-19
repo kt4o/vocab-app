@@ -204,3 +204,7 @@ export async function initDb() {
     ON api_rate_limits(updated_at);
   `);
 }
+
+export async function closeDb() {
+  await pool.end();
+}
