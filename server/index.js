@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
-import { initDb } from "./db/client.js";
+import { closeDb, initDb, query } from "./db/client.js";
 import { authRouter } from "./routes/auth.js";
 import { wordsRouter } from "./routes/words.js";
 import { progressRouter } from "./routes/progress.js";
@@ -15,7 +15,7 @@ dotenv.config({ path: "server/.env" });
 dotenv.config();
 
 const app = express();
-const port = Number(process.env.PORT || 8000);
+const port = Number(process.env.PORT || 4000);
 const host = "0.0.0.0";
 const isProduction = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 const allowLocalhostInProduction =
@@ -33,10 +33,12 @@ function isLocalhostOrigin(origin) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(String(origin || "").trim());
 }
 
-const defaultAllowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-];
+const defaultAllowedOrigins = isProduction && !allowLocalhostInProduction
+  ? []
+  : [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ];
 const envAllowedOrigins = parseCsvEnv(process.env.CORS_ORIGIN || process.env.CORS_ORIGINS || "");
 const allowedOrigins = new Set([...defaultAllowedOrigins, ...envAllowedOrigins]);
 
@@ -98,6 +100,7 @@ const WRITE_RATE_LIMIT_MAX_ATTEMPTS = getSafePositiveInt(
   process.env.WRITE_RATE_LIMIT_MAX_ATTEMPTS,
   180
 );
+const READINESS_DB_TIMEOUT_MS = getSafePositiveInt(process.env.READINESS_DB_TIMEOUT_MS, 1500);
 
 async function enforceWriteRateLimit(req, res, next) {
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
@@ -184,7 +187,33 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     service: "my-vocab-app-api",
     now: new Date().toISOString(),
+    uptimeSeconds: Math.round(process.uptime()),
   });
+});
+
+app.get("/api/ready", async (_req, res) => {
+  try {
+    await Promise.race([
+      query("SELECT 1"),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Database readiness timeout")), READINESS_DB_TIMEOUT_MS);
+      }),
+    ]);
+    res.json({
+      ok: true,
+      service: "my-vocab-app-api",
+      now: new Date().toISOString(),
+      db: "up",
+    });
+  } catch (error) {
+    console.error("Readiness check failed", error);
+    res.status(503).json({
+      ok: false,
+      service: "my-vocab-app-api",
+      now: new Date().toISOString(),
+      db: "down",
+    });
+  }
 });
 
 app.use("/api/auth", authRouter);
@@ -195,9 +224,71 @@ app.use("/api/social", enforceWriteRateLimit, socialRouter);
 app.use("/api/analytics", enforceWriteRateLimit, analyticsRouter);
 app.use("/api/billing", enforceWriteRateLimit, billingRouter);
 
+let serverInstance = null;
+let shutdownInProgress = false;
+
+function closeHttpServer() {
+  return new Promise((resolve, reject) => {
+    if (!serverInstance) {
+      resolve();
+      return;
+    }
+
+    const closeTimer = setTimeout(() => {
+      reject(new Error("Timed out while closing HTTP server"));
+    }, 10_000);
+
+    serverInstance.close((error) => {
+      clearTimeout(closeTimer);
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function shutdown(signalName, exitCode = 0) {
+  if (shutdownInProgress) return;
+  shutdownInProgress = true;
+
+  console.log(`Received ${signalName}. Shutting down API...`);
+
+  try {
+    await closeHttpServer();
+  } catch (error) {
+    console.error("Failed to close HTTP server cleanly", error);
+  }
+
+  try {
+    await closeDb();
+  } catch (error) {
+    console.error("Failed to close database pool cleanly", error);
+  }
+
+  process.exit(exitCode);
+}
+
+["SIGINT", "SIGTERM"].forEach((signalName) => {
+  process.on(signalName, () => {
+    void shutdown(signalName, 0);
+  });
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception", error);
+  void shutdown("uncaughtException", 1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection", reason);
+  void shutdown("unhandledRejection", 1);
+});
+
 initDb()
   .then(() => {
-    app.listen(port, host, () => {
+    serverInstance = app.listen(port, host, () => {
       console.log(`API listening on http://${host}:${port}`);
     });
   })
