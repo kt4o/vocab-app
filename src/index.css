@@ -3749,7 +3749,7 @@ body.theme-dark .quizResultProgressFill {
 }
 
 .definitionAttributionNote {
-  margin: 6px 0 0;
+  margin: 18px 0;
   font-size: 12px;
   line-height: 1.4;
   color: var(--muted);

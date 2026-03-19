@@ -16,6 +16,7 @@
    - `BLOCKED_COUNTRIES=CU,IR,KP,SY` (optional blocklist by ISO country code from proxy headers)
    - `WRITE_RATE_LIMIT_WINDOW_MS=900000`
    - `WRITE_RATE_LIMIT_MAX_ATTEMPTS=180`
+   - `READINESS_DB_TIMEOUT_MS=1500` (optional DB readiness timeout)
    - `SMTP_HOST=smtp.your-provider.com`
    - `SMTP_PORT=587`
    - `SMTP_SECURE=false` (`true` for port 465)
@@ -33,6 +34,7 @@
 ### Endpoints
 
 - `GET /api/health`
+- `GET /api/ready`
 - `POST /api/auth/register/request-email-code` body: `{"email":"demo@example.com"}`
 - `POST /api/auth/register/verify-email-code` body: `{"email":"demo@example.com","code":"123456"}`
 - `POST /api/auth/register` body: `{"email":"demo@example.com","verifiedEmailToken":"<token>","username":"demo_user","password":"yourpass123","acceptedLegal":true,"legalVersion":"2026-03-14","marketingOptIn":false}`

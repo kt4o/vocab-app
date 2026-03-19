@@ -1,4 +1,4 @@
-import { StrictMode, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.jsx";
@@ -83,8 +83,17 @@ function EarlyAccessGate({ onUnlock }) {
 }
 
 function RootPage() {
-  const route = getRoute(window.location.pathname);
+  const [route, setRoute] = useState(() => getRoute(window.location.pathname));
   const [isEarlyAccessUnlocked, setIsEarlyAccessUnlocked] = useState(() => hasEarlyAccess());
+
+  useEffect(() => {
+    const handleRouteChange = () => {
+      setRoute(getRoute(window.location.pathname));
+    };
+
+    window.addEventListener("popstate", handleRouteChange);
+    return () => window.removeEventListener("popstate", handleRouteChange);
+  }, []);
 
   if (route === "landing" && !isEarlyAccessUnlocked) {
     return <EarlyAccessGate onUnlock={setIsEarlyAccessUnlocked} />;

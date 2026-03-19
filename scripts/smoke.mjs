@@ -20,6 +20,12 @@ async function run() {
   assert(health.payload?.ok === true, "Health payload is missing ok=true.");
   console.log("[smoke] /api/health ok");
 
+  const ready = await requestJson("/api/ready");
+  assert(ready.response.ok, "Readiness endpoint is not reachable.");
+  assert(ready.payload?.ok === true, "Readiness payload is missing ok=true.");
+  assert(ready.payload?.db === "up", "Readiness payload reports database is down.");
+  console.log("[smoke] /api/ready ok");
+
   const words = await requestJson("/api/words?difficulty=a1&q=ab");
   assert(words.response.ok, "Words endpoint request failed.");
   assert(Array.isArray(words.payload?.words), "Words payload is missing words array.");

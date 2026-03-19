@@ -7,6 +7,12 @@ const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const LEGAL_VERSION = "2026-03-14";
 
+function navigateTo(path) {
+  const nextPath = String(path || "/").trim() || "/";
+  window.history.replaceState(null, "", nextPath);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
 export function LoginPage({ initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode === "register" ? "register" : "login");
   const [registerStep, setRegisterStep] = useState("email");
@@ -32,7 +38,7 @@ export function LoginPage({ initialMode = "login" }) {
           credentials: "include",
         });
         if (!cancelled && response.ok) {
-          window.location.replace("/app");
+          navigateTo("/app");
         }
       } catch {
         // Ignore temporary auth-check failures on public login page.
@@ -274,7 +280,7 @@ export function LoginPage({ initialMode = "login" }) {
       const savedUsername = String(payload?.username || normalizedUsername).trim().toLowerCase();
       localStorage.removeItem("vocab_auth_token");
       localStorage.setItem(AUTH_USERNAME_STORAGE_KEY, savedUsername);
-      window.location.replace("/app");
+      navigateTo("/app");
     } catch {
       setError("Could not reach auth service. Check backend and try again.");
     } finally {

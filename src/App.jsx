@@ -12,7 +12,8 @@ const PRO_DAILY_GOAL_DEFAULT = 30;
 const PRO_DAILY_GOAL_MIN = 10;
 const PRO_DAILY_GOAL_MAX = 120;
 const PRO_DAILY_GOAL_STEP = 5;
-const FREE_DAILY_WORD_LIMIT = 5;
+const FREE_DAILY_DEFINITION_SESSION_LIMIT = 1;
+const FREE_DEFINITION_SESSION_WINDOW_MS = 10 * 60 * 1000;
 const FREE_DAILY_TYPING_LIMIT = 3;
 const FREE_DAILY_MISTAKE_REVIEW_LIMIT = 3;
 const WEAK_WORDS_RECENT_DAY_WINDOW = 21;
@@ -61,6 +62,12 @@ function buildAuthHeaders(authToken, baseHeaders = {}) {
     headers.Authorization = `Bearer ${authToken}`;
   }
   return headers;
+}
+
+function navigateTo(path) {
+  const nextPath = String(path || "/").trim() || "/";
+  window.history.replaceState(null, "", nextPath);
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
 function normalizeSubscriptionStatus(value) {
@@ -277,7 +284,7 @@ function parseStoredQuizSetup(rawValue) {
 function createDefaultFreeDailyUsage(date = new Date()) {
   return {
     dayKey: getCurrentDayKey(date),
-    wordsAdded: 0,
+    definitionSessionStarts: 0,
     typingAttempts: 0,
     mistakeReviewAttempts: 0,
   };
@@ -296,9 +303,32 @@ function ensureCurrentFreeDailyUsage(rawUsage, date = new Date()) {
 
   return {
     dayKey: safeDayKey,
-    wordsAdded: Math.max(0, Math.floor(Number(rawUsage.wordsAdded) || 0)),
+    definitionSessionStarts: Math.max(0, Math.floor(Number(rawUsage.definitionSessionStarts) || 0)),
     typingAttempts: Math.max(0, Math.floor(Number(rawUsage.typingAttempts) || 0)),
     mistakeReviewAttempts: Math.max(0, Math.floor(Number(rawUsage.mistakeReviewAttempts) || 0)),
+  };
+}
+
+function createDefaultFreeDefinitionSessionUsage() {
+  return {
+    startedAt: 0,
+  };
+}
+
+function ensureCurrentFreeDefinitionSessionUsage(rawUsage, date = new Date()) {
+  const now = date.getTime();
+  if (!rawUsage || typeof rawUsage !== "object" || Array.isArray(rawUsage)) {
+    return createDefaultFreeDefinitionSessionUsage(date);
+  }
+
+  const startedAt = Math.max(0, Math.floor(Number(rawUsage.startedAt) || 0));
+
+  if (!startedAt || now - startedAt >= FREE_DEFINITION_SESSION_WINDOW_MS) {
+    return createDefaultFreeDefinitionSessionUsage(date);
+  }
+
+  return {
+    startedAt,
   };
 }
 
@@ -710,16 +740,6 @@ function sanitizeActivityEntry(entry) {
     questionsCompleted: Math.max(0, Math.floor(Number(entry?.questionsCompleted) || 0)),
     timeSpentSeconds: Math.max(0, Math.floor(Number(entry?.timeSpentSeconds) || 0)),
   };
-}
-
-function isActivityEntryActive(entry) {
-  const safe = sanitizeActivityEntry(entry);
-  return (
-    safe.wordsAdded > 0 ||
-    safe.questionsCompleted > 0 ||
-    safe.definitionsAdded > 0 ||
-    safe.timeSpentSeconds >= 60
-  );
 }
 
 function parseStoredActivityHistory(rawValue) {
@@ -1268,6 +1288,11 @@ export default function App() {
   const [freeDailyUsage, setFreeDailyUsage] = useState(() =>
     ensureCurrentFreeDailyUsage(parseJsonSafely(localStorage.getItem("vocab_free_daily_usage"), null))
   );
+  const [freeDefinitionSessionUsage, setFreeDefinitionSessionUsage] = useState(() =>
+    ensureCurrentFreeDefinitionSessionUsage(
+      parseJsonSafely(localStorage.getItem("vocab_free_definition_session_usage"), null)
+    )
+  );
   const [proDailyGoalQuestions, setProDailyGoalQuestions] = useState(() =>
     parseDailyGoalTarget(localStorage.getItem("vocab_pro_daily_goal_questions"))
   );
@@ -1285,6 +1310,7 @@ export default function App() {
     marketingOptIn: false,
   });
   const [authError, setAuthError] = useState("");
+  const [isAuthSessionResolved, setIsAuthSessionResolved] = useState(false);
   const [billingPlan, setBillingPlan] = useState("free");
   const [billingSubscriptionStatus, setBillingSubscriptionStatus] = useState("");
   const [billingCurrentPeriodEnd, setBillingCurrentPeriodEnd] = useState("");
@@ -1357,6 +1383,9 @@ export default function App() {
   const activityMonthlyStats = getMonthTotals(activityHistory);
   const activityTotalStats = sumActivityHistory(activityHistory);
   const currentFreeDailyUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
+  const currentFreeDefinitionSessionUsage = ensureCurrentFreeDefinitionSessionUsage(freeDefinitionSessionUsage);
+  const isFreeDefinitionSessionActive =
+    Date.now() - currentFreeDefinitionSessionUsage.startedAt < FREE_DEFINITION_SESSION_WINDOW_MS;
   const isProPlan = billingPlan === "pro";
   const weakWordCandidates = buildWeakWordCandidates(books);
   const smartReviewWords = weakWordCandidates.slice(0, 20).map((entry) => ({
@@ -1821,6 +1850,7 @@ export default function App() {
       vocab_activity_history: JSON.stringify(activityHistory),
       vocab_pro_daily_goal_questions: JSON.stringify(proDailyGoalQuestions),
       vocab_free_daily_usage: JSON.stringify(freeDailyUsage),
+      vocab_free_definition_session_usage: JSON.stringify(freeDefinitionSessionUsage),
       vocab_last_quiz_mistakes: JSON.stringify(lastQuizMistakeKeys),
       vocab_last_quiz_mistakes_by_book: JSON.stringify(lastQuizMistakeKeysByBook),
       vocab_last_quiz_mistake_mode: lastQuizMistakeMode,
@@ -1844,6 +1874,7 @@ export default function App() {
     activityHistory,
     proDailyGoalQuestions,
     freeDailyUsage,
+    freeDefinitionSessionUsage,
     lastQuizMistakeKeys,
     lastQuizMistakeKeysByBook,
     lastQuizMistakeMode,
@@ -1949,7 +1980,7 @@ export default function App() {
     }
   }
 
-  async function logoutAccount() {
+  const logoutAccount = useCallback(async () => {
     try {
       await fetch(`${AUTH_API_PATH}/logout`, {
         method: "POST",
@@ -1991,11 +2022,14 @@ export default function App() {
     });
     setIsCloudStateHydrated(false);
     setIsDeleteAccountConfirmOpen(false);
-    window.location.replace("/login");
-  }
+    navigateTo("/login");
+  }, [authToken]);
 
   useEffect(() => {
-    if (authToken) return;
+    if (authToken) {
+      setIsAuthSessionResolved(true);
+      return;
+    }
     let cancelled = false;
     async function restoreCookieSession() {
       try {
@@ -2012,13 +2046,22 @@ export default function App() {
         setAccountEmail(nextEmail);
       } catch {
         // Keep local-only mode available if session restore fails.
+      } finally {
+        if (!cancelled) {
+          setIsAuthSessionResolved(true);
+        }
       }
     }
     void restoreCookieSession();
     return () => {
       cancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, logoutAccount]);
+
+  useEffect(() => {
+    if (!isAuthSessionResolved || authToken) return;
+    navigateTo("/login");
+  }, [authToken, isAuthSessionResolved]);
 
   const loadAccountProfile = useCallback(async () => {
     if (!authToken) return;
@@ -2043,7 +2086,7 @@ export default function App() {
     } finally {
       setIsAccountProfileLoading(false);
     }
-  }, [authToken]);
+  }, [authToken, logoutAccount]);
 
   function mapBillingApiError(payload, fallbackMessage) {
     const backendError = String(payload?.error || "").trim().toLowerCase();
@@ -2391,7 +2434,7 @@ export default function App() {
     }
     setSocialOverview(result.payload || null);
     setIsSocialLoading(false);
-  }, [authToken, requestSocial]);
+  }, [authToken, logoutAccount, requestSocial]);
 
   async function sendFriendRequest() {
     if (!authToken || socialActionLoadingKey) return;
@@ -3195,7 +3238,7 @@ export default function App() {
     setNoticeModal({ title, message });
   }
 
-  const applyAppDataSnapshot = useCallback((rawData, { screenAfterApply = null } = {}) => {
+  function applyAppDataSnapshot(rawData, { screenAfterApply = null } = {}) {
     if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
       throw new Error("invalid-app-state-shape");
     }
@@ -3262,7 +3305,7 @@ export default function App() {
     setLastQuizSetup(importedLastQuizSetup);
     setCurrentBookId((prev) => (importedBooks.some((book) => book.id === prev) ? prev : importedBooks[0]?.id ?? null));
     if (screenAfterApply) setScreen(screenAfterApply);
-  }, [proDailyGoalQuestions]);
+  }
 
   function buildBackupSnapshot() {
     return {
@@ -4277,15 +4320,14 @@ export default function App() {
   // Add / delete words
   async function addWord() {
     if (!inputWord.trim() || !currentBook) return;
-    if (!isProPlan) {
-      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-      if (safeUsage.wordsAdded >= FREE_DAILY_WORD_LIMIT) {
-        openNoticeModal(
-          `Free plan limit reached: ${FREE_DAILY_WORD_LIMIT} new words per day.`,
-          "Daily Limit"
-        );
-        return;
-      }
+    if (!isProPlan && !isFreeDefinitionSessionActive) {
+      openNoticeModal(
+        currentFreeDailyUsage.definitionSessionStarts >= FREE_DAILY_DEFINITION_SESSION_LIMIT
+          ? "Free plan limit reached: you have already used your 10-minute add-definitions session for today."
+          : "Start your free 10-minute add-definitions session first.",
+        "Free Limit"
+      );
+      return;
     }
 
     const cleanWord = inputWord.trim();
@@ -4366,21 +4408,36 @@ export default function App() {
       );
       awardXp(getWordXpGain(streak.count));
       updateStreak();
-      if (!isProPlan) {
-        setFreeDailyUsage((prev) => {
-          const current = ensureCurrentFreeDailyUsage(prev);
-          return {
-            ...current,
-            wordsAdded: current.wordsAdded + 1,
-          };
-        });
-      }
       setInputWord("");
     } catch {
       openNoticeModal("Failed to fetch definition.", "Network Error");
     } finally {
       setLoading(false);
     }
+  }
+
+  function startFreeDefinitionSession() {
+    if (isProPlan) return;
+    if (isFreeDefinitionSessionActive) return;
+
+    const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
+    if (safeUsage.definitionSessionStarts >= FREE_DAILY_DEFINITION_SESSION_LIMIT) {
+      openNoticeModal(
+        "Free plan limit reached: you have already used your 10-minute add-definitions session for today.",
+        "Free Limit"
+      );
+      return;
+    }
+
+    const now = new Date();
+    setFreeDefinitionSessionUsage(createDefaultFreeDefinitionSessionUsage(now));
+    setFreeDailyUsage((prev) => {
+      const current = ensureCurrentFreeDailyUsage(prev, now);
+      return {
+        ...current,
+        definitionSessionStarts: current.definitionSessionStarts + 1,
+      };
+    });
   }
 
   function deleteWord(wordToDelete, wordIndexToDelete) {
@@ -6030,9 +6087,22 @@ export default function App() {
           <button onClick={addWord}>+</button>
         </div>
         {!isProPlan ? (
-          <p className="quizSetupHint">
-            Free limit: {currentFreeDailyUsage.wordsAdded} / {FREE_DAILY_WORD_LIMIT} new words added today.
-          </p>
+          <>
+            <div className="settingsRow">
+              <span>Free limit: 10-Min Session per day.</span>
+              <button
+                type="button"
+                className="primaryBtn"
+                onClick={startFreeDefinitionSession}
+                disabled={
+                  isFreeDefinitionSessionActive ||
+                  currentFreeDailyUsage.definitionSessionStarts >= FREE_DAILY_DEFINITION_SESSION_LIMIT
+                }
+              >
+                {isFreeDefinitionSessionActive ? "Session Active" : "Start 10-Min Session"}
+              </button>
+            </div>
+          </>
         ) : null}
         <p className="definitionAttributionNote">
           Definition data is fetched via Free Dictionary API (dictionaryapi.dev). Upstream source URLs and
@@ -6040,7 +6110,7 @@ export default function App() {
         </p>
         <div className="chapterControlsRow">
           <div className="chapterControlField">
-            <span>Chapter for New Words</span>
+            <span>Auto-Assign Chapters</span>
             <InAppDropdown
               value={safeSelectedChapterIdForNewWords}
               options={currentBookChapters.map((chapter) => ({
