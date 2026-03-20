@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { closeDb, initDb, query } from "./db/client.js";
 import { authRouter } from "./routes/auth.js";
 import { wordsRouter } from "./routes/words.js";
@@ -20,6 +23,10 @@ const host = "0.0.0.0";
 const isProduction = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 const allowLocalhostInProduction =
   String(process.env.ALLOW_LOCALHOST_IN_PRODUCTION || "").trim().toLowerCase() === "true";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distDir = path.resolve(__dirname, "../dist");
+const distIndexPath = path.join(distDir, "index.html");
 
 function parseCsvEnv(value, { toUpper = false } = {}) {
   return String(value || "")
@@ -223,6 +230,14 @@ app.use("/api/state", enforceWriteRateLimit, stateRouter);
 app.use("/api/social", enforceWriteRateLimit, socialRouter);
 app.use("/api/analytics", enforceWriteRateLimit, analyticsRouter);
 app.use("/api/billing", enforceWriteRateLimit, billingRouter);
+
+if (fs.existsSync(distIndexPath)) {
+  app.use(express.static(distDir));
+
+  app.get(/^\/(?!api(?:\/|$)).*/, (_req, res) => {
+    res.sendFile(distIndexPath);
+  });
+}
 
 let serverInstance = null;
 let shutdownInProgress = false;
