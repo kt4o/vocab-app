@@ -21,6 +21,7 @@ const app = express();
 const port = Number(process.env.PORT || 4000);
 const host = "0.0.0.0";
 const isProduction = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+const SESSION_COOKIE_NAME = String(process.env.AUTH_COOKIE_NAME || "vocab_session").trim() || "vocab_session";
 const allowLocalhostInProduction =
   String(process.env.ALLOW_LOCALHOST_IN_PRODUCTION || "").trim().toLowerCase() === "true";
 const __filename = fileURLToPath(import.meta.url);
@@ -38,6 +39,29 @@ function parseCsvEnv(value, { toUpper = false } = {}) {
 
 function isLocalhostOrigin(origin) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(String(origin || "").trim());
+}
+
+function hasSessionCookie(req) {
+  const cookieHeader = String(req.headers.cookie || "");
+  if (!cookieHeader) return false;
+  return cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .some((part) => part.startsWith(`${SESSION_COOKIE_NAME}=`));
+}
+
+function getRequestOrigin(req) {
+  const originHeader = String(req.headers.origin || "").trim();
+  if (originHeader) return originHeader;
+
+  const refererHeader = String(req.headers.referer || "").trim();
+  if (!refererHeader) return "";
+
+  try {
+    return new URL(refererHeader).origin;
+  } catch {
+    return "";
+  }
 }
 
 const defaultAllowedOrigins = isProduction && !allowLocalhostInProduction
@@ -160,6 +184,25 @@ app.use(
     },
   })
 );
+app.use((req, res, next) => {
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    next();
+    return;
+  }
+
+  if (!hasSessionCookie(req)) {
+    next();
+    return;
+  }
+
+  const requestOrigin = getRequestOrigin(req);
+  if (!requestOrigin || !allowedOrigins.has(requestOrigin)) {
+    res.status(403).json({ error: "invalid-origin" });
+    return;
+  }
+
+  next();
+});
 app.use((req, res, next) => {
   if (req.path === "/api/health") {
     next();

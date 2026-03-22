@@ -11,11 +11,10 @@ import { PricingPage } from "./pages/PricingPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 
-const BETA_ACCESS_STORAGE_KEY = "vocab_beta_access_code";
-const EARLY_ACCESS_STORAGE_KEY = "vocab_early_access_code";
-const EARLY_ACCESS_CODE = String(
-  import.meta.env.VITE_EARLY_ACCESS_CODE || import.meta.env.VITE_BETA_CODE || ""
-).trim();
+const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
+  .trim()
+  .replace(/\/$/, "");
+const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
 
 function getRoute(pathname) {
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
@@ -32,59 +31,58 @@ function getRoute(pathname) {
   return "landing";
 }
 
-function hasEarlyAccess() {
-  if (!EARLY_ACCESS_CODE) return true;
-  const storedEarlyAccessCode = String(localStorage.getItem(EARLY_ACCESS_STORAGE_KEY) || "").trim();
-  const storedBetaAccessCode = String(localStorage.getItem(BETA_ACCESS_STORAGE_KEY) || "").trim();
-  return storedEarlyAccessCode === EARLY_ACCESS_CODE || storedBetaAccessCode === EARLY_ACCESS_CODE;
+function navigateTo(path) {
+  const nextPath = String(path || "/").trim() || "/";
+  window.history.replaceState(null, "", nextPath);
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-function EarlyAccessGate({ onUnlock }) {
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
+function AppRoute() {
+  const [status, setStatus] = useState("checking");
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    if (!EARLY_ACCESS_CODE || code.trim() === EARLY_ACCESS_CODE) {
-      localStorage.setItem(EARLY_ACCESS_STORAGE_KEY, EARLY_ACCESS_CODE);
-      localStorage.setItem(BETA_ACCESS_STORAGE_KEY, EARLY_ACCESS_CODE);
-      onUnlock(true);
-      return;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function verifySession() {
+      try {
+        const response = await fetch(`${AUTH_API_PATH}/account`, {
+          credentials: "include",
+        });
+        if (cancelled) return;
+        if (response.ok) {
+          setStatus("authorized");
+          return;
+        }
+      } catch {
+        // Fall back to public auth flow if session verification is unavailable.
+      }
+
+      if (!cancelled) {
+        setStatus("guest");
+        navigateTo("/login");
+      }
     }
-    setError("Invalid access code.");
+
+    void verifySession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (status === "authorized") {
+    return <App />;
   }
 
-  return (
-    <main className="betaGateWrap">
-      <section className="betaGateCard">
-        <p className="betaGateEyebrow">Early Access</p>
-        <h1>Invite-Only Preview</h1>
-        <p className="betaGateHint">Enter your access code to continue to Vocalibry.</p>
-        <form onSubmit={handleSubmit} className="betaGateForm">
-          <label className="visuallyHidden" htmlFor="early-access-code">Access code</label>
-          <input
-            id="early-access-code"
-            className="betaGateInput"
-            value={code}
-            onChange={(event) => {
-              setCode(event.target.value);
-              if (error) setError("");
-            }}
-            autoComplete="off"
-            placeholder="Early access code"
-            autoFocus
-          />
-          <button type="submit" className="betaGateBtn">Enter</button>
-        </form>
-        {error ? <p className="betaGateError">{error}</p> : null}
-      </section>
-    </main>
-  );
+  if (status === "guest") {
+    return <LoginPage initialMode="login" />;
+  }
+
+  return null;
 }
 
 function RootPage() {
   const [route, setRoute] = useState(() => getRoute(window.location.pathname));
-  const [isEarlyAccessUnlocked, setIsEarlyAccessUnlocked] = useState(() => hasEarlyAccess());
 
   useEffect(() => {
     const handleRouteChange = () => {
@@ -95,11 +93,7 @@ function RootPage() {
     return () => window.removeEventListener("popstate", handleRouteChange);
   }, []);
 
-  if (route === "landing" && !isEarlyAccessUnlocked) {
-    return <EarlyAccessGate onUnlock={setIsEarlyAccessUnlocked} />;
-  }
-
-  if (route === "app") return <App />;
+  if (route === "app") return <AppRoute />;
   if (route === "login") return <LoginPage initialMode="login" />;
   if (route === "register") return <LoginPage initialMode="register" />;
   if (route === "forgot-password") return <ForgotPasswordPage />;

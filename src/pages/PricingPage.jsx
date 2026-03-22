@@ -1,3 +1,5 @@
+import { PREMIUM_UPGRADE_ENABLED } from "../config/premium";
+
 const PLAN_PRICE = "A$6/month";
 
 const FEATURES = [
@@ -76,10 +78,20 @@ export function PricingPage() {
           <article className="pricingPlanCard isPro">
             <h2>Pro</h2>
             <p className="pricingPlanPrice">{PLAN_PRICE}</p>
-            <p className="pricingPlanCaption">Best for consistent daily learners.</p>
-            <a className="publicPrimaryBtn" href="/register">
-              Go Pro
-            </a>
+            <p className="pricingPlanCaption">
+              {PREMIUM_UPGRADE_ENABLED
+                ? "Best for consistent daily learners."
+                : "Pro coming soon."}
+            </p>
+            {PREMIUM_UPGRADE_ENABLED ? (
+              <a className="publicPrimaryBtn" href="/register">
+                Go Pro
+              </a>
+            ) : (
+              <button type="button" className="publicPrimaryBtn" disabled>
+                Go Pro
+              </button>
+            )}
           </article>
         </section>
 

@@ -681,7 +681,7 @@ authRouter.post("/register", async (req, res) => {
     await trackRetentionEvent(userId, "register", { source: "auth/register" });
     await trackRetentionEvent(userId, "session_start", { source: "auth/register" });
     setSessionCookie(req, res, token);
-    res.status(201).json({ userId, username, token });
+    res.status(201).json({ userId, username });
   } catch (error) {
     await client.query("ROLLBACK");
     if (error?.code === "23505") {
@@ -1074,7 +1074,7 @@ authRouter.post("/login", async (req, res) => {
     await trackRetentionEvent(user.id, "session_start", { source: "auth/login" });
 
     setSessionCookie(req, res, token);
-    res.json({ userId: Number(user.id), username: user.username, token });
+    res.json({ userId: Number(user.id), username: user.username });
   } catch {
     res.status(500).json({ error: "login-failed" });
   }

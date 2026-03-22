@@ -107,3 +107,18 @@ Recommended uptime settings on your backend host:
 
 Cutover tip:
 - Keep Koyeb running until steps 8 and 9 pass, then switch Netlify `VITE_API_BASE_URL` and disable Koyeb.
+
+## Public release checklist
+
+Before opening the app to the public, confirm:
+
+- Frontend `VITE_API_BASE_URL` points to your production backend domain.
+- Backend `NODE_ENV=production`, `DATABASE_URL`, and `CORS_ORIGIN` or `CORS_ORIGINS` are set to real production values.
+- Backend `APP_BASE_URL` matches your public frontend URL exactly.
+- Email env vars (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`) are configured if sign-up verification or password reset will be live.
+- Premium upgrade is intentionally disabled in `src/config/premium.js` until you are ready to enable live Stripe.
+- `npm run lint`, `npm run build`, and `npm run test:smoke` pass before deploy.
+- Production health checks return success:
+  - `/api/health`
+  - `/api/ready`
+- Legal/contact pages are published and reachable from the public site.

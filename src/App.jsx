@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { CEFR_WORDLIST } from "./data/cefrWordlist";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
+import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
 
 const BASE_XP_GAIN_PER_WORD = 20;
 const XP_GAIN_PER_QUIZ_CORRECT = 10;
@@ -34,6 +35,24 @@ const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const COOKIE_SESSION_AUTH_MARKER = "__cookie_session__";
 const LEGAL_VERSION = "2026-03-14";
 const RETENTION_PING_DAY_KEY_STORAGE = "vocab_retention_ping_day";
+const ACCOUNT_DATA_STORAGE_KEYS = [
+  "vocab_books",
+  "vocab_xp",
+  "vocab_levels_enabled",
+  "vocab_weekly_stats",
+  "vocab_activity_history",
+  "vocab_pro_daily_goal_questions",
+  "vocab_free_daily_usage",
+  "vocab_free_definition_session_usage",
+  "vocab_last_quiz_mistakes",
+  "vocab_last_quiz_mistakes_by_book",
+  "vocab_last_quiz_mistake_mode",
+  "vocab_last_quiz_mistake_mode_by_book",
+  "vocab_last_quiz_setup",
+  "vocab_streak",
+  AUTH_USERNAME_STORAGE_KEY,
+  RETENTION_PING_DAY_KEY_STORAGE,
+];
 const WORD_DIFFICULTY_OPTIONS = [
   { value: "a1", label: "A1" },
   { value: "a2", label: "A2" },
@@ -68,6 +87,14 @@ function navigateTo(path) {
   const nextPath = String(path || "/").trim() || "/";
   window.history.replaceState(null, "", nextPath);
   window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+function formatCountdown(ms) {
+  const safeMs = Math.max(0, Math.floor(Number(ms) || 0));
+  const totalSeconds = Math.ceil(safeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function normalizeSubscriptionStatus(value) {
@@ -1114,62 +1141,7 @@ const QUIZ_MISS_PROMPTS = [
   "Good try. Review it once and you'll get it next time.",
 ];
 
-const APP_ENV = String(import.meta.env.VITE_APP_ENV || "").trim().toLowerCase();
-const IS_BETA_BUILD = APP_ENV === "beta";
-const BETA_ACCESS_CODE = String(import.meta.env.VITE_BETA_CODE || "").trim();
-const BETA_ACCESS_STORAGE_KEY = "vocab_beta_access_code";
-
-function BetaGate({ onUnlock }) {
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-
-  function handleSubmit(event) {
-    event.preventDefault();
-    if (!BETA_ACCESS_CODE) {
-      onUnlock(true);
-      return;
-    }
-    if (code.trim() === BETA_ACCESS_CODE) {
-      localStorage.setItem(BETA_ACCESS_STORAGE_KEY, BETA_ACCESS_CODE);
-      onUnlock(true);
-      return;
-    }
-    setError("Invalid beta code.");
-  }
-
-  return (
-    <main className="betaGateWrap">
-      <section className="betaGateCard">
-        <p className="betaGateEyebrow">Closed Beta</p>
-        <h1>Tester Access</h1>
-        <p className="betaGateHint">Enter your beta code to continue.</p>
-        <form onSubmit={handleSubmit} className="betaGateForm">
-          <label className="visuallyHidden" htmlFor="beta-access-code">Beta code</label>
-          <input
-            id="beta-access-code"
-            className="betaGateInput"
-            value={code}
-            onChange={(event) => {
-              setCode(event.target.value);
-              if (error) setError("");
-            }}
-            autoComplete="off"
-            placeholder="Beta access code"
-            autoFocus
-          />
-          <button type="submit" className="betaGateBtn">Enter Beta</button>
-        </form>
-        {error ? <p className="betaGateError">{error}</p> : null}
-      </section>
-    </main>
-  );
-}
-
 export default function App() {
-  const [isBetaUnlocked, setIsBetaUnlocked] = useState(() => {
-    if (!IS_BETA_BUILD || !BETA_ACCESS_CODE) return true;
-    return localStorage.getItem(BETA_ACCESS_STORAGE_KEY) === BETA_ACCESS_CODE;
-  });
   const [screen, setScreen] = useState("dashboard");
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem("vocab_theme");
@@ -1344,6 +1316,8 @@ export default function App() {
   const [socialTimeframe, setSocialTimeframe] = useState("weekly");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isCloudStateHydrated, setIsCloudStateHydrated] = useState(false);
+  const [isLocalPersistencePaused, setIsLocalPersistencePaused] = useState(false);
+  const [countdownNow, setCountdownNow] = useState(() => Date.now());
   const modalRef = useRef(null);
   const levelInfoRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -1385,7 +1359,17 @@ export default function App() {
   const currentFreeDailyUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
   const currentFreeDefinitionSessionUsage = ensureCurrentFreeDefinitionSessionUsage(freeDefinitionSessionUsage);
   const isFreeDefinitionSessionActive =
-    Date.now() - currentFreeDefinitionSessionUsage.startedAt < FREE_DEFINITION_SESSION_WINDOW_MS;
+    countdownNow - currentFreeDefinitionSessionUsage.startedAt < FREE_DEFINITION_SESSION_WINDOW_MS;
+  const freeDefinitionSessionRemainingMs = isFreeDefinitionSessionActive
+    ? Math.max(
+        0,
+        currentFreeDefinitionSessionUsage.startedAt + FREE_DEFINITION_SESSION_WINDOW_MS - countdownNow
+      )
+    : 0;
+  const freeDefinitionSessionDisplayMs = isFreeDefinitionSessionActive
+    ? freeDefinitionSessionRemainingMs
+    : FREE_DEFINITION_SESSION_WINDOW_MS;
+  const isAccountDataHydrating = Boolean(authToken) && !isCloudStateHydrated;
   const isProPlan = billingPlan === "pro";
   const weakWordCandidates = buildWeakWordCandidates(books);
   const smartReviewWords = weakWordCandidates.slice(0, 20).map((entry) => ({
@@ -1666,6 +1650,23 @@ export default function App() {
       screen === "quiz" ||
       screen === "mistakeReview";
 
+    const mainContent = isAccountDataHydrating ? (
+      <div className="page accountPage">
+        <div className="pageHeader">
+          <h1>Syncing Account</h1>
+        </div>
+        <div className="analyticsSection">
+          <div className="analyticsCard settingsCard accountSyncCard">
+            <div className="spinner" aria-hidden="true"></div>
+            <h3>Loading your account data</h3>
+            <p className="settingsHint">
+              Your books, progress, and account settings are syncing for this session.
+            </p>
+          </div>
+        </div>
+      </div>
+    ) : content;
+
     return (
       <div className="appShell">
         <aside ref={sidebarRef} className={`sidebar ${isSidebarHidden ? "isCollapsed" : ""}`}>
@@ -1673,7 +1674,6 @@ export default function App() {
             {!isSidebarHidden && (
               <div className="sidebarBrandWrap">
                 <div className="sidebarBrand">Vocalibry</div>
-                {IS_BETA_BUILD && <span className="betaPill">Beta</span>}
               </div>
             )}
             <button
@@ -1828,7 +1828,7 @@ export default function App() {
             </div>
           </div>
         </aside>
-        <main className="appMain">{content}</main>
+        <main className="appMain">{mainContent}</main>
       </div>
     );
   }
@@ -1840,6 +1840,7 @@ export default function App() {
   }, [isSidebarHidden]);
 
   useEffect(() => {
+    if (isLocalPersistencePaused) return;
     const persistedState = {
       vocab_books: JSON.stringify(books),
       vocab_xp: JSON.stringify(xp),
@@ -1882,6 +1883,7 @@ export default function App() {
     lastQuizSetup,
     streak,
     authUsername,
+    isLocalPersistencePaused,
   ]);
 
   async function submitAuth(mode) {
@@ -1980,7 +1982,13 @@ export default function App() {
     }
   }
 
-  const logoutAccount = useCallback(async () => {
+  const clearPersistedAccountData = useCallback(() => {
+    ACCOUNT_DATA_STORAGE_KEYS.forEach((key) => {
+      localStorage.removeItem(key);
+    });
+  }, []);
+
+  const logoutAccount = useCallback(async ({ clearLocalData = false } = {}) => {
     try {
       await fetch(`${AUTH_API_PATH}/logout`, {
         method: "POST",
@@ -1993,6 +2001,13 @@ export default function App() {
     setAuthToken("");
     setAuthUsername("");
     localStorage.removeItem("vocab_auth_token");
+    if (clearLocalData) {
+      setIsLocalPersistencePaused(true);
+      clearPersistedAccountData();
+      resetAppDataToDefaults();
+    } else {
+      setIsLocalPersistencePaused(false);
+    }
     setAccountEmail("");
     setAuthError("");
     setBillingPlan("free");
@@ -2023,7 +2038,7 @@ export default function App() {
     setIsCloudStateHydrated(false);
     setIsDeleteAccountConfirmOpen(false);
     navigateTo("/login");
-  }, [authToken]);
+  }, [authToken, clearPersistedAccountData]);
 
   useEffect(() => {
     if (authToken) {
@@ -2137,7 +2152,14 @@ export default function App() {
   }, [authToken]);
 
   async function startBillingCheckout() {
-    if (!authToken || isBillingCheckoutSubmitting || billingPlan === "pro") return;
+    if (
+      !PREMIUM_UPGRADE_ENABLED ||
+      !authToken ||
+      isBillingCheckoutSubmitting ||
+      billingPlan === "pro"
+    ) {
+      return;
+    }
     setIsBillingCheckoutSubmitting(true);
     setAccountActionError("");
     try {
@@ -2308,7 +2330,7 @@ export default function App() {
         return;
       }
 
-      logoutAccount();
+      logoutAccount({ clearLocalData: true });
       openNoticeModal("All sessions have been signed out.", "Session Cleared");
     } catch {
       setAccountActionError("Could not reach auth service. Check backend and try again.");
@@ -2375,7 +2397,7 @@ export default function App() {
         return;
       }
 
-      logoutAccount();
+      logoutAccount({ clearLocalData: true });
       openNoticeModal("Your account was deleted.", "Account Removed");
     } catch {
       setAccountActionError("Could not reach auth service. Check backend and try again.");
@@ -2650,6 +2672,10 @@ export default function App() {
         return;
       }
 
+      setIsLocalPersistencePaused(true);
+      resetAppDataToDefaults();
+      setIsCloudStateHydrated(false);
+
       try {
         const response = await fetch(STATE_API_PATH, {
           credentials: "include",
@@ -2681,10 +2707,12 @@ export default function App() {
         if (stateData) {
           applyAppDataSnapshot(stateData);
         }
+        if (!cancelled) {
+          setIsCloudStateHydrated(true);
+          setIsLocalPersistencePaused(false);
+        }
       } catch {
         // Keep local state when cloud sync is unavailable.
-      } finally {
-        if (!cancelled) setIsCloudStateHydrated(true);
       }
     }
 
@@ -2756,6 +2784,11 @@ export default function App() {
   }, [authToken]);
 
   useEffect(() => {
+    if (authToken) return;
+    setIsLocalPersistencePaused(false);
+  }, [authToken]);
+
+  useEffect(() => {
     document.body.classList.toggle("theme-dark", theme === "dark");
   }, [theme]);
 
@@ -2763,6 +2796,14 @@ export default function App() {
     if (isLevelsEnabled) return;
     setIsLevelInfoOpen(false);
   }, [isLevelsEnabled]);
+
+  useEffect(() => {
+    if (!isFreeDefinitionSessionActive) return undefined;
+    const intervalId = window.setInterval(() => {
+      setCountdownNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [isFreeDefinitionSessionActive]);
 
   useEffect(() => {
     const flushActiveTime = ({ ignoreVisibility = false } = {}) => {
@@ -3307,6 +3348,15 @@ export default function App() {
     if (screenAfterApply) setScreen(screenAfterApply);
   }
 
+  function resetAppDataToDefaults() {
+    applyAppDataSnapshot({
+      theme,
+      isSidebarHidden,
+      proDailyGoalQuestions,
+    });
+    setFreeDefinitionSessionUsage(createDefaultFreeDefinitionSessionUsage());
+  }
+
   function buildBackupSnapshot() {
     return {
       backupVersion: 1,
@@ -3720,19 +3770,29 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="settingsRow">
-                    <span>Upgrade account</span>
+                    <span>{PREMIUM_UPGRADE_ENABLED ? "Upgrade account" : "Pro coming soon"}</span>
                     <button
                       type="button"
                       className="primaryBtn"
                       onClick={startBillingCheckout}
                       disabled={
-                        isBillingCheckoutSubmitting || !isStripeBillingConfigured || isBillingStatusLoading
+                        !PREMIUM_UPGRADE_ENABLED ||
+                        isBillingCheckoutSubmitting ||
+                        !isStripeBillingConfigured ||
+                        isBillingStatusLoading
                       }
                     >
-                      {isBillingCheckoutSubmitting ? "Redirecting..." : "Upgrade to Pro"}
+                      {!PREMIUM_UPGRADE_ENABLED
+                        ? "Upgrade Coming Soon"
+                        : isBillingCheckoutSubmitting
+                          ? "Redirecting..."
+                          : "Upgrade to Pro"}
                     </button>
                   </div>
                 )}
+                {!PREMIUM_UPGRADE_ENABLED ? (
+                  <p className="settingsHint">Pro coming soon.</p>
+                ) : null}
               </>
             ) : null}
 
@@ -3744,7 +3804,11 @@ export default function App() {
                 </p>
                 <div className="settingsRow">
                   <span>This device</span>
-                  <button type="button" className="primaryBtn" onClick={logoutAccount}>
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    onClick={() => logoutAccount({ clearLocalData: true })}
+                  >
                     Log Out
                   </button>
                 </div>
@@ -4430,7 +4494,9 @@ export default function App() {
     }
 
     const now = new Date();
-    setFreeDefinitionSessionUsage(createDefaultFreeDefinitionSessionUsage(now));
+    setFreeDefinitionSessionUsage({
+      startedAt: now.getTime(),
+    });
     setFreeDailyUsage((prev) => {
       const current = ensureCurrentFreeDailyUsage(prev, now);
       return {
@@ -4783,12 +4849,6 @@ export default function App() {
       return next;
     });
   }
-
-
-  if (!isBetaUnlocked) {
-    return <BetaGate onUnlock={setIsBetaUnlocked} />;
-  }
-
   // ---------- DASHBOARD ----------
   if (screen === "dashboard") {
     return renderWithSidebar(
@@ -6090,17 +6150,22 @@ export default function App() {
           <>
             <div className="settingsRow">
               <span>Free limit: 10-Min Session per day.</span>
-              <button
-                type="button"
-                className="primaryBtn"
-                onClick={startFreeDefinitionSession}
-                disabled={
-                  isFreeDefinitionSessionActive ||
-                  currentFreeDailyUsage.definitionSessionStarts >= FREE_DAILY_DEFINITION_SESSION_LIMIT
-                }
-              >
-                {isFreeDefinitionSessionActive ? "Session Active" : "Start 10-Min Session"}
-              </button>
+              <div className="definitionSessionAction">
+                <span className="definitionSessionTimer">
+                  {formatCountdown(freeDefinitionSessionDisplayMs)}
+                </span>
+                <button
+                  type="button"
+                  className="primaryBtn"
+                  onClick={startFreeDefinitionSession}
+                  disabled={
+                    isFreeDefinitionSessionActive ||
+                    currentFreeDailyUsage.definitionSessionStarts >= FREE_DAILY_DEFINITION_SESSION_LIMIT
+                  }
+                >
+                  {isFreeDefinitionSessionActive ? "Session Active" : "Start 10-Min Session"}
+                </button>
+              </div>
             </div>
           </>
         ) : null}
