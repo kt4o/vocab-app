@@ -33,6 +33,7 @@ This repo includes `netlify.toml` with:
 In Netlify site settings, add environment variable:
 
 - `VITE_API_BASE_URL = https://your-backend-domain`
+- Optional: `VITE_GA_MEASUREMENT_ID = G-XXXXXXXXXX` (enables GA4 analytics)
 
 Example:
 
@@ -42,6 +43,23 @@ The app will then call:
 
 - `https://my-vocab-api.onrender.com/api/auth/...`
 - `https://my-vocab-api.onrender.com/api/state`
+
+## Analytics (GA4 + fallback)
+
+Analytics is disabled by default. The frontend supports two providers:
+
+- Primary: GA4 via `VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX`
+- Fallback: PostHog via `VITE_POSTHOG_KEY=phc_...` (used only when GA4 ID is not set)
+
+Optional PostHog host override:
+
+- `VITE_POSTHOG_HOST=https://us.i.posthog.com`
+
+Tracked events:
+
+- SPA page views
+- auth events (`login_success`, `register_success`)
+- quiz lifecycle events (`quiz_started`, `quiz_completed`, `smart_review_started`)
 
 ## Stripe billing (optional)
 

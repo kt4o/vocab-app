@@ -10,6 +10,7 @@ import { ContactPage } from "./pages/ContactPage.jsx";
 import { PricingPage } from "./pages/PricingPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
+import { initAnalytics, trackPageView } from "./lib/analytics.js";
 
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
@@ -85,6 +86,10 @@ function RootPage() {
   const [route, setRoute] = useState(() => getRoute(window.location.pathname));
 
   useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  useEffect(() => {
     const handleRouteChange = () => {
       setRoute(getRoute(window.location.pathname));
     };
@@ -92,6 +97,11 @@ function RootPage() {
     window.addEventListener("popstate", handleRouteChange);
     return () => window.removeEventListener("popstate", handleRouteChange);
   }, []);
+
+  useEffect(() => {
+    const path = `${window.location.pathname}${window.location.search || ""}`;
+    trackPageView(path, { route_name: route });
+  }, [route]);
 
   if (route === "app") return <AppRoute />;
   if (route === "login") return <LoginPage initialMode="login" />;

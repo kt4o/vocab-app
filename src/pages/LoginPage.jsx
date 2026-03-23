@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { trackEvent } from "../lib/analytics.js";
 
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
@@ -134,6 +135,7 @@ export function LoginPage({ initialMode = "login" }) {
       setEmail(normalizedEmail);
       setRegisterStep("verify");
       setRegisterCodeCooldownUntil(Date.now() + 60 * 1000);
+      trackEvent("register_email_code_requested");
     } catch {
       setError("Could not reach auth service. Check backend and try again.");
     } finally {
@@ -191,6 +193,7 @@ export function LoginPage({ initialMode = "login" }) {
       setVerifiedEmailToken(nextVerifiedToken);
       setRegisterStep("credentials");
       setError("");
+      trackEvent("register_email_verified");
     } catch {
       setError("Could not reach auth service. Check backend and try again.");
     } finally {
@@ -280,6 +283,9 @@ export function LoginPage({ initialMode = "login" }) {
       const savedUsername = String(payload?.username || normalizedUsername).trim().toLowerCase();
       localStorage.removeItem("vocab_auth_token");
       localStorage.setItem(AUTH_USERNAME_STORAGE_KEY, savedUsername);
+      trackEvent(mode === "register" ? "register_success" : "login_success", {
+        auth_method: "password",
+      });
       navigateTo("/app");
     } catch {
       setError("Could not reach auth service. Check backend and try again.");

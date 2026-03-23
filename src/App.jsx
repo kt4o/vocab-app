@@ -3,6 +3,7 @@ import { CEFR_WORDLIST } from "./data/cefrWordlist";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
+import { trackEvent } from "./lib/analytics.js";
 
 const BASE_XP_GAIN_PER_WORD = 20;
 const XP_GAIN_PER_QUIZ_CORRECT = 10;
@@ -1492,6 +1493,13 @@ export default function App() {
     setActiveQuizTitle(nextTitle);
     setActiveQuizMode(selectedMode);
     setActiveQuizIsMistakeReview(false);
+    trackEvent("quiz_started", {
+      quiz_mode: selectedMode,
+      word_count: quizSetupWords.length,
+      book_count: quizSetupSelection.bookIds.length,
+      chapter_count: quizSetupSelection.chapterKeys.length,
+      difficulty_count: quizSetupSelection.difficultyKeys.length,
+    });
     setScreen("quiz");
   }
 
@@ -1516,6 +1524,9 @@ export default function App() {
     setActiveQuizTitle("Smart Review");
     setActiveQuizMode("normal");
     setActiveQuizIsMistakeReview(false);
+    trackEvent("smart_review_started", {
+      word_count: smartReviewWords.length,
+    });
     setScreen("quiz");
   }
 
@@ -4797,8 +4808,20 @@ export default function App() {
   function handleQuizComplete(summary) {
     const safeSummary = summary && typeof summary === "object" ? summary : {};
     updateStreak();
-    if (safeSummary.isMistakeReview) return;
     const completedMode = normalizeQuizMode(safeSummary.mode, "normal");
+    const mistakeCount = Array.isArray(safeSummary.mistakes) ? safeSummary.mistakes.length : 0;
+    const questionBookCount = Array.isArray(safeSummary.questionBookIds)
+      ? safeSummary.questionBookIds.length
+      : 0;
+
+    trackEvent("quiz_completed", {
+      quiz_mode: completedMode,
+      is_mistake_review: Boolean(safeSummary.isMistakeReview),
+      mistake_count: mistakeCount,
+      question_book_count: questionBookCount,
+    });
+
+    if (safeSummary.isMistakeReview) return;
 
     const mistakes = Array.isArray(safeSummary.mistakes) ? safeSummary.mistakes : [];
     const nextGlobalKeys = Array.from(
