@@ -1,4 +1,4 @@
-const LAST_UPDATED = "March 14, 2026";
+const LAST_UPDATED = "March 23, 2026";
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function TermsPage() {
@@ -87,10 +87,11 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2>8. Ads and Third-Party Content</h2>
+          <h2>8. Analytics, Ads, and Third-Party Content</h2>
           <p>
-            We may introduce advertising in the future. Ads and third-party links/content may be provided by
-            partners. We do not guarantee or endorse third-party claims, offers, or products.
+            We use analytics tools to measure and improve the service. We may also introduce advertising in
+            the future. Ads and third-party links/content may be provided by partners. We do not guarantee or
+            endorse third-party claims, offers, or products.
           </p>
         </section>
 

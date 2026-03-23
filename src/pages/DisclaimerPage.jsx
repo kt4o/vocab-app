@@ -1,4 +1,4 @@
-const LAST_UPDATED = "March 14, 2026";
+const LAST_UPDATED = "March 23, 2026";
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function DisclaimerPage() {

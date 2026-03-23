@@ -10,7 +10,13 @@ import { ContactPage } from "./pages/ContactPage.jsx";
 import { PricingPage } from "./pages/PricingPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
-import { initAnalytics, trackPageView } from "./lib/analytics.js";
+import {
+  getAnalyticsConsentStatus,
+  initAnalytics,
+  isAnalyticsConfigured,
+  setAnalyticsConsentStatus,
+  trackPageView,
+} from "./lib/analytics.js";
 
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
@@ -84,10 +90,14 @@ function AppRoute() {
 
 function RootPage() {
   const [route, setRoute] = useState(() => getRoute(window.location.pathname));
+  const [analyticsConsent, setAnalyticsConsent] = useState(() => getAnalyticsConsentStatus());
+  const showConsentBanner = isAnalyticsConfigured() && analyticsConsent === "unset";
 
   useEffect(() => {
-    initAnalytics();
-  }, []);
+    if (analyticsConsent === "granted") {
+      initAnalytics();
+    }
+  }, [analyticsConsent]);
 
   useEffect(() => {
     const handleRouteChange = () => {
@@ -99,20 +109,61 @@ function RootPage() {
   }, []);
 
   useEffect(() => {
+    if (analyticsConsent !== "granted") return;
     const path = `${window.location.pathname}${window.location.search || ""}`;
     trackPageView(path, { route_name: route });
-  }, [route]);
+  }, [route, analyticsConsent]);
 
-  if (route === "app") return <AppRoute />;
-  if (route === "login") return <LoginPage initialMode="login" />;
-  if (route === "register") return <LoginPage initialMode="register" />;
-  if (route === "forgot-password") return <ForgotPasswordPage />;
-  if (route === "terms") return <TermsPage />;
-  if (route === "privacy") return <PrivacyPage />;
-  if (route === "disclaimer") return <DisclaimerPage />;
-  if (route === "pricing") return <PricingPage />;
-  if (route === "contact") return <ContactPage />;
-  return <LandingPage />;
+  function handleConsentUpdate(nextStatus) {
+    setAnalyticsConsentStatus(nextStatus);
+    setAnalyticsConsent(nextStatus);
+    if (nextStatus === "granted") {
+      initAnalytics();
+      const path = `${window.location.pathname}${window.location.search || ""}`;
+      trackPageView(path, { route_name: route });
+    }
+  }
+
+  let pageContent = <LandingPage />;
+  if (route === "app") pageContent = <AppRoute />;
+  if (route === "login") pageContent = <LoginPage initialMode="login" />;
+  if (route === "register") pageContent = <LoginPage initialMode="register" />;
+  if (route === "forgot-password") pageContent = <ForgotPasswordPage />;
+  if (route === "terms") pageContent = <TermsPage />;
+  if (route === "privacy") pageContent = <PrivacyPage />;
+  if (route === "disclaimer") pageContent = <DisclaimerPage />;
+  if (route === "pricing") pageContent = <PricingPage />;
+  if (route === "contact") pageContent = <ContactPage />;
+
+  return (
+    <>
+      {pageContent}
+      {showConsentBanner ? (
+        <div className="cookieConsentBanner" role="dialog" aria-live="polite" aria-label="Cookie consent">
+          <p>
+            We use analytics cookies to understand usage and improve Vocalibry. You can change this later in
+            your browser settings. See our <a href="/privacy">Privacy Policy</a>.
+          </p>
+          <div className="cookieConsentActions">
+            <button
+              type="button"
+              className="cookieConsentBtn secondary"
+              onClick={() => handleConsentUpdate("denied")}
+            >
+              Reject
+            </button>
+            <button
+              type="button"
+              className="cookieConsentBtn primary"
+              onClick={() => handleConsentUpdate("granted")}
+            >
+              Accept
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 createRoot(document.getElementById("root")).render(

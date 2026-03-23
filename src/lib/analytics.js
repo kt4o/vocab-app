@@ -4,6 +4,7 @@ const POSTHOG_HOST = String(import.meta.env.VITE_POSTHOG_HOST || "https://us.i.p
 const GA_SCRIPT_ID = "vocalibry-ga4-script";
 const POSTHOG_SCRIPT_ID = "vocalibry-posthog-script";
 const POSTHOG_DISTINCT_ID_STORAGE_KEY = "vocalibry_posthog_distinct_id";
+const ANALYTICS_CONSENT_STORAGE_KEY = "vocalibry_analytics_consent";
 
 let gaInitialized = false;
 let posthogInitialized = false;
@@ -62,12 +63,12 @@ function sanitizeParams(rawParams) {
 }
 
 export function isAnalyticsEnabled() {
-  return (hasMeasurementId() || hasPosthogKey()) && !isDoNotTrackEnabled();
+  return isAnalyticsConfigured() && hasAnalyticsConsent() && !isDoNotTrackEnabled();
 }
 
 function initGa4() {
   if (!canUseBrowser()) return false;
-  if (!hasMeasurementId() || isDoNotTrackEnabled()) return false;
+  if (!hasMeasurementId() || isDoNotTrackEnabled() || !hasAnalyticsConsent()) return false;
   if (gaInitialized) return true;
 
   ensureGtagBootstrap();
@@ -120,7 +121,7 @@ function ensurePosthogBootstrap() {
 
 function initPosthog() {
   if (!canUseBrowser()) return false;
-  if (!hasPosthogKey() || isDoNotTrackEnabled()) return false;
+  if (!hasPosthogKey() || isDoNotTrackEnabled() || !hasAnalyticsConsent()) return false;
   if (posthogInitialized) return true;
 
   ensurePosthogBootstrap();
@@ -168,6 +169,38 @@ function getAnalyticsProvider() {
   if (hasMeasurementId()) return "ga4";
   if (hasPosthogKey()) return "posthog";
   return "none";
+}
+
+function normalizeConsentValue(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "granted") return "granted";
+  if (normalized === "denied") return "denied";
+  return "unset";
+}
+
+function hasAnalyticsConsent() {
+  return getAnalyticsConsentStatus() === "granted";
+}
+
+export function isAnalyticsConfigured() {
+  return getAnalyticsProvider() !== "none";
+}
+
+export function getAnalyticsConsentStatus() {
+  if (!canUseBrowser()) return "unset";
+  return normalizeConsentValue(localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY));
+}
+
+export function setAnalyticsConsentStatus(nextStatus) {
+  if (!canUseBrowser()) return;
+  const normalized = normalizeConsentValue(nextStatus);
+  if (normalized === "unset") {
+    localStorage.removeItem(ANALYTICS_CONSENT_STORAGE_KEY);
+    return;
+  }
+  localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, normalized);
 }
 
 function getOrCreatePosthogDistinctId() {

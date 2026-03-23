@@ -1,4 +1,4 @@
-const LAST_UPDATED = "March 14, 2026";
+const LAST_UPDATED = "March 23, 2026";
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function PrivacyPage() {
@@ -30,8 +30,8 @@ export function PrivacyPage() {
           </p>
           <p>
             We also process operational data required to run the service, such as authentication/session data,
-            basic request metadata, retention analytics events (for example daily session-start signals), and
-            local browser storage used for app performance and continuity.
+            basic request metadata, analytics events (for example page views, login success, and quiz activity),
+            and local browser storage/cookies used for app performance and continuity.
           </p>
         </section>
 
@@ -44,7 +44,24 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>3. Social and Community Data</h2>
+          <h2>3. Analytics Technologies</h2>
+          <p>
+            We use analytics tools to understand how the service is used and to improve product quality and
+            retention. This may include PostHog and, when enabled, Google Analytics (GA4).
+          </p>
+          <p>
+            Analytics tools may collect event data such as visited pages, feature usage, quiz flow events,
+            browser/device metadata, and approximate location derived from IP. We configure analytics to reduce
+            unnecessary personal data collection where possible.
+          </p>
+          <p>
+            You can limit analytics collection by blocking analytics scripts/cookies in your browser settings or
+            extensions. If your browser sends a Do Not Track signal, we attempt to honor it.
+          </p>
+        </section>
+
+        <section>
+          <h2>4. Social and Community Data</h2>
           <p>
             If you use social features, we process friend requests, friend relationships, and leaderboard
             metrics derived from learning activity.
@@ -56,7 +73,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>4. Future Advertising and Cookies</h2>
+          <h2>5. Future Advertising and Cookies</h2>
           <p>
             We may introduce ads in the future. If we do, ad technology partners may use cookies or similar
             identifiers to measure performance, prevent fraud, and personalize ad experience where legally
@@ -69,7 +86,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>5. Data Sharing</h2>
+          <h2>6. Data Sharing</h2>
           <p>
             We do not sell personal information. We may share data with service providers strictly as needed
             to operate, secure, and improve the platform.
@@ -77,7 +94,7 @@ export function PrivacyPage() {
           <p>
             This can include infrastructure, authentication/security tooling, email delivery providers, and
             payment processors for billing (for example Stripe, where enabled), and third-party dictionary
-            providers used to return definition content.
+            providers used to return definition content, and analytics providers used for product measurement.
           </p>
           <p>
             We may also disclose information if required by law, legal process, or valid government request.
@@ -85,7 +102,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>6. Security</h2>
+          <h2>7. Security</h2>
           <p>
             We use reasonable administrative and technical safeguards. No system can be guaranteed 100%
             secure, and you use the service at your own risk.
@@ -93,7 +110,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>7. Retention</h2>
+          <h2>8. Retention</h2>
           <p>
             We keep data while needed for service operation, security, legal compliance, and legitimate
             business purposes. Account deletion requests are handled according to applicable law and system
@@ -106,15 +123,18 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>8. Your Rights and Choices</h2>
+          <h2>9. Your Rights and Choices</h2>
           <p>
             Subject to local law, you may request access, correction, export, or deletion of personal data.
             You may also manage key account controls in-app.
           </p>
+          <p>
+            You may also request support in limiting analytics tracking associated with your account activity.
+          </p>
         </section>
 
         <section>
-          <h2>9. International Processing</h2>
+          <h2>10. International Processing</h2>
           <p>
             Your data may be processed in countries different from your own. By using the service, you
             understand that cross-border processing may occur.
@@ -122,7 +142,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>10. Children&apos;s Privacy</h2>
+          <h2>11. Children&apos;s Privacy</h2>
           <p>
             The service is not directed to children below the minimum legal age in their jurisdiction. If we
             learn personal data was provided without required consent, we will take appropriate action.
@@ -130,14 +150,14 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>11. Policy Updates</h2>
+          <h2>12. Policy Updates</h2>
           <p>
             We may update this Privacy Policy over time. The latest version will be posted on this page.
           </p>
         </section>
 
         <section>
-          <h2>12. Contact</h2>
+          <h2>13. Contact</h2>
           <p>
             Privacy questions or requests: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
           </p>
