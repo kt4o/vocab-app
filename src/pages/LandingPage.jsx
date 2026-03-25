@@ -19,8 +19,8 @@ const MASTERY_FLOW = [
     number: "01",
     phase: "Step 1",
     title: "Capture",
-    description: "Add a word to your chapter.",
-    cue: "Word saved",
+    description: "Save new words by chapter while context is fresh.",
+    cue: "Word captured",
     progress: 24,
     icon: "capture",
   },
@@ -28,7 +28,7 @@ const MASTERY_FLOW = [
     number: "02",
     phase: "Step 2",
     title: "Recognize",
-    description: "Review meaning with flashcards.",
+    description: "Review meaning fast with focused flashcards.",
     cue: "Recall started",
     progress: 52,
     icon: "recognize",
@@ -37,8 +37,8 @@ const MASTERY_FLOW = [
     number: "03",
     phase: "Step 3",
     title: "Produce",
-    description: "Type the word from memory.",
-    cue: "Spelling locked",
+    description: "Type from memory until spelling is automatic.",
+    cue: "Active recall",
     progress: 78,
     icon: "produce",
   },
@@ -46,8 +46,8 @@ const MASTERY_FLOW = [
     number: "04",
     phase: "Step 4",
     title: "Retain",
-    description: "Revisit mistakes until mastered.",
-    cue: "Mastery reached",
+    description: "Repeat weak words on schedule so they stick.",
+    cue: "Memory locked",
     progress: 100,
     icon: "retain",
   },
@@ -173,7 +173,7 @@ export function LandingPage() {
   const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
 
   useEffect(() => {
-    document.title = "Vocalibry | Learn Vocabulary";
+    document.title = "Vocalibry | Remember Vocabulary Faster";
   }, []);
 
   return (
@@ -182,8 +182,8 @@ export function LandingPage() {
         <div className="landingV2NotionAnnouncement">
           <div className="landingV2NotionAnnouncementInner">
             <span className="landingV2NotionBadge">New</span>
-            <p>Vocalibry Chapter Planner is live: organize word lists by book and unit in seconds.</p>
-            <a href="/register">See what&apos;s new &rarr;</a>
+            <p>Chapter Planner is live: build clean word lists by book and unit in seconds.</p>
+            <a href="/register">Try Chapter Planner &rarr;</a>
           </div>
           <button
             type="button"
@@ -240,14 +240,14 @@ export function LandingPage() {
       <main className="landingV2NotionMain">
         <section className="landingV2NotionHero">
           <div className="landingV2NotionHeroCopy">
-            <h1>Turn new words into permanent memory.</h1>
+            <h1>Remember every word you study.</h1>
             <p>
-              Organize definitions, practice with flashcards and quizzes, and fix forgetting with
-              targeted review.
+              Save words by chapter, practice with flashcards and typing quizzes, and review weak words
+              until recall is automatic.
             </p>
             <div className="heroActions landingV2NotionHeroActions">
               <a className="publicPrimaryBtn" href="/register">
-                Get Vocalibry free
+                Start free
               </a>
             </div>
           </div>
@@ -265,7 +265,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="landingV2NotionPartners" aria-label="Trusted by teams">
+        <section className="landingV2NotionPartners" aria-label="Used by learners and educators">
           {PARTNER_NAMES.map((name, index) => (
             <span key={name}>
               {name}
@@ -277,9 +277,9 @@ export function LandingPage() {
         <section className="landingV2Mastery" aria-label="How mastering a word works">
           <div className="landingV2MasteryHead">
             <p>Mastery flow</p>
-            <h2>Master a word in four clear steps</h2>
+            <h2>From first look to long-term recall in four steps</h2>
             <span className="landingV2MasteryLead">
-              Move from first capture to long-term recall with one clear sequence.
+              Follow one repeatable loop so new vocabulary moves into long-term memory.
             </span>
           </div>
 

@@ -208,7 +208,7 @@ export function LoginPage({ initialMode = "login" }) {
     const normalizedUsername = String(username || "").trim().toLowerCase();
     const normalizedEmail = String(email || "").trim().toLowerCase();
     if (!normalizedUsername || !password) {
-      setError("Username and password are required.");
+      setError("Username or email and password are required.");
       return;
     }
     if (mode === "register" && !verifiedEmailToken) {
@@ -248,7 +248,7 @@ export function LoginPage({ initialMode = "login" }) {
                 acceptedLegal,
                 legalVersion: LEGAL_VERSION,
               }
-            : { username: normalizedUsername, password }
+            : { identifier: normalizedUsername, username: normalizedUsername, password }
         ),
       });
 
@@ -274,7 +274,7 @@ export function LoginPage({ initialMode = "login" }) {
               : backendError === "username-taken"
                 ? "That username is already taken."
                 : backendError === "invalid-credentials"
-                  ? "Incorrect username or password."
+                  ? "Incorrect username/email or password."
                   : "Could not sign in. Please try again.";
         setError(nextError);
         return;
@@ -471,7 +471,7 @@ export function LoginPage({ initialMode = "login" }) {
             {mode === "login" || (mode === "register" && registerStep === "credentials") ? (
               <>
             <label htmlFor="auth-username" className="publicAuthLabel">
-              Username
+              {mode === "login" ? "Username or Email" : "Username"}
             </label>
             <input
               id="auth-username"
@@ -482,7 +482,7 @@ export function LoginPage({ initialMode = "login" }) {
                 if (error) setError("");
               }}
               autoComplete="username"
-              placeholder="username"
+              placeholder={mode === "login" ? "username or email" : "username"}
               disabled={isSubmitting}
             />
 

@@ -4,6 +4,7 @@ import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
 import { trackEvent } from "./lib/analytics.js";
+import { useThemeMode } from "./hooks/useThemeMode.js";
 
 const BASE_XP_GAIN_PER_WORD = 20;
 const XP_GAIN_PER_QUIZ_CORRECT = 10;
@@ -1297,9 +1298,7 @@ export default function App() {
   const [accountPanelModal, setAccountPanelModal] = useState("");
   const [isDailyGoalModalOpen, setIsDailyGoalModalOpen] = useState(false);
   const [accountSecurityForm, setAccountSecurityForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmNewPassword: "",
+    resetEmail: "",
     deletePassword: "",
   });
   const [accountActionError, setAccountActionError] = useState("");
@@ -1908,7 +1907,7 @@ export default function App() {
     const confirmPassword = String(authForm.confirmPassword || "");
 
     if (!username || !password) {
-      setAuthError("Username and password are required.");
+      setAuthError("Username or email and password are required.");
       return;
     }
     if (mode === "register" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1943,7 +1942,7 @@ export default function App() {
                 acceptedLegal: Boolean(authForm.acceptedLegal),
                 legalVersion: LEGAL_VERSION,
               }
-            : { username, password }
+            : { identifier: username, username, password }
         ),
       });
 
@@ -1968,7 +1967,7 @@ export default function App() {
                     : backendError === "username-taken"
                       ? "That username is already taken."
                       : backendError === "invalid-credentials"
-                        ? "Incorrect username or password."
+                        ? "Incorrect username/email or password."
                         : "Could not sign in. Please try again.";
         setAuthError(nextError);
         return;
@@ -2041,9 +2040,7 @@ export default function App() {
       marketingOptIn: false,
     });
     setAccountSecurityForm({
-      currentPassword: "",
-      newPassword: "",
-      confirmNewPassword: "",
+      resetEmail: "",
       deletePassword: "",
     });
     setIsCloudStateHydrated(false);
@@ -2261,16 +2258,23 @@ export default function App() {
 
   async function changeAccountPassword() {
     if (isPasswordChangeSubmitting || !authToken) return false;
-    const currentPassword = String(accountSecurityForm.currentPassword || "");
-    const newPassword = String(accountSecurityForm.newPassword || "");
-    const confirmNewPassword = String(accountSecurityForm.confirmNewPassword || "");
-
-    if (!currentPassword || !newPassword) {
-      setAccountActionError("Current password and new password are required.");
+    const normalizedEmail = String(accountSecurityForm.resetEmail || "")
+      .trim()
+      .toLowerCase();
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+    if (!isValidEmail) {
+      setAccountActionError("Enter a valid account email.");
       return false;
     }
-    if (newPassword !== confirmNewPassword) {
-      setAccountActionError("New passwords do not match.");
+    const expectedAccountEmail = String(accountEmail || "")
+      .trim()
+      .toLowerCase();
+    if (!expectedAccountEmail) {
+      setAccountActionError("No account email found. Please refresh and try again.");
+      return false;
+    }
+    if (normalizedEmail !== expectedAccountEmail) {
+      setAccountActionError("Enter the email associated with this account.");
       return false;
     }
 
@@ -2278,13 +2282,13 @@ export default function App() {
     setAccountActionError("");
 
     try {
-      const response = await fetch(`${AUTH_API_PATH}/account/change-password`, {
+      const response = await fetch(`${AUTH_API_PATH}/password-reset/request-code`, {
         method: "POST",
         credentials: "include",
         headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
         }),
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -2293,19 +2297,31 @@ export default function App() {
         return false;
       }
       if (!response.ok) {
-        setAccountActionError(
-          mapAccountApiError(payload, "Could not change password. Please try again.")
-        );
+        const backendError = String(payload?.error || "").trim().toLowerCase();
+        const retryAfterSeconds = Number(payload?.retryAfterSeconds || 0);
+        if (backendError === "password-reset-code-cooldown" && retryAfterSeconds > 0) {
+          setAccountActionError(
+            `Please wait ${Math.max(1, retryAfterSeconds)}s before requesting another reset email.`
+          );
+          return false;
+        }
+        if (backendError === "email-delivery-not-configured") {
+          setAccountActionError("Email delivery is not configured on the backend.");
+          return false;
+        }
+        if (backendError === "invalid-email") {
+          setAccountActionError("Enter a valid account email.");
+          return false;
+        }
+        if (backendError === "email-mismatch-for-account") {
+          setAccountActionError("Enter the email associated with this account.");
+          return false;
+        }
+        setAccountActionError("Could not send password reset email. Please try again.");
         return false;
       }
 
-      setAccountSecurityForm((prev) => ({
-        ...prev,
-        currentPassword: "",
-        newPassword: "",
-        confirmNewPassword: "",
-      }));
-      openNoticeModal("Password changed successfully.", "Account Security");
+      openNoticeModal("If this email exists, a reset code has been sent. Check your inbox.", "Password Reset");
       return true;
     } catch {
       setAccountActionError("Could not reach auth service. Check backend and try again.");
@@ -2799,9 +2815,7 @@ export default function App() {
     setIsLocalPersistencePaused(false);
   }, [authToken]);
 
-  useEffect(() => {
-    document.body.classList.toggle("theme-dark", theme === "dark");
-  }, [theme]);
+  useThemeMode(theme);
 
   useEffect(() => {
     if (isLevelsEnabled) return;
@@ -3592,80 +3606,26 @@ export default function App() {
             aria-labelledby="change-password-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="change-password-title">Change Password</h3>
-            <div className="settingsPasswordWrap">
-              <input
-                className="settingsInput settingsPasswordInput"
-                type={isPasswordVisible ? "text" : "password"}
-                value={accountSecurityForm.currentPassword}
-                onChange={(event) => {
-                  setAccountSecurityForm((prev) => ({ ...prev, currentPassword: event.target.value }));
-                  if (accountActionError) setAccountActionError("");
-                }}
-                placeholder="current password"
-                autoComplete="current-password"
-                autoFocus
-              />
-              <button
-                type="button"
-                className="settingsPasswordToggleBtn"
-                onClick={() => setIsPasswordVisible((prev) => !prev)}
-                aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                title={isPasswordVisible ? "Hide password" : "Show password"}
-              >
-                {"\uD83D\uDC41"}
-              </button>
-            </div>
-            <div className="settingsPasswordWrap">
-              <input
-                className="settingsInput settingsPasswordInput"
-                type={isPasswordVisible ? "text" : "password"}
-                value={accountSecurityForm.newPassword}
-                onChange={(event) => {
-                  setAccountSecurityForm((prev) => ({ ...prev, newPassword: event.target.value }));
-                  if (accountActionError) setAccountActionError("");
-                }}
-                placeholder="new password (min 8 chars)"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                className="settingsPasswordToggleBtn"
-                onClick={() => setIsPasswordVisible((prev) => !prev)}
-                aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                title={isPasswordVisible ? "Hide password" : "Show password"}
-              >
-                {"\uD83D\uDC41"}
-              </button>
-            </div>
-            <div className="settingsPasswordWrap">
-              <input
-                className="settingsInput settingsPasswordInput"
-                type={isPasswordVisible ? "text" : "password"}
-                value={accountSecurityForm.confirmNewPassword}
-                onChange={(event) => {
-                  setAccountSecurityForm((prev) => ({ ...prev, confirmNewPassword: event.target.value }));
-                  if (accountActionError) setAccountActionError("");
-                }}
-                placeholder="confirm new password"
-                autoComplete="new-password"
-                onKeyDown={async (event) => {
-                  if (event.key !== "Enter") return;
-                  event.preventDefault();
-                  const success = await changeAccountPassword();
-                  if (success) setIsChangePasswordModalOpen(false);
-                }}
-              />
-              <button
-                type="button"
-                className="settingsPasswordToggleBtn"
-                onClick={() => setIsPasswordVisible((prev) => !prev)}
-                aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                title={isPasswordVisible ? "Hide password" : "Show password"}
-              >
-                {"\uD83D\uDC41"}
-              </button>
-            </div>
+            <h3 id="change-password-title">Reset Password</h3>
+            <p className="settingsHint">Enter the email associated with this account.</p>
+            <input
+              className="settingsInput"
+              type="email"
+              value={accountSecurityForm.resetEmail}
+              onChange={(event) => {
+                setAccountSecurityForm((prev) => ({ ...prev, resetEmail: event.target.value }));
+                if (accountActionError) setAccountActionError("");
+              }}
+              placeholder="account email"
+              autoComplete="email"
+              autoFocus
+              onKeyDown={async (event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                const success = await changeAccountPassword();
+                if (success) setIsChangePasswordModalOpen(false);
+              }}
+            />
             <div className="modalActions">
               <button
                 type="button"
@@ -3683,7 +3643,7 @@ export default function App() {
                   if (success) setIsChangePasswordModalOpen(false);
                 }}
               >
-                {isPasswordChangeSubmitting ? "Please wait..." : "Change Password"}
+                {isPasswordChangeSubmitting ? "Please wait..." : "Send Reset Email"}
               </button>
             </div>
           </div>
@@ -3857,9 +3817,13 @@ export default function App() {
                     <button
                       type="button"
                       className="primaryBtn accountInlineBtn"
+                      disabled={isPasswordChangeSubmitting || isAccountProfileLoading}
                       onClick={() => {
-                        setAccountPanelModal("");
                         setAccountActionError("");
+                        setAccountSecurityForm((prev) => ({
+                          ...prev,
+                          resetEmail: String(accountEmail || "").trim().toLowerCase(),
+                        }));
                         setIsChangePasswordModalOpen(true);
                       }}
                     >
@@ -5305,7 +5269,9 @@ export default function App() {
                       setAuthForm((prev) => ({ ...prev, username: event.target.value }));
                       if (authError) setAuthError("");
                     }}
-                    placeholder="username (a-z, 0-9, _)"
+                    placeholder={
+                      authMode === "login" ? "username or email" : "username (a-z, 0-9, _)"
+                    }
                     autoComplete="username"
                   />
                   <div className="settingsPasswordWrap">

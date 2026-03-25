@@ -1,6 +1,13 @@
 import { query } from "../db/client.js";
 
 const SESSION_COOKIE_NAME = String(process.env.AUTH_COOKIE_NAME || "vocab_session").trim() || "vocab_session";
+const AUTH_TOKEN_MAX_AGE_DAYS = (() => {
+  const parsed = Number(process.env.AUTH_TOKEN_MAX_AGE_DAYS);
+  if (!Number.isFinite(parsed)) return 30;
+  const floored = Math.floor(parsed);
+  return floored > 0 ? floored : 30;
+})();
+const AUTH_TOKEN_MAX_AGE_MS = AUTH_TOKEN_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 
 function parseCookies(req) {
   const cookieHeader = String(req.headers.cookie || "");
@@ -50,7 +57,9 @@ export async function requireAuth(req, res, next) {
 
   let user = null;
   try {
-    const result = await query("SELECT id, username, plan FROM users WHERE auth_token = $1", [token]);
+    const result = await query("SELECT id, username, plan, auth_token_created_at FROM users WHERE auth_token = $1", [
+      token,
+    ]);
     user = result.rows[0] || null;
   } catch {
     res.status(500).json({ error: "auth-query-failed" });
@@ -62,7 +71,23 @@ export async function requireAuth(req, res, next) {
     return;
   }
 
-  req.authUser = user;
+  const tokenCreatedAtMs = Date.parse(user.auth_token_created_at);
+  const tokenAgeMs = Date.now() - tokenCreatedAtMs;
+  if (!Number.isFinite(tokenCreatedAtMs) || tokenAgeMs > AUTH_TOKEN_MAX_AGE_MS) {
+    // Best-effort cleanup: clear stale token so future requests fail fast.
+    try {
+      await query("UPDATE users SET auth_token = NULL, auth_token_created_at = NULL WHERE id = $1 AND auth_token = $2", [
+        user.id,
+        token,
+      ]);
+    } catch {
+      // Ignore cleanup failures and still deny the request.
+    }
+    res.status(401).json({ error: "expired-auth-token" });
+    return;
+  }
+
+  req.authUser = { id: user.id, username: user.username, plan: user.plan };
   req.authToken = token;
   next();
 }

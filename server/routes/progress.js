@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query } from "../db/client.js";
 import { requireAuth } from "../middleware/auth.js";
+import { createUserSnapshot } from "../lib/snapshots.js";
 
 export const progressRouter = Router();
 
@@ -81,6 +82,14 @@ progressRouter.put("/", async (req, res) => {
       `,
       [userId, totalXp, coins, streakCount, JSON.stringify(learnedWords), now]
     );
+    try {
+      await createUserSnapshot({
+        userId,
+        reason: "auto-progress-update",
+      });
+    } catch {
+      // Snapshot failures should not block progress persistence.
+    }
 
     res.json({
       userId,

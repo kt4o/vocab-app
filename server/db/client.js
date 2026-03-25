@@ -107,7 +107,29 @@ export async function initDb() {
   `);
 
   await query(`
+    CREATE TABLE IF NOT EXISTS user_state_snapshots (
+      id BIGSERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      reason TEXT NOT NULL DEFAULT 'manual',
+      snapshot_json JSONB NOT NULL,
+      snapshot_hash TEXT NOT NULL,
+      metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TEXT NOT NULL
+    );
+  `);
+
+  await query(`
     CREATE INDEX IF NOT EXISTS idx_users_auth_token ON users(auth_token);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_user_state_snapshots_user_created
+    ON user_state_snapshots(user_id, id DESC);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_user_state_snapshots_created_at
+    ON user_state_snapshots(created_at);
   `);
 
   await query(`

@@ -54,10 +54,8 @@ function clearSessionCookie(req, res) {
 }
 
 function getRequesterKey(req) {
-  const forwardedFor = String(req.headers["x-forwarded-for"] || "")
-    .split(",")[0]
-    .trim();
-  return forwardedFor || req.ip || "unknown";
+  // Use Express-derived IP (honors trusted proxy config) instead of raw header parsing.
+  return String(req.ip || "").trim() || "unknown";
 }
 
 function enforceRateLimit(req, res, { bucket, maxAttempts, windowMs }) {
@@ -1031,13 +1029,21 @@ authRouter.post("/login", async (req, res) => {
     return;
   }
 
-  const username = normalizeUsername(req.body?.username);
+  const rawIdentifier = String(req.body?.identifier || req.body?.username || req.body?.email || "").trim();
+  const normalizedIdentifier = rawIdentifier.toLowerCase();
   const password = String(req.body?.password || "");
+  const loginByEmail = isValidEmail(normalizedIdentifier);
+  const username = loginByEmail ? "" : normalizeUsername(normalizedIdentifier);
+  const email = loginByEmail ? normalizeEmail(normalizedIdentifier) : "";
 
   try {
+    if (!password || (!username && !email)) {
+      res.status(401).json({ error: "invalid-credentials" });
+      return;
+    }
     const userResult = await query(
-      "SELECT id, username, password_hash FROM users WHERE username = $1",
-      [username]
+      "SELECT id, username, password_hash FROM users WHERE username = $1 OR email = $2",
+      [username, email]
     );
     const user = userResult.rows[0];
 

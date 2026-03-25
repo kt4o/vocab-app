@@ -3,6 +3,12 @@
   publish = "dist"
 
 [[redirects]]
+  from = "https://vocalibry.com/*"
+  to = "https://www.vocalibry.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

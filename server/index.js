@@ -13,6 +13,10 @@ import { socialRouter } from "./routes/social.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { billingRouter, billingWebhookRouter } from "./routes/billing.js";
 import { consumeWriteRateLimit } from "./lib/rateLimit.js";
+import { adminRouter } from "./routes/admin.js";
+import { createDailySnapshotsForAllUsers, getUtcDayKey } from "./lib/snapshots.js";
+import { createCookieOriginGuard } from "./middleware/originGuard.js";
+import { createWriteRateLimitMiddleware } from "./middleware/writeRateLimit.js";
 
 dotenv.config({ path: "server/.env" });
 dotenv.config();
@@ -39,29 +43,6 @@ function parseCsvEnv(value, { toUpper = false } = {}) {
 
 function isLocalhostOrigin(origin) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(String(origin || "").trim());
-}
-
-function hasSessionCookie(req) {
-  const cookieHeader = String(req.headers.cookie || "");
-  if (!cookieHeader) return false;
-  return cookieHeader
-    .split(";")
-    .map((part) => part.trim())
-    .some((part) => part.startsWith(`${SESSION_COOKIE_NAME}=`));
-}
-
-function getRequestOrigin(req) {
-  const originHeader = String(req.headers.origin || "").trim();
-  if (originHeader) return originHeader;
-
-  const refererHeader = String(req.headers.referer || "").trim();
-  if (!refererHeader) return "";
-
-  try {
-    return new URL(refererHeader).origin;
-  } catch {
-    return "";
-  }
 }
 
 const defaultAllowedOrigins = isProduction && !allowLocalhostInProduction
@@ -110,10 +91,8 @@ function getRequesterCountry(req) {
 }
 
 function getRequesterKey(req) {
-  const forwardedFor = String(req.headers["x-forwarded-for"] || "")
-    .split(",")[0]
-    .trim();
-  return forwardedFor || req.ip || "unknown";
+  // Use Express-derived IP (honors trusted proxy config) instead of raw header parsing.
+  return String(req.ip || "").trim() || "unknown";
 }
 
 function getSafePositiveInt(value, fallbackValue) {
@@ -132,33 +111,20 @@ const WRITE_RATE_LIMIT_MAX_ATTEMPTS = getSafePositiveInt(
   180
 );
 const READINESS_DB_TIMEOUT_MS = getSafePositiveInt(process.env.READINESS_DB_TIMEOUT_MS, 1500);
+const DAILY_SNAPSHOT_ENABLED = String(process.env.DAILY_SNAPSHOT_ENABLED || "true").trim().toLowerCase() !== "false";
+const DAILY_SNAPSHOT_HOUR_UTC = (() => {
+  const parsed = Math.floor(Number(process.env.DAILY_SNAPSHOT_HOUR_UTC));
+  if (!Number.isFinite(parsed)) return 3;
+  return Math.min(23, Math.max(0, parsed));
+})();
+let dailySnapshotTimer = null;
 
-async function enforceWriteRateLimit(req, res, next) {
-  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-    next();
-    return;
-  }
-
-  const routeScope = req.baseUrl || req.path || "/api";
-  const key = `${routeScope}:${getRequesterKey(req)}`;
-  try {
-    const rateLimit = await consumeWriteRateLimit({
-      key,
-      windowMs: WRITE_RATE_LIMIT_WINDOW_MS,
-      maxAttempts: WRITE_RATE_LIMIT_MAX_ATTEMPTS,
-    });
-
-    if (!rateLimit.isAllowed) {
-      res.status(429).json({ error: "rate-limited", retryAfterSeconds: rateLimit.retryAfterSeconds });
-      return;
-    }
-  } catch (error) {
-    // Fail open so temporary DB issues do not block all writes.
-    console.error("Write rate limiter unavailable", error);
-  }
-
-  next();
-}
+const enforceWriteRateLimit = createWriteRateLimitMiddleware({
+  consumeWriteRateLimit,
+  getRequesterKey,
+  windowMs: WRITE_RATE_LIMIT_WINDOW_MS,
+  maxAttempts: WRITE_RATE_LIMIT_MAX_ATTEMPTS,
+});
 
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
@@ -184,25 +150,7 @@ app.use(
     },
   })
 );
-app.use((req, res, next) => {
-  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-    next();
-    return;
-  }
-
-  if (!hasSessionCookie(req)) {
-    next();
-    return;
-  }
-
-  const requestOrigin = getRequestOrigin(req);
-  if (!requestOrigin || !allowedOrigins.has(requestOrigin)) {
-    res.status(403).json({ error: "invalid-origin" });
-    return;
-  }
-
-  next();
-});
+app.use(createCookieOriginGuard({ allowedOrigins, sessionCookieName: SESSION_COOKIE_NAME }));
 app.use((req, res, next) => {
   if (req.path === "/api/health") {
     next();
@@ -273,6 +221,7 @@ app.use("/api/state", enforceWriteRateLimit, stateRouter);
 app.use("/api/social", enforceWriteRateLimit, socialRouter);
 app.use("/api/analytics", enforceWriteRateLimit, analyticsRouter);
 app.use("/api/billing", enforceWriteRateLimit, billingRouter);
+app.use("/api/admin", enforceWriteRateLimit, adminRouter);
 
 if (fs.existsSync(distIndexPath)) {
   app.use(express.static(distDir));
@@ -284,6 +233,58 @@ if (fs.existsSync(distIndexPath)) {
 
 let serverInstance = null;
 let shutdownInProgress = false;
+
+function getMsUntilNextDailyRun(hourUtc) {
+  const now = new Date();
+  const next = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      hourUtc,
+      0,
+      0,
+      0
+    )
+  );
+  if (next.getTime() <= now.getTime()) {
+    next.setUTCDate(next.getUTCDate() + 1);
+  }
+  return Math.max(1000, next.getTime() - now.getTime());
+}
+
+async function runDailySnapshots({ trigger = "scheduler" } = {}) {
+  if (!DAILY_SNAPSHOT_ENABLED) return;
+
+  try {
+    const dayKey = getUtcDayKey();
+    const result = await createDailySnapshotsForAllUsers({
+      dayKey,
+      reason: "daily-scheduled",
+      metadata: { trigger },
+    });
+    console.log(
+      `[daily-snapshots] day=${result.dayKey} total=${result.totalUsers} created=${result.created} skipped=${result.skipped} failed=${result.failed}`
+    );
+  } catch (error) {
+    console.error("[daily-snapshots] run failed", error);
+  }
+}
+
+function scheduleDailySnapshots() {
+  if (!DAILY_SNAPSHOT_ENABLED) return;
+  const delayMs = getMsUntilNextDailyRun(DAILY_SNAPSHOT_HOUR_UTC);
+  dailySnapshotTimer = setTimeout(async () => {
+    await runDailySnapshots({ trigger: "scheduler" });
+    scheduleDailySnapshots();
+  }, delayMs);
+  if (typeof dailySnapshotTimer.unref === "function") {
+    dailySnapshotTimer.unref();
+  }
+  console.log(
+    `[daily-snapshots] next run in ${Math.round(delayMs / 1000)}s (hour=${DAILY_SNAPSHOT_HOUR_UTC}:00 UTC)`
+  );
+}
 
 function closeHttpServer() {
   return new Promise((resolve, reject) => {
@@ -312,6 +313,10 @@ async function shutdown(signalName, exitCode = 0) {
   shutdownInProgress = true;
 
   console.log(`Received ${signalName}. Shutting down API...`);
+  if (dailySnapshotTimer) {
+    clearTimeout(dailySnapshotTimer);
+    dailySnapshotTimer = null;
+  }
 
   try {
     await closeHttpServer();
@@ -348,6 +353,10 @@ initDb()
   .then(() => {
     serverInstance = app.listen(port, host, () => {
       console.log(`API listening on http://${host}:${port}`);
+      if (DAILY_SNAPSHOT_ENABLED) {
+        void runDailySnapshots({ trigger: "startup" });
+        scheduleDailySnapshots();
+      }
     });
   })
   .catch((error) => {
