@@ -59,12 +59,68 @@ function ensureTransporter() {
   return cachedTransporter;
 }
 
-export async function sendVerificationCodeEmail(email, code) {
+function getResendApiKey() {
+  return String(process.env.RESEND_API_KEY || "").trim();
+}
+
+async function sendWithResendApi({ email, subject, text, html }) {
+  const apiKey = getResendApiKey();
+  const { from } = getEmailConfig();
+  if (!apiKey) {
+    const error = new Error("Resend API key is not configured.");
+    error.code = "RESEND_API_NOT_CONFIGURED";
+    throw error;
+  }
+  if (!from) {
+    const error = new Error("EMAIL_FROM is required.");
+    error.code = "EMAIL_TRANSPORT_NOT_CONFIGURED";
+    throw error;
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => "");
+    const error = new Error(`Resend API request failed with status ${response.status}. ${bodyText}`);
+    error.code = "RESEND_API_REQUEST_FAILED";
+    throw error;
+  }
+}
+
+async function sendEmail({ email, subject, text, html }) {
+  // Prefer Resend HTTPS API in production (port 443), fallback to SMTP.
+  if (getResendApiKey()) {
+    await sendWithResendApi({ email, subject, text, html });
+    return;
+  }
+
   const transporter = ensureTransporter();
   const config = getEmailConfig();
   await transporter.sendMail({
     from: config.from,
     to: email,
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendVerificationCodeEmail(email, code) {
+  await sendEmail({
+    email,
     subject: "Your Vocalibry verification code",
     text: `Your verification code is: ${code}\n\nThis code expires in 10 minutes.`,
     html: `<p>Your verification code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,
@@ -72,11 +128,8 @@ export async function sendVerificationCodeEmail(email, code) {
 }
 
 export async function sendPasswordResetCodeEmail(email, code) {
-  const transporter = ensureTransporter();
-  const config = getEmailConfig();
-  await transporter.sendMail({
-    from: config.from,
-    to: email,
+  await sendEmail({
+    email,
     subject: "Your Vocalibry password reset code",
     text: `Your password reset code is: ${code}\n\nThis code expires in 10 minutes.`,
     html: `<p>Your password reset code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,

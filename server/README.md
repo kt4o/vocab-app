@@ -27,6 +27,7 @@
    - `SMTP_SECURE=false` (`true` for port 465)
    - `SMTP_USER=your-smtp-user`
    - `SMTP_PASS=your-smtp-password`
+   - `RESEND_API_KEY=re_...` (optional, preferred in production; uses HTTPS API on port 443 and bypasses SMTP)
    - `EMAIL_FROM="Vocalibry <no-reply@yourdomain.com>"`
    - `STRIPE_SECRET_KEY=sk_live_or_test_key`
    - `STRIPE_WEBHOOK_SECRET=whsec_...`
