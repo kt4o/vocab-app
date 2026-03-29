@@ -3,7 +3,7 @@ import { CEFR_WORDLIST } from "./data/cefrWordlist";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
-import { trackEvent } from "./lib/analytics.js";
+import { identifyAnalyticsUser, resetAnalyticsIdentity, trackEvent } from "./lib/analytics.js";
 import { useThemeMode } from "./hooks/useThemeMode.js";
 
 const BASE_XP_GAIN_PER_WORD = 20;
@@ -16,6 +16,8 @@ const PRO_DAILY_GOAL_MIN = 10;
 const PRO_DAILY_GOAL_MAX = 120;
 const PRO_DAILY_GOAL_STEP = 5;
 const FREE_DAILY_DEFINITION_SESSION_LIMIT = 1;
+const FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD = 3;
+const FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT = 2;
 const FREE_DEFINITION_SESSION_WINDOW_MS = 10 * 60 * 1000;
 const FREE_DAILY_TYPING_LIMIT = 3;
 const FREE_DAILY_MISTAKE_REVIEW_LIMIT = 3;
@@ -1326,6 +1328,7 @@ export default function App() {
   const sessionStartedAtRef = useRef(Date.now());
   const lastUserActivityAtRef = useRef(Date.now());
   const pendingMistakeReviewSourceRef = useRef(null);
+  const previousSocialFriendCountRef = useRef(null);
 
   const currentBook = books.find((b) => b.id === currentBookId);
   const currentBookChapters = getBookChapterList(currentBook);
@@ -1358,6 +1361,22 @@ export default function App() {
   const activityTotalStats = sumActivityHistory(activityHistory);
   const currentFreeDailyUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
   const currentFreeDefinitionSessionUsage = ensureCurrentFreeDefinitionSessionUsage(freeDefinitionSessionUsage);
+  const socialFriendCount = authToken && Array.isArray(socialOverview?.friends)
+    ? socialOverview.friends.length
+    : 0;
+  const freeDailyDefinitionSessionLimit =
+    socialFriendCount >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
+      ? FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT
+      : FREE_DAILY_DEFINITION_SESSION_LIMIT;
+  const hasFriendDefinitionSessionBonus =
+    freeDailyDefinitionSessionLimit > FREE_DAILY_DEFINITION_SESSION_LIMIT;
+  const freeDefinitionSessionsUsedToday = Math.min(
+    currentFreeDailyUsage.definitionSessionStarts,
+    freeDailyDefinitionSessionLimit
+  );
+  const freeDefinitionLimitReachedMessage = hasFriendDefinitionSessionBonus
+    ? "Free plan limit reached. You have used both 10-minute add-definitions sessions for today."
+    : `Free plan limit reached. Add ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends in Socials to unlock 2 daily sessions.`;
   const isFreeDefinitionSessionActive =
     countdownNow - currentFreeDefinitionSessionUsage.startedAt < FREE_DEFINITION_SESSION_WINDOW_MS;
   const freeDefinitionSessionRemainingMs = isFreeDefinitionSessionActive
@@ -1974,8 +1993,15 @@ export default function App() {
       }
 
       const nextUsername = String(payload?.username || username).trim().toLowerCase();
+      const safeUserId = Number(payload?.userId);
       setAuthToken(COOKIE_SESSION_AUTH_MARKER);
       setAuthUsername(nextUsername);
+      if (Number.isFinite(safeUserId) && safeUserId > 0) {
+        identifyAnalyticsUser(safeUserId, {
+          username: nextUsername,
+          auth_method: "password",
+        });
+      }
       setAuthForm({
         email: "",
         username: "",
@@ -2010,6 +2036,7 @@ export default function App() {
     }
     setAuthToken("");
     setAuthUsername("");
+    resetAnalyticsIdentity();
     localStorage.removeItem("vocab_auth_token");
     if (clearLocalData) {
       setIsLocalPersistencePaused(true);
@@ -2064,9 +2091,16 @@ export default function App() {
         if (cancelled) return;
         const nextUsername = String(payload?.username || "").trim().toLowerCase();
         const nextEmail = String(payload?.email || "").trim().toLowerCase();
+        const safeUserId = Number(payload?.userId);
         setAuthToken(COOKIE_SESSION_AUTH_MARKER);
         if (nextUsername) setAuthUsername(nextUsername);
         setAccountEmail(nextEmail);
+        if (Number.isFinite(safeUserId) && safeUserId > 0) {
+          identifyAnalyticsUser(safeUserId, {
+            username: nextUsername,
+            auth_method: "session_restore",
+          });
+        }
       } catch {
         // Keep local-only mode available if session restore fails.
       } finally {
@@ -2104,8 +2138,15 @@ export default function App() {
 
       const nextUsername = String(payload?.username || "").trim().toLowerCase();
       const nextEmail = String(payload?.email || "").trim().toLowerCase();
+      const safeUserId = Number(payload?.userId);
       if (nextUsername) setAuthUsername(nextUsername);
       setAccountEmail(nextEmail);
+      if (Number.isFinite(safeUserId) && safeUserId > 0) {
+        identifyAnalyticsUser(safeUserId, {
+          username: nextUsername,
+          auth_method: "session_refresh",
+        });
+      }
     } finally {
       setIsAccountProfileLoading(false);
     }
@@ -2604,6 +2645,41 @@ export default function App() {
 
   useEffect(() => {
     if (!authToken) {
+      previousSocialFriendCountRef.current = null;
+      return;
+    }
+    const previousCount = previousSocialFriendCountRef.current;
+    if (previousCount == null) {
+      previousSocialFriendCountRef.current = socialFriendCount;
+      return;
+    }
+
+    const crossedUnlockThreshold =
+      previousCount < FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD &&
+      socialFriendCount >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD;
+    previousSocialFriendCountRef.current = socialFriendCount;
+
+    if (!crossedUnlockThreshold) return;
+
+    const noticeUserKey = String(socialOverview?.currentUser?.userId || authUsername || "").trim();
+    if (!noticeUserKey) {
+      openNoticeModal(
+        "Nice! You unlocked 2 daily 10-minute definition sessions.",
+        "Friend Bonus Unlocked"
+      );
+      return;
+    }
+    const storageKey = `vocab_friend_bonus_notice_seen_${noticeUserKey}`;
+    if (localStorage.getItem(storageKey) === "1") return;
+    localStorage.setItem(storageKey, "1");
+    openNoticeModal(
+      "Nice! You unlocked 2 daily 10-minute definition sessions.",
+      "Friend Bonus Unlocked"
+    );
+  }, [authToken, authUsername, socialFriendCount, socialOverview?.currentUser?.userId]);
+
+  useEffect(() => {
+    if (!authToken) {
       setBillingPlan("free");
       setBillingSubscriptionStatus("");
       setBillingCurrentPeriodEnd("");
@@ -2613,11 +2689,15 @@ export default function App() {
       setIsDailyGoalModalOpen(false);
       setIsBillingStatusLoading(false);
       setIsAccountProfileLoading(false);
+      setSocialOverview(null);
+      setSocialError("");
+      setIsSocialLoading(false);
       return;
     }
     void loadBillingStatus();
     void loadAccountProfile();
-  }, [authToken, loadBillingStatus, loadAccountProfile]);
+    void loadSocialOverview();
+  }, [authToken, loadBillingStatus, loadAccountProfile, loadSocialOverview]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -4361,8 +4441,8 @@ export default function App() {
     if (!inputWord.trim() || !currentBook) return;
     if (!isProPlan && !isFreeDefinitionSessionActive) {
       openNoticeModal(
-        currentFreeDailyUsage.definitionSessionStarts >= FREE_DAILY_DEFINITION_SESSION_LIMIT
-          ? "Free plan limit reached: you have already used your 10-minute add-definitions session for today."
+        currentFreeDailyUsage.definitionSessionStarts >= freeDailyDefinitionSessionLimit
+          ? freeDefinitionLimitReachedMessage
           : "Start your free 10-minute add-definitions session first.",
         "Free Limit"
       );
@@ -4460,11 +4540,8 @@ export default function App() {
     if (isFreeDefinitionSessionActive) return;
 
     const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-    if (safeUsage.definitionSessionStarts >= FREE_DAILY_DEFINITION_SESSION_LIMIT) {
-      openNoticeModal(
-        "Free plan limit reached: you have already used your 10-minute add-definitions session for today.",
-        "Free Limit"
-      );
+    if (safeUsage.definitionSessionStarts >= freeDailyDefinitionSessionLimit) {
+      openNoticeModal(freeDefinitionLimitReachedMessage, "Free Limit");
       return;
     }
 
@@ -5454,6 +5531,20 @@ export default function App() {
         ) : (
           <div className="analyticsSection socialSectionStack">
             <div className="analyticsCard">
+              <h3>Friend Bonus</h3>
+              <p className="settingsHint">
+                Get {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily 10-minute definition sessions when you have{" "}
+                {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends.
+              </p>
+              <p className="settingsHint">
+                Progress: {Math.min(friendProfiles.length, FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD)}/
+                {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends
+                {friendProfiles.length >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
+                  ? " (Unlocked)"
+                  : ""}
+              </p>
+            </div>
+            <div className="analyticsCard">
               <div className="settingsRow">
                 <span>Manage friends and requests</span>
                 <button
@@ -5601,6 +5692,20 @@ export default function App() {
           <p>Please log in from My Account to manage friends.</p>
         ) : (
           <div className="analyticsSection socialSectionStack">
+            <div className="analyticsCard">
+              <h3>Friend Bonus</h3>
+              <p className="settingsHint">
+                Reach {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends to unlock{" "}
+                {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily 10-minute definition sessions.
+              </p>
+              <p className="settingsHint">
+                Progress: {Math.min(friendProfiles.length, FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD)}/
+                {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends
+                {friendProfiles.length >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
+                  ? " (Unlocked)"
+                  : ""}
+              </p>
+            </div>
             <div className="analyticsGrid">
               <div className="analyticsCard settingsCard">
                 <h3>Add Friend</h3>
@@ -6133,31 +6238,30 @@ export default function App() {
             onKeyDown={(e) => e.key === "Enter" && addWord()}
             placeholder="Add word..."
           />
-          <button onClick={addWord}>+</button>
+          <button type="button" className="addWordBtn" onClick={addWord}>+</button>
+          {!isProPlan ? (
+            <button
+              type="button"
+              className="primaryBtn definitionSessionInlineBtn"
+              onClick={startFreeDefinitionSession}
+              disabled={
+                isFreeDefinitionSessionActive ||
+                currentFreeDailyUsage.definitionSessionStarts >= freeDailyDefinitionSessionLimit
+              }
+            >
+              {isFreeDefinitionSessionActive
+                ? formatCountdown(freeDefinitionSessionDisplayMs)
+                : `Start 10-Min Session (${freeDefinitionSessionsUsedToday}/${freeDailyDefinitionSessionLimit})`}
+            </button>
+          ) : null}
+          {!isProPlan ? (
+            <span className="definitionSessionInlineHint">
+              {hasFriendDefinitionSessionBonus
+                ? `Friend Bonus active: ${freeDefinitionSessionsUsedToday}/${freeDailyDefinitionSessionLimit} sessions used today.`
+                : "Unlock a second session by adding 3 friends."}
+            </span>
+          ) : null}
         </div>
-        {!isProPlan ? (
-          <>
-            <div className="settingsRow">
-              <span>Free limit: 10-Min Session per day.</span>
-              <div className="definitionSessionAction">
-                <span className="definitionSessionTimer">
-                  {formatCountdown(freeDefinitionSessionDisplayMs)}
-                </span>
-                <button
-                  type="button"
-                  className="primaryBtn"
-                  onClick={startFreeDefinitionSession}
-                  disabled={
-                    isFreeDefinitionSessionActive ||
-                    currentFreeDailyUsage.definitionSessionStarts >= FREE_DAILY_DEFINITION_SESSION_LIMIT
-                  }
-                >
-                  {isFreeDefinitionSessionActive ? "Session Active" : "Start 10-Min Session"}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : null}
         <p className="definitionAttributionNote">
           Definition data is fetched via Free Dictionary API (dictionaryapi.dev). Upstream source URLs and
           license details are provided by that API response.

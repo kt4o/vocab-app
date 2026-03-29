@@ -99,6 +99,7 @@ function ensurePosthogBootstrap() {
     "capture",
     "identify",
     "alias",
+    "reset",
     "group",
     "people.set",
     "people.set_once",
@@ -280,11 +281,12 @@ export function trackEvent(eventName, params = {}) {
     try {
       if (window.posthog && typeof window.posthog.capture === "function") {
         window.posthog.capture(safeName, safeParams);
+        return true;
       }
-      return sendPosthogCapture(safeName, safeParams);
     } catch {
-      return sendPosthogCapture(safeName, safeParams);
+      // Fall through to direct capture fallback.
     }
+    return sendPosthogCapture(safeName, safeParams);
   }
   return false;
 }
@@ -317,12 +319,47 @@ export function trackPageView(path, params = {}) {
     try {
       if (window.posthog && typeof window.posthog.capture === "function") {
         window.posthog.capture("$pageview", posthogPayload);
+        return true;
       }
-      return sendPosthogCapture("$pageview", posthogPayload);
     } catch {
-      return sendPosthogCapture("$pageview", posthogPayload);
+      // Fall through to direct capture fallback.
     }
+    return sendPosthogCapture("$pageview", posthogPayload);
   }
 
   return false;
+}
+
+export function identifyAnalyticsUser(userId, traits = {}) {
+  const provider = getAnalyticsProvider();
+  const distinctId = String(userId || "").trim();
+  if (!distinctId) return false;
+
+  if (provider === "posthog") {
+    if (!initPosthog()) return false;
+    try {
+      if (window.posthog && typeof window.posthog.identify === "function") {
+        window.posthog.identify(distinctId, sanitizeParams(traits));
+        return true;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  return provider === "ga4";
+}
+
+export function resetAnalyticsIdentity() {
+  const provider = getAnalyticsProvider();
+  if (provider !== "posthog") return false;
+  try {
+    if (window.posthog && typeof window.posthog.reset === "function") {
+      window.posthog.reset();
+    }
+    localStorage.removeItem(POSTHOG_DISTINCT_ID_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
 }

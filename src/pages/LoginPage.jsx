@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { trackEvent } from "../lib/analytics.js";
+import { identifyAnalyticsUser, trackEvent } from "../lib/analytics.js";
 
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
@@ -281,8 +281,15 @@ export function LoginPage({ initialMode = "login" }) {
       }
 
       const savedUsername = String(payload?.username || normalizedUsername).trim().toLowerCase();
+      const safeUserId = Number(payload?.userId);
       localStorage.removeItem("vocab_auth_token");
       localStorage.setItem(AUTH_USERNAME_STORAGE_KEY, savedUsername);
+      if (Number.isFinite(safeUserId) && safeUserId > 0) {
+        identifyAnalyticsUser(safeUserId, {
+          username: savedUsername,
+          auth_method: "password",
+        });
+      }
       trackEvent(mode === "register" ? "register_success" : "login_success", {
         auth_method: "password",
       });

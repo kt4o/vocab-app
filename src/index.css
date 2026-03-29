@@ -2215,7 +2215,7 @@ body.theme-dark .modalBtn.primary {
 .inputRow input:focus {
   border-color: var(--muted);
 }
-.inputRow button {
+.inputRow .addWordBtn {
   width: 42px;
   height: 42px;
   border-radius: 12px;
@@ -2226,9 +2226,26 @@ body.theme-dark .modalBtn.primary {
   cursor: pointer;
 }
 
-body.theme-dark .inputRow button {
+body.theme-dark .inputRow .addWordBtn {
   background: color-mix(in srgb, var(--surface-alt) 78%, #ffffff 22%);
   border-color: color-mix(in srgb, var(--border) 84%, #ffffff 16%);
+}
+
+.inputRow .definitionSessionInlineBtn {
+  width: 210px;
+  min-height: 42px;
+  border-radius: 12px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inputRow .definitionSessionInlineHint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.3;
 }
 
 .chapterControlsRow {
