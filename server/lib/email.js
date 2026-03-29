@@ -12,10 +12,28 @@ function getEmailConfig() {
   const host = String(process.env.SMTP_HOST || "").trim();
   const port = Number(process.env.SMTP_PORT || 587);
   const user = String(process.env.SMTP_USER || "").trim();
-  const pass = String(process.env.SMTP_PASS || "").trim();
+  const pass = normalizeSmtpPassword(String(process.env.SMTP_PASS || "").trim(), host);
   const secure = toBoolean(process.env.SMTP_SECURE, port === 465);
   const from = String(process.env.EMAIL_FROM || user).trim();
   return { host, port, user, pass, secure, from };
+}
+
+function normalizeSmtpPassword(rawPassword, host) {
+  const pass = String(rawPassword || "");
+  const normalizedHost = String(host || "").trim().toLowerCase();
+  const compact = pass.replace(/\s+/g, "");
+
+  // Gmail app passwords are commonly displayed as 4 groups with spaces.
+  if (
+    normalizedHost.includes("gmail.com") &&
+    pass.includes(" ") &&
+    compact.length === 16 &&
+    /^[a-z0-9]+$/i.test(compact)
+  ) {
+    return compact;
+  }
+
+  return pass;
 }
 
 function ensureTransporter() {

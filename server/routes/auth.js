@@ -490,6 +490,10 @@ authRouter.post("/register/request-email-code", async (req, res) => {
       res.status(500).json({ error: "email-delivery-not-configured" });
       return;
     }
+    console.error("register request-email-code failed", {
+      errorCode: String(error?.code || ""),
+      errorMessage: String(error?.message || ""),
+    });
     res.status(500).json({ error: "request-email-code-failed" });
   }
 });
@@ -752,6 +756,10 @@ authRouter.post("/password-reset/request-code", async (req, res) => {
       res.status(500).json({ error: "email-delivery-not-configured" });
       return;
     }
+    console.error("password-reset request-code failed", {
+      errorCode: String(error?.code || ""),
+      errorMessage: String(error?.message || ""),
+    });
     res.status(500).json({ error: "password-reset-request-failed" });
   }
 });
@@ -944,13 +952,14 @@ authRouter.post("/account/logout-all", requireAuth, async (req, res) => {
 authRouter.get("/account", requireAuth, async (req, res) => {
   const userId = Number(req.authUser?.id || 0);
   try {
-    const result = await query("SELECT username, email FROM users WHERE id = $1", [userId]);
+    const result = await query("SELECT id, username, email FROM users WHERE id = $1", [userId]);
     const user = result.rows[0];
     if (!user) {
       res.status(404).json({ error: "account-not-found" });
       return;
     }
     res.json({
+      userId: Number(user.id),
       username: String(user.username || "").trim().toLowerCase(),
       email: String(user.email || "").trim().toLowerCase(),
     });
