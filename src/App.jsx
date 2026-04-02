@@ -67,6 +67,7 @@ const WORD_DIFFICULTY_OPTIONS = [
   { value: "c2", label: "C2" },
 ];
 const WORD_DIFFICULTY_VALUE_SET = new Set(WORD_DIFFICULTY_OPTIONS.map((option) => option.value));
+const ALL_QUIZ_DIFFICULTY_KEYS = ["unassigned", ...WORD_DIFFICULTY_OPTIONS.map((option) => option.value)];
 const CEFR_WORDLIST_LEVEL_MAP = [
   { key: "A1", value: "a1" },
   { key: "A2", value: "a2" },
@@ -300,10 +301,10 @@ function parseStoredQuizSetup(rawValue) {
     : [];
   const difficultyKeys = Array.isArray(parsed.difficultyKeys)
     ? Array.from(new Set(parsed.difficultyKeys.map((key) => String(key)).filter(Boolean)))
-    : [];
+    : [...ALL_QUIZ_DIFFICULTY_KEYS];
   const mode = normalizeQuizMode(parsed.mode, "normal");
 
-  if (bookIds.length === 0 || chapterKeys.length === 0 || difficultyKeys.length === 0) return null;
+  if (bookIds.length === 0 || chapterKeys.length === 0) return null;
 
   return {
     mode,
@@ -1291,6 +1292,11 @@ export default function App() {
   });
   const [authError, setAuthError] = useState("");
   const [isAuthSessionResolved, setIsAuthSessionResolved] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 700px)").matches;
+  });
+  const [selectedDataTimeframe, setSelectedDataTimeframe] = useState("weekly");
   const [billingPlan, setBillingPlan] = useState("free");
   const [billingSubscriptionStatus, setBillingSubscriptionStatus] = useState("");
   const [billingCurrentPeriodEnd, setBillingCurrentPeriodEnd] = useState("");
@@ -1333,6 +1339,15 @@ export default function App() {
   const lastUserActivityAtRef = useRef(Date.now());
   const pendingMistakeReviewSourceRef = useRef(null);
   const previousSocialFriendCountRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const media = window.matchMedia("(max-width: 700px)");
+    const syncMobileViewport = () => setIsMobileViewport(media.matches);
+    syncMobileViewport();
+    media.addEventListener("change", syncMobileViewport);
+    return () => media.removeEventListener("change", syncMobileViewport);
+  }, []);
 
   const currentBook = books.find((b) => b.id === currentBookId);
   const currentBookChapters = getBookChapterList(currentBook);
@@ -1450,17 +1465,12 @@ export default function App() {
   const maxMasteryWordCount = Math.max(1, ...masteryLevelCounts.map((item) => item.count));
   const quizSetupBooks = books.filter((book) => quizSetupSelection.bookIds.includes(String(book.id)));
   const quizSetupChapterKeySet = new Set(quizSetupSelection.chapterKeys);
-  const quizSetupDifficultyKeySet = new Set(quizSetupSelection.difficultyKeys);
   const lastQuizMistakeKeySet = new Set(lastQuizMistakeKeys);
   const quizSetupWords = quizSetupBooks.flatMap((book) =>
     (book.words || [])
       .filter((wordEntry) => {
         const chapterKey = `${book.id}:${wordEntry.chapterId}`;
         if (!quizSetupChapterKeySet.has(chapterKey)) return false;
-
-        const normalizedDifficulty = normalizeWordDifficulty(wordEntry?.difficulty);
-        const difficultyKey = normalizedDifficulty || "unassigned";
-        if (!quizSetupDifficultyKeySet.has(difficultyKey)) return false;
 
         if (quizMode === "mistake") {
           const mistakeKey = getWordSessionKey(book.id, wordEntry.chapterId, wordEntry.word);
@@ -1507,7 +1517,7 @@ export default function App() {
       mode: selectedMode,
       bookIds: [...quizSetupSelection.bookIds],
       chapterKeys: [...quizSetupSelection.chapterKeys],
-      difficultyKeys: [...quizSetupSelection.difficultyKeys],
+      difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
     };
     setLastQuizSetup(setupSnapshot);
     setIsQuickQuizSetupArmed(false);
@@ -1520,7 +1530,7 @@ export default function App() {
       word_count: quizSetupWords.length,
       book_count: quizSetupSelection.bookIds.length,
       chapter_count: quizSetupSelection.chapterKeys.length,
-      difficulty_count: quizSetupSelection.difficultyKeys.length,
+      difficulty_count: 0,
     });
     setScreen("quiz");
   }
@@ -3058,25 +3068,21 @@ export default function App() {
     const allChapterKeys = books.flatMap((book) =>
       getBookChapterList(book).map((chapter) => `${book.id}:${chapter.id}`)
     );
-    const allDifficultyKeys = ["unassigned", ...WORD_DIFFICULTY_OPTIONS.map((option) => option.value)];
     const validBookIds = new Set(allBookIds);
     const validChapterKeys = new Set(allChapterKeys);
-    const validDifficultyKeys = new Set(allDifficultyKeys);
 
     setQuizSetupSelection((prev) => {
       const nextBookIds = prev.bookIds.filter((id) => validBookIds.has(id));
       const nextChapterKeys = prev.chapterKeys.filter((key) => validChapterKeys.has(key));
-      const nextDifficultyKeys = prev.difficultyKeys.filter((key) => validDifficultyKeys.has(key));
       const finalSelection = {
         bookIds: nextBookIds,
         chapterKeys: nextChapterKeys,
-        difficultyKeys: nextDifficultyKeys,
+        difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
       };
 
       if (
         areStringArraysEqual(prev.bookIds, finalSelection.bookIds) &&
-        areStringArraysEqual(prev.chapterKeys, finalSelection.chapterKeys) &&
-        areStringArraysEqual(prev.difficultyKeys, finalSelection.difficultyKeys)
+        areStringArraysEqual(prev.chapterKeys, finalSelection.chapterKeys)
       ) {
         return prev;
       }
@@ -4388,7 +4394,7 @@ export default function App() {
     setQuizSetupSelection({
       bookIds: [],
       chapterKeys: [],
-      difficultyKeys: [],
+      difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
     });
   }
 
@@ -4401,9 +4407,10 @@ export default function App() {
     setQuizSetupSelection({
       bookIds: [...(lastQuizSetup.bookIds || [])],
       chapterKeys: [...(lastQuizSetup.chapterKeys || [])],
-      difficultyKeys: [...(lastQuizSetup.difficultyKeys || [])],
+      difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
     });
     setIsQuickQuizSetupArmed(true);
+    setQuizSetupStep(3);
   }
 
   function toggleQuizSetupBook(bookId) {
@@ -4438,18 +4445,6 @@ export default function App() {
         chapterKeys: hasChapter
           ? prev.chapterKeys.filter((key) => key !== chapterKey)
           : [...prev.chapterKeys, chapterKey],
-      };
-    });
-  }
-
-  function toggleQuizSetupDifficulty(difficultyKey) {
-    setQuizSetupSelection((prev) => {
-      const hasDifficulty = prev.difficultyKeys.includes(difficultyKey);
-      return {
-        ...prev,
-        difficultyKeys: hasDifficulty
-          ? prev.difficultyKeys.filter((key) => key !== difficultyKey)
-          : [...prev.difficultyKeys, difficultyKey],
       };
     });
   }
@@ -5194,6 +5189,38 @@ export default function App() {
           >
             <span>{"\uD83D\uDC65"} Socials</span>
           </div>
+          {isMobileViewport ? (
+            <div
+              className="panelCard wide"
+              role="button"
+              tabIndex={0}
+              onClick={() => setScreen("settings")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setScreen("settings");
+                }
+              }}
+            >
+              <span>{"\u2699\uFE0F"} Settings</span>
+            </div>
+          ) : null}
+          {isMobileViewport ? (
+            <div
+              className="panelCard wide"
+              role="button"
+              tabIndex={0}
+              onClick={() => setScreen("account")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setScreen("account");
+                }
+              }}
+            >
+              <span>{"\uD83D\uDC64"} My Account</span>
+            </div>
+          ) : null}
         </div>
         {renderModal()}
       </div>
@@ -5870,6 +5897,8 @@ export default function App() {
       { key: "monthly", title: "Monthly", stats: activityMonthlyStats },
       { key: "total", title: "Total", stats: activityTotalStats },
     ];
+    const selectedOverviewCard =
+      overviewCards.find((card) => card.key === selectedDataTimeframe) || overviewCards[1];
     const chartTickFractions = [1, 0.75, 0.5, 0.25, 0];
     const trendTicks = chartTickFractions.map((fraction, index) =>
       index === chartTickFractions.length - 1 ? 0 : Math.round(maxTrendValue * fraction)
@@ -5892,27 +5921,68 @@ export default function App() {
         </div>
 
         <div className="analyticsSection">
-          <div className="activityOverviewGrid">
-            {overviewCards.map((card) => (
-              <div key={card.key} className="activityOverviewCard">
-                <h3>{card.title}</h3>
-                <div className="activityOverviewStats">
-                  <div className="activityOverviewStat">
-                    <span>Questions</span>
-                    <strong>{card.stats.questionsCompleted || 0}</strong>
-                  </div>
-                  <div className="activityOverviewStat">
-                    <span>Words</span>
-                    <strong>{card.stats.wordsAdded}</strong>
-                  </div>
-                  <div className="activityOverviewStat">
-                    <span>Time</span>
-                    <strong>{formatWeeklyTime(card.stats.timeSpentSeconds)}</strong>
+          {isMobileViewport ? (
+            <>
+              <div className="dataTimeframeRow">
+                <label htmlFor="data-timeframe-select" className="dataTimeframeLabel">
+                  Timeframe
+                </label>
+                <select
+                  id="data-timeframe-select"
+                  className="settingsInput dataTimeframeSelect"
+                  value={selectedDataTimeframe}
+                  onChange={(event) => setSelectedDataTimeframe(String(event.target.value || "weekly"))}
+                >
+                  {overviewCards.map((card) => (
+                    <option key={card.key} value={card.key}>
+                      {card.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="activityOverviewGrid activityOverviewGridSingle">
+                <div className="activityOverviewCard">
+                  <h3>{selectedOverviewCard.title}</h3>
+                  <div className="activityOverviewStats">
+                    <div className="activityOverviewStat">
+                      <span>Questions</span>
+                      <strong>{selectedOverviewCard.stats.questionsCompleted || 0}</strong>
+                    </div>
+                    <div className="activityOverviewStat">
+                      <span>Words</span>
+                      <strong>{selectedOverviewCard.stats.wordsAdded}</strong>
+                    </div>
+                    <div className="activityOverviewStat">
+                      <span>Time</span>
+                      <strong>{formatWeeklyTime(selectedOverviewCard.stats.timeSpentSeconds)}</strong>
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <div className="activityOverviewGrid">
+              {overviewCards.map((card) => (
+                <div key={card.key} className="activityOverviewCard">
+                  <h3>{card.title}</h3>
+                  <div className="activityOverviewStats">
+                    <div className="activityOverviewStat">
+                      <span>Questions</span>
+                      <strong>{card.stats.questionsCompleted || 0}</strong>
+                    </div>
+                    <div className="activityOverviewStat">
+                      <span>Words</span>
+                      <strong>{card.stats.wordsAdded}</strong>
+                    </div>
+                    <div className="activityOverviewStat">
+                      <span>Time</span>
+                      <strong>{formatWeeklyTime(card.stats.timeSpentSeconds)}</strong>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="analyticsGrid">
             <div className="analyticsCard">
@@ -6558,13 +6628,10 @@ export default function App() {
 
   // ---------- QUIZ SELECT ----------
   if (screen === "quizSelect") {
-    const allDifficultyKeys = ["unassigned", ...WORD_DIFFICULTY_OPTIONS.map((option) => option.value)];
     const selectedBookIdsSet = new Set(quizSetupSelection.bookIds);
     const selectedChapterKeysSet = new Set(quizSetupSelection.chapterKeys);
-    const selectedDifficultyKeysSet = new Set(quizSetupSelection.difficultyKeys);
     const selectedBookCount = quizSetupSelection.bookIds.length;
     const selectedChapterCount = quizSetupSelection.chapterKeys.length;
-    const selectedDifficultyCount = quizSetupSelection.difficultyKeys.length;
     const freeTypingRemaining = Math.max(
       0,
       FREE_DAILY_TYPING_LIMIT - currentFreeDailyUsage.typingAttempts
@@ -6590,34 +6657,28 @@ export default function App() {
     const canStartQuiz =
       quizSetupSelection.bookIds.length > 0 &&
       quizSetupSelection.chapterKeys.length > 0 &&
-      quizSetupSelection.difficultyKeys.length > 0 &&
       quizSetupWords.length >= 2;
     const includesTypeStep = true;
     const typeStepIndex = includesTypeStep ? 0 : -1;
     const booksStepIndex = includesTypeStep ? 1 : 0;
     const chaptersStepIndex = includesTypeStep ? 2 : 1;
-    const levelsStepIndex = includesTypeStep ? 3 : 2;
-    const reviewStepIndex = includesTypeStep ? 4 : 3;
+    const reviewStepIndex = includesTypeStep ? 3 : 2;
     const stepTitles = includesTypeStep
-      ? ["Quiz Type", "Books", "Chapters", "Levels", "Review"]
-      : ["Books", "Chapters", "Levels", "Review"];
+      ? ["Quiz Type", "Books", "Chapters", "Review"]
+      : ["Books", "Chapters", "Review"];
     const isAtTypeStep = quizSetupStep === typeStepIndex;
     const isAtBooksStep = quizSetupStep === booksStepIndex;
     const isAtChaptersStep = quizSetupStep === chaptersStepIndex;
-    const isAtLevelsStep = quizSetupStep === levelsStepIndex;
     const isAtReviewStep = quizSetupStep === reviewStepIndex;
     const canMoveForward =
       (isAtTypeStep && includesTypeStep) ||
       (isAtBooksStep && selectedBookCount > 0) ||
-      (isAtChaptersStep && selectedChapterCount > 0) ||
-      (isAtLevelsStep && selectedDifficultyCount > 0);
+      (isAtChaptersStep && selectedChapterCount > 0);
     const nextStepHint =
       isAtBooksStep && selectedBookCount === 0
         ? "Select at least one book to continue."
         : isAtChaptersStep && selectedChapterCount === 0
           ? "Select at least one chapter to continue."
-          : isAtLevelsStep && selectedDifficultyCount === 0
-            ? "Select at least one level to continue."
             : "";
 
     return renderWithSidebar(
@@ -6859,61 +6920,6 @@ export default function App() {
           )}
         </div>
         )}
-        {isAtLevelsStep && (
-        <div className="chapterControlField quizChapterField">
-          <div className="quizSetupFieldHeader">
-            <span>{includesTypeStep ? "Step 4. Levels" : "Step 3. Levels"}</span>
-            <div className="quizSetupQuickActions">
-              <button
-                type="button"
-                className="quizSetupActionBtn"
-                onClick={() =>
-                  setQuizSetupSelection((prev) => ({
-                    ...prev,
-                    difficultyKeys: allDifficultyKeys,
-                  }))
-                }
-              >
-                Select all
-              </button>
-              <button
-                type="button"
-                className="quizSetupActionBtn"
-                onClick={() =>
-                  setQuizSetupSelection((prev) => ({
-                    ...prev,
-                    difficultyKeys: [],
-                  }))
-                }
-                disabled={selectedDifficultyCount === 0}
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-          <div className="quizChapterPills" role="group" aria-label="Select difficulties">
-            <button
-              type="button"
-              className={`quizSetupPill ${selectedDifficultyKeysSet.has("unassigned") ? "isActive" : ""}`}
-              onClick={() => toggleQuizSetupDifficulty("unassigned")}
-            >
-              <span aria-hidden="true">{"\u2753"}</span>
-              Unassigned
-            </button>
-            {WORD_DIFFICULTY_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`quizSetupPill ${selectedDifficultyKeysSet.has(option.value) ? "isActive" : ""}`}
-                onClick={() => toggleQuizSetupDifficulty(option.value)}
-              >
-                <span aria-hidden="true">{"\uD83D\uDCD8"}</span>
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        )}
         {isAtReviewStep && (
           <div className="quizSetupReviewCard">
             <h3>Review & Start</h3>
@@ -6921,7 +6927,6 @@ export default function App() {
               <span>Mode: {quizMode === "typing" ? "Typing" : quizMode === "mistake" ? "Mistake Review" : quizMode === "smart" ? "Smart Review" : "Multiple Choice"}</span>
               <span>Books: {selectedBookCount}</span>
               <span>Chapters: {selectedChapterCount}</span>
-              <span>Levels: {selectedDifficultyCount}</span>
               <span>Matching words: {quizSetupWords.length}</span>
             </div>
           </div>
@@ -6933,7 +6938,7 @@ export default function App() {
         )}
         {!canStartQuiz && isAtReviewStep && (
           <p className="quizSetupHint">
-            Select at least one book, chapter, and difficulty with at least 2 matching words.
+            Select at least one book and chapter with at least 2 matching words.
           </p>
         )}
         {nextStepHint ? <p className="quizSetupHint">{nextStepHint}</p> : null}
