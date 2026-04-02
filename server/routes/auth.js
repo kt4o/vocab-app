@@ -12,11 +12,12 @@ const DEFAULT_LEGAL_VERSION = String(process.env.LEGAL_VERSION || "2026-03-14").
 const SESSION_COOKIE_NAME = String(process.env.AUTH_COOKIE_NAME || "vocab_session").trim() || "vocab_session";
 
 function resolveCookieSameSite() {
-  const configured = String(process.env.AUTH_COOKIE_SAMESITE || "lax")
+  const configured = String(process.env.AUTH_COOKIE_SAMESITE || "")
     .trim()
     .toLowerCase();
   if (configured === "strict" || configured === "none") return configured;
-  return "lax";
+  const isProduction = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+  return isProduction ? "none" : "lax";
 }
 
 function shouldUseSecureCookies(req) {

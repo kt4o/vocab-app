@@ -2648,6 +2648,10 @@ export default function App() {
       previousSocialFriendCountRef.current = null;
       return;
     }
+    if (isProPlan) {
+      previousSocialFriendCountRef.current = socialFriendCount;
+      return;
+    }
     const previousCount = previousSocialFriendCountRef.current;
     if (previousCount == null) {
       previousSocialFriendCountRef.current = socialFriendCount;
@@ -2676,7 +2680,7 @@ export default function App() {
       "Nice! You unlocked 2 daily 10-minute definition sessions.",
       "Friend Bonus Unlocked"
     );
-  }, [authToken, authUsername, socialFriendCount, socialOverview?.currentUser?.userId]);
+  }, [authToken, authUsername, isProPlan, socialFriendCount, socialOverview?.currentUser?.userId]);
 
   useEffect(() => {
     if (!authToken) {
@@ -5530,20 +5534,22 @@ export default function App() {
           <p>Please log in from My Account to use leaderboard features.</p>
         ) : (
           <div className="analyticsSection socialSectionStack">
-            <div className="analyticsCard">
-              <h3>Friend Bonus</h3>
-              <p className="settingsHint">
-                Get {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily 10-minute definition sessions when you have{" "}
-                {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends.
-              </p>
-              <p className="settingsHint">
-                Progress: {Math.min(friendProfiles.length, FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD)}/
-                {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends
-                {friendProfiles.length >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
-                  ? " (Unlocked)"
-                  : ""}
-              </p>
-            </div>
+            {!isProPlan ? (
+              <div className="analyticsCard">
+                <h3>Friend Bonus</h3>
+                <p className="settingsHint">
+                  Get {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily 10-minute definition sessions when you have{" "}
+                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends.
+                </p>
+                <p className="settingsHint">
+                  Progress: {Math.min(friendProfiles.length, FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD)}/
+                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends
+                  {friendProfiles.length >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
+                    ? " (Unlocked)"
+                    : ""}
+                </p>
+              </div>
+            ) : null}
             <div className="analyticsCard">
               <div className="settingsRow">
                 <span>Manage friends and requests</span>
@@ -5692,20 +5698,22 @@ export default function App() {
           <p>Please log in from My Account to manage friends.</p>
         ) : (
           <div className="analyticsSection socialSectionStack">
-            <div className="analyticsCard">
-              <h3>Friend Bonus</h3>
-              <p className="settingsHint">
-                Reach {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends to unlock{" "}
-                {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily 10-minute definition sessions.
-              </p>
-              <p className="settingsHint">
-                Progress: {Math.min(friendProfiles.length, FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD)}/
-                {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends
-                {friendProfiles.length >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
-                  ? " (Unlocked)"
-                  : ""}
-              </p>
-            </div>
+            {!isProPlan ? (
+              <div className="analyticsCard">
+                <h3>Friend Bonus</h3>
+                <p className="settingsHint">
+                  Reach {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends to unlock{" "}
+                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily 10-minute definition sessions.
+                </p>
+                <p className="settingsHint">
+                  Progress: {Math.min(friendProfiles.length, FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD)}/
+                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends
+                  {friendProfiles.length >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
+                    ? " (Unlocked)"
+                    : ""}
+                </p>
+              </div>
+            ) : null}
             <div className="analyticsGrid">
               <div className="analyticsCard settingsCard">
                 <h3>Add Friend</h3>
