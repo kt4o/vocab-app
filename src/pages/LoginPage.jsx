@@ -293,6 +293,26 @@ export function LoginPage({ initialMode = "login" }) {
       trackEvent(mode === "register" ? "register_success" : "login_success", {
         auth_method: "password",
       });
+      const sessionCheckResponse = await fetch(`${AUTH_API_PATH}/account`, {
+        credentials: "include",
+      });
+      if (!sessionCheckResponse.ok) {
+        const sessionPayload = await sessionCheckResponse.json().catch(() => ({}));
+        const sessionError = String(sessionPayload?.error || "").trim().toLowerCase();
+        if (
+          sessionError === "missing-auth-token" ||
+          sessionError === "invalid-auth-token" ||
+          sessionError === "expired-auth-token"
+        ) {
+          setError(
+            "Login succeeded, but your browser blocked the session cookie. Check API/Frontend domain, CORS, and cookie SameSite/Secure settings."
+          );
+          return;
+        }
+        setError("Login succeeded, but session validation failed. Please try again.");
+        return;
+      }
+
       navigateTo("/app");
     } catch {
       setError("Could not reach auth service. Check backend and try again.");
