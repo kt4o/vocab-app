@@ -5,8 +5,13 @@ const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
   .replace(/\/$/, "");
 const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
+const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const LEGAL_VERSION = "2026-03-14";
+
+function isBearerAuthToken(value) {
+  return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
+}
 
 function navigateTo(path) {
   const nextPath = String(path || "/").trim() || "/";
@@ -32,11 +37,16 @@ export function LoginPage({ initialMode = "login" }) {
 
   useEffect(() => {
     let cancelled = false;
-    localStorage.removeItem("vocab_auth_token");
     async function restoreSession() {
       try {
+        const storedAuthToken = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
+        const headers = {};
+        if (isBearerAuthToken(storedAuthToken)) {
+          headers.Authorization = `Bearer ${storedAuthToken}`;
+        }
         const response = await fetch(`${AUTH_API_PATH}/account`, {
           credentials: "include",
+          headers,
         });
         if (!cancelled && response.ok) {
           navigateTo("/app");
@@ -282,7 +292,12 @@ export function LoginPage({ initialMode = "login" }) {
 
       const savedUsername = String(payload?.username || normalizedUsername).trim().toLowerCase();
       const safeUserId = Number(payload?.userId);
-      localStorage.removeItem("vocab_auth_token");
+      const authToken = String(payload?.authToken || "").trim();
+      if (isBearerAuthToken(authToken)) {
+        localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, authToken);
+      } else {
+        localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      }
       localStorage.setItem(AUTH_USERNAME_STORAGE_KEY, savedUsername);
       if (Number.isFinite(safeUserId) && safeUserId > 0) {
         identifyAnalyticsUser(safeUserId, {
@@ -293,8 +308,13 @@ export function LoginPage({ initialMode = "login" }) {
       trackEvent(mode === "register" ? "register_success" : "login_success", {
         auth_method: "password",
       });
+      const sessionHeaders = {};
+      if (isBearerAuthToken(authToken)) {
+        sessionHeaders.Authorization = `Bearer ${authToken}`;
+      }
       const sessionCheckResponse = await fetch(`${AUTH_API_PATH}/account`, {
         credentials: "include",
+        headers: sessionHeaders,
       });
       if (!sessionCheckResponse.ok) {
         const sessionPayload = await sessionCheckResponse.json().catch(() => ({}));

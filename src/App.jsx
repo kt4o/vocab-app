@@ -35,6 +35,7 @@ const SOCIAL_API_PATH = `${API_BASE_URL}/api/social`;
 const BILLING_API_PATH = `${API_BASE_URL}/api/billing`;
 const ANALYTICS_API_PATH = `${API_BASE_URL}/api/analytics`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
+const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const COOKIE_SESSION_AUTH_MARKER = "__cookie_session__";
 const LEGAL_VERSION = "2026-03-14";
@@ -1272,7 +1273,10 @@ export default function App() {
   const [proDailyGoalQuestions, setProDailyGoalQuestions] = useState(() =>
     parseDailyGoalTarget(localStorage.getItem("vocab_pro_daily_goal_questions"))
   );
-  const [authToken, setAuthToken] = useState("");
+  const [authToken, setAuthToken] = useState(() => {
+    const savedAuthToken = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
+    return isBearerAuthToken(savedAuthToken) ? savedAuthToken : "";
+  });
   const [authUsername, setAuthUsername] = useState(
     () => localStorage.getItem(AUTH_USERNAME_STORAGE_KEY) || ""
   );
@@ -1893,7 +1897,11 @@ export default function App() {
     Object.entries(persistedState).forEach(([key, value]) => {
       localStorage.setItem(key, value);
     });
-    localStorage.removeItem("vocab_auth_token");
+    if (isBearerAuthToken(authToken)) {
+      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, authToken);
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    }
   }, [
     books,
     xp,
@@ -1911,6 +1919,7 @@ export default function App() {
     lastQuizMistakeModeByBook,
     lastQuizSetup,
     streak,
+    authToken,
     authUsername,
     isLocalPersistencePaused,
   ]);
@@ -1993,8 +2002,13 @@ export default function App() {
       }
 
       const nextUsername = String(payload?.username || username).trim().toLowerCase();
+      const nextAuthToken = String(payload?.authToken || "").trim();
       const safeUserId = Number(payload?.userId);
-      setAuthToken(COOKIE_SESSION_AUTH_MARKER);
+      if (isBearerAuthToken(nextAuthToken)) {
+        setAuthToken(nextAuthToken);
+      } else {
+        setAuthToken(COOKIE_SESSION_AUTH_MARKER);
+      }
       setAuthUsername(nextUsername);
       if (Number.isFinite(safeUserId) && safeUserId > 0) {
         identifyAnalyticsUser(safeUserId, {

@@ -22,6 +22,11 @@ const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
   .replace(/\/$/, "");
 const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
+const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
+
+function isBearerAuthToken(value) {
+  return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
+}
 
 function getRoute(pathname) {
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
@@ -52,8 +57,14 @@ function AppRoute() {
 
     async function verifySession() {
       try {
+        const storedAuthToken = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
+        const headers = {};
+        if (isBearerAuthToken(storedAuthToken)) {
+          headers.Authorization = `Bearer ${storedAuthToken}`;
+        }
         const response = await fetch(`${AUTH_API_PATH}/account`, {
           credentials: "include",
+          headers,
         });
         if (cancelled) return;
         if (response.ok) {
