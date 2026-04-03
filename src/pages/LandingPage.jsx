@@ -240,7 +240,7 @@ export function LandingPage() {
       <main className="landingV2NotionMain">
         <section className="landingV2NotionHero">
           <div className="landingV2NotionHeroCopy">
-            <h1>Remember every word you study.</h1>
+            <h1>Remember every word you look up.</h1>
             <p>
               Save words by chapter, practice with flashcards and typing quizzes, and review weak words
               until recall is automatic.
