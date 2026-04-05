@@ -323,6 +323,14 @@ function normalizeEmail(value) {
     .toLowerCase();
 }
 
+function normalizeSchoolCode(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .slice(0, 64);
+}
+
 function normalizePlan(value) {
   return String(value || "")
     .trim()
@@ -953,19 +961,147 @@ authRouter.post("/account/logout-all", requireAuth, async (req, res) => {
 authRouter.get("/account", requireAuth, async (req, res) => {
   const userId = Number(req.authUser?.id || 0);
   try {
-    const result = await query("SELECT id, username, email FROM users WHERE id = $1", [userId]);
+    const result = await query("SELECT id, username, email, plan, lifetime_pro FROM users WHERE id = $1", [userId]);
     const user = result.rows[0];
     if (!user) {
       res.status(404).json({ error: "account-not-found" });
       return;
     }
+    const isLifetimePro = Boolean(user.lifetime_pro);
     res.json({
       userId: Number(user.id),
       username: String(user.username || "").trim().toLowerCase(),
       email: String(user.email || "").trim().toLowerCase(),
+      plan: isLifetimePro ? "pro" : normalizePlan(user.plan),
+      isLifetimePro,
     });
   } catch {
     res.status(500).json({ error: "account-query-failed" });
+  }
+});
+
+authRouter.post("/account/redeem-school-code", requireAuth, async (req, res) => {
+  if (!enforceRateLimit(req, res, { bucket: "account-redeem-school-code", maxAttempts: 20, windowMs: 10 * 60 * 1000 })) {
+    return;
+  }
+
+  const userId = Number(req.authUser?.id || 0);
+  const code = normalizeSchoolCode(req.body?.code);
+
+  if (!code || !/^[A-Z0-9_-]{4,64}$/.test(code)) {
+    res.status(400).json({ error: "invalid-school-code" });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const alreadyRedeemedResult = await client.query(
+      "SELECT code_id FROM school_code_redemptions WHERE user_id = $1",
+      [userId]
+    );
+    if (alreadyRedeemedResult.rows[0]) {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "school-code-already-redeemed" });
+      return;
+    }
+
+    const codeResult = await client.query(
+      `
+        SELECT
+          id,
+          school_name,
+          grants_lifetime_pro,
+          max_activations,
+          activation_count,
+          is_active,
+          expires_at
+        FROM school_access_codes
+        WHERE code = $1
+        FOR UPDATE
+      `,
+      [code]
+    );
+    const codeRow = codeResult.rows[0];
+    if (!codeRow) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "school-code-not-found" });
+      return;
+    }
+    if (!Boolean(codeRow.is_active)) {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "school-code-inactive" });
+      return;
+    }
+    if (codeRow.expires_at && !isIsoDateInFuture(codeRow.expires_at)) {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "school-code-expired" });
+      return;
+    }
+
+    const maxActivations = Number(codeRow.max_activations);
+    const activationCount = Number(codeRow.activation_count);
+    if (
+      Number.isFinite(maxActivations) &&
+      maxActivations > 0 &&
+      Number.isFinite(activationCount) &&
+      activationCount >= maxActivations
+    ) {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "school-code-limit-reached" });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    await client.query(
+      `
+        INSERT INTO school_code_redemptions (code_id, user_id, redeemed_at)
+        VALUES ($1, $2, $3)
+      `,
+      [Number(codeRow.id), userId, now]
+    );
+    await client.query(
+      `
+        UPDATE school_access_codes
+        SET activation_count = activation_count + 1, updated_at = $2
+        WHERE id = $1
+      `,
+      [Number(codeRow.id), now]
+    );
+
+    let plan = "free";
+    let isLifetimePro = false;
+    if (Boolean(codeRow.grants_lifetime_pro)) {
+      const userUpdate = await client.query(
+        `
+          UPDATE users
+          SET lifetime_pro = TRUE, plan = 'pro'
+          WHERE id = $1
+          RETURNING plan, lifetime_pro
+        `,
+        [userId]
+      );
+      plan = normalizePlan(userUpdate.rows[0]?.plan);
+      isLifetimePro = Boolean(userUpdate.rows[0]?.lifetime_pro);
+    } else {
+      const currentUser = await client.query("SELECT plan, lifetime_pro FROM users WHERE id = $1", [userId]);
+      plan = normalizePlan(currentUser.rows[0]?.plan);
+      isLifetimePro = Boolean(currentUser.rows[0]?.lifetime_pro);
+    }
+
+    await client.query("COMMIT");
+    res.json({
+      ok: true,
+      schoolName: String(codeRow.school_name || ""),
+      plan: isLifetimePro ? "pro" : plan,
+      isLifetimePro,
+    });
+  } catch {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "school-code-redeem-failed" });
+  } finally {
+    client.release();
   }
 });
 
@@ -985,7 +1121,7 @@ authRouter.delete("/account", requireAuth, async (req, res) => {
   try {
     await client.query("BEGIN");
     const result = await client.query(
-      "SELECT password_hash, email, plan, subscription_status FROM users WHERE id = $1",
+      "SELECT password_hash, email, plan, subscription_status, lifetime_pro FROM users WHERE id = $1",
       [userId]
     );
     const user = result.rows[0];
@@ -994,7 +1130,12 @@ authRouter.delete("/account", requireAuth, async (req, res) => {
       res.status(401).json({ error: "invalid-current-password" });
       return;
     }
-    if (normalizePlan(user.plan) === "pro" && !isCanceledSubscriptionStatus(user.subscription_status)) {
+    const isLifetimePro = Boolean(user.lifetime_pro);
+    if (
+      normalizePlan(user.plan) === "pro" &&
+      !isLifetimePro &&
+      !isCanceledSubscriptionStatus(user.subscription_status)
+    ) {
       await client.query("ROLLBACK");
       res.status(409).json({ error: "pro-subscription-active" });
       return;

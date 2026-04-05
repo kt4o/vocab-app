@@ -15,10 +15,11 @@ const PRO_DAILY_GOAL_DEFAULT = 30;
 const PRO_DAILY_GOAL_MIN = 10;
 const PRO_DAILY_GOAL_MAX = 120;
 const PRO_DAILY_GOAL_STEP = 5;
-const FREE_DAILY_DEFINITION_SESSION_LIMIT = 1;
+const FREE_DAILY_DEFINITION_SESSION_LIMIT = 2;
 const FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD = 3;
-const FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT = 2;
-const FREE_DEFINITION_SESSION_WINDOW_MS = 10 * 60 * 1000;
+const FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT = 3;
+const FREE_DEFINITION_SESSION_MINUTES = 15;
+const FREE_DEFINITION_SESSION_WINDOW_MS = FREE_DEFINITION_SESSION_MINUTES * 60 * 1000;
 const FREE_DAILY_TYPING_LIMIT = 3;
 const FREE_DAILY_MISTAKE_REVIEW_LIMIT = 3;
 const WEAK_WORDS_RECENT_DAY_WINDOW = 21;
@@ -1298,6 +1299,7 @@ export default function App() {
   });
   const [selectedDataTimeframe, setSelectedDataTimeframe] = useState("weekly");
   const [billingPlan, setBillingPlan] = useState("free");
+  const [isLifetimePro, setIsLifetimePro] = useState(false);
   const [billingSubscriptionStatus, setBillingSubscriptionStatus] = useState("");
   const [billingCurrentPeriodEnd, setBillingCurrentPeriodEnd] = useState("");
   const [accountEmail, setAccountEmail] = useState("");
@@ -1313,7 +1315,9 @@ export default function App() {
     resetEmail: "",
     deletePassword: "",
   });
+  const [schoolCodeInput, setSchoolCodeInput] = useState("");
   const [accountActionError, setAccountActionError] = useState("");
+  const [isSchoolCodeRedeeming, setIsSchoolCodeRedeeming] = useState(false);
   const [isPasswordChangeSubmitting, setIsPasswordChangeSubmitting] = useState(false);
   const [isLogoutAllSubmitting, setIsLogoutAllSubmitting] = useState(false);
   const [isDeleteAccountSubmitting, setIsDeleteAccountSubmitting] = useState(false);
@@ -1394,8 +1398,8 @@ export default function App() {
     freeDailyDefinitionSessionLimit
   );
   const freeDefinitionLimitReachedMessage = hasFriendDefinitionSessionBonus
-    ? "Free plan limit reached. You have used both 10-minute add-definitions sessions for today."
-    : `Free plan limit reached. Add ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends in Socials to unlock 2 daily sessions.`;
+    ? `Free plan limit reached. You have used all ${freeDailyDefinitionSessionLimit} daily ${FREE_DEFINITION_SESSION_MINUTES}-minute add-definitions sessions for today.`
+    : `Free plan limit reached. Add ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends in Socials to unlock ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily ${FREE_DEFINITION_SESSION_MINUTES}-minute sessions.`;
   const isFreeDefinitionSessionActive =
     countdownNow - currentFreeDefinitionSessionUsage.startedAt < FREE_DEFINITION_SESSION_WINDOW_MS;
   const freeDefinitionSessionRemainingMs = isFreeDefinitionSessionActive
@@ -2072,6 +2076,7 @@ export default function App() {
     setAccountEmail("");
     setAuthError("");
     setBillingPlan("free");
+    setIsLifetimePro(false);
     setBillingSubscriptionStatus("");
     setBillingCurrentPeriodEnd("");
     setIsStripeBillingConfigured(false);
@@ -2094,6 +2099,7 @@ export default function App() {
       resetEmail: "",
       deletePassword: "",
     });
+    setSchoolCodeInput("");
     setIsCloudStateHydrated(false);
     setIsDeleteAccountConfirmOpen(false);
     navigateTo("/login");
@@ -2115,10 +2121,14 @@ export default function App() {
         if (cancelled) return;
         const nextUsername = String(payload?.username || "").trim().toLowerCase();
         const nextEmail = String(payload?.email || "").trim().toLowerCase();
+        const nextPlan = String(payload?.plan || "").trim().toLowerCase() === "pro" ? "pro" : "free";
+        const nextIsLifetimePro = Boolean(payload?.isLifetimePro);
         const safeUserId = Number(payload?.userId);
         setAuthToken(COOKIE_SESSION_AUTH_MARKER);
         if (nextUsername) setAuthUsername(nextUsername);
         setAccountEmail(nextEmail);
+        setBillingPlan(nextIsLifetimePro ? "pro" : nextPlan);
+        setIsLifetimePro(nextIsLifetimePro);
         if (Number.isFinite(safeUserId) && safeUserId > 0) {
           identifyAnalyticsUser(safeUserId, {
             username: nextUsername,
@@ -2162,9 +2172,13 @@ export default function App() {
 
       const nextUsername = String(payload?.username || "").trim().toLowerCase();
       const nextEmail = String(payload?.email || "").trim().toLowerCase();
+      const nextPlan = String(payload?.plan || "").trim().toLowerCase() === "pro" ? "pro" : "free";
+      const nextIsLifetimePro = Boolean(payload?.isLifetimePro);
       const safeUserId = Number(payload?.userId);
       if (nextUsername) setAuthUsername(nextUsername);
       setAccountEmail(nextEmail);
+      setBillingPlan(nextIsLifetimePro ? "pro" : nextPlan);
+      setIsLifetimePro(nextIsLifetimePro);
       if (Number.isFinite(safeUserId) && safeUserId > 0) {
         identifyAnalyticsUser(safeUserId, {
           username: nextUsername,
@@ -2215,7 +2229,10 @@ export default function App() {
         return;
       }
 
-      setBillingPlan(String(payload?.plan || "free").trim().toLowerCase() === "pro" ? "pro" : "free");
+      const nextPlan = String(payload?.plan || "free").trim().toLowerCase() === "pro" ? "pro" : "free";
+      const nextIsLifetimePro = Boolean(payload?.isLifetimePro);
+      setBillingPlan(nextIsLifetimePro ? "pro" : nextPlan);
+      setIsLifetimePro(nextIsLifetimePro);
       setBillingSubscriptionStatus(String(payload?.subscriptionStatus || "").trim().toLowerCase());
       setBillingCurrentPeriodEnd(String(payload?.currentPeriodEnd || "").trim());
       setIsStripeBillingConfigured(Boolean(payload?.isStripeConfigured));
@@ -2315,10 +2332,67 @@ export default function App() {
     if (backendError === "pro-subscription-active") {
       return "Cancel your Pro subscription first. Account deletion is available only after status is canceled.";
     }
+    if (backendError === "invalid-school-code") return "Enter a valid school code.";
+    if (backendError === "school-code-not-found") return "School code not found.";
+    if (backendError === "school-code-inactive") return "This school code is inactive.";
+    if (backendError === "school-code-expired") return "This school code has expired.";
+    if (backendError === "school-code-limit-reached") return "This school code has reached its activation limit.";
+    if (backendError === "school-code-already-redeemed") return "A school code was already used on this account.";
     if (backendError === "missing-auth-token" || backendError === "invalid-auth-token") {
       return "Your session expired. Please log in again.";
     }
     return fallbackMessage;
+  }
+
+  async function redeemSchoolCode() {
+    if (!authToken || isSchoolCodeRedeeming) return;
+    const normalizedCode = String(schoolCodeInput || "").trim().toUpperCase().replace(/\s+/g, "");
+    if (!normalizedCode) {
+      setAccountActionError("Enter your school code.");
+      return;
+    }
+
+    setIsSchoolCodeRedeeming(true);
+    setAccountActionError("");
+    try {
+      const response = await fetch(`${AUTH_API_PATH}/account/redeem-school-code`, {
+        method: "POST",
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({ code: normalizedCode }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        logoutAccount();
+        setAuthError("Your session expired. Please log in again.");
+        return;
+      }
+      if (!response.ok) {
+        setAccountActionError(
+          mapAccountApiError(payload, "Could not redeem school code. Please try again.")
+        );
+        return;
+      }
+
+      const nextPlan = String(payload?.plan || "free").trim().toLowerCase() === "pro" ? "pro" : "free";
+      const nextIsLifetimePro = Boolean(payload?.isLifetimePro);
+      setBillingPlan(nextIsLifetimePro ? "pro" : nextPlan);
+      setIsLifetimePro(nextIsLifetimePro);
+      setSchoolCodeInput("");
+      const schoolName = String(payload?.schoolName || "").trim();
+      openNoticeModal(
+        schoolName
+          ? `School code applied for ${schoolName}. Your plan is now Pro.`
+          : "School code applied. Your plan is now Pro.",
+        "Plan Updated"
+      );
+    } catch {
+      setAccountActionError("Could not redeem school code. Please check your connection and try again.");
+    } finally {
+      setIsSchoolCodeRedeeming(false);
+    }
   }
 
   async function changeAccountPassword() {
@@ -2433,7 +2507,11 @@ export default function App() {
 
   function askDeleteAccountConfirmation() {
     if (isDeleteAccountSubmitting || !authToken) return;
-    if (billingPlan === "pro" && !isCanceledSubscriptionStatus(billingSubscriptionStatus)) {
+    if (
+      billingPlan === "pro" &&
+      !isLifetimePro &&
+      !isCanceledSubscriptionStatus(billingSubscriptionStatus)
+    ) {
       setAccountActionError(
         "Cancel your Pro subscription first. Account deletion is available only after status is canceled."
       );
@@ -2450,7 +2528,11 @@ export default function App() {
 
   async function deleteAccountPermanently() {
     if (isDeleteAccountSubmitting || !authToken) return;
-    if (billingPlan === "pro" && !isCanceledSubscriptionStatus(billingSubscriptionStatus)) {
+    if (
+      billingPlan === "pro" &&
+      !isLifetimePro &&
+      !isCanceledSubscriptionStatus(billingSubscriptionStatus)
+    ) {
       setAccountActionError(
         "Cancel your Pro subscription first. Account deletion is available only after status is canceled."
       );
@@ -2692,7 +2774,7 @@ export default function App() {
     const noticeUserKey = String(socialOverview?.currentUser?.userId || authUsername || "").trim();
     if (!noticeUserKey) {
       openNoticeModal(
-        "Nice! You unlocked 2 daily 10-minute definition sessions.",
+        `Nice! You unlocked ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily ${FREE_DEFINITION_SESSION_MINUTES}-minute definition sessions.`,
         "Friend Bonus Unlocked"
       );
       return;
@@ -2701,7 +2783,7 @@ export default function App() {
     if (localStorage.getItem(storageKey) === "1") return;
     localStorage.setItem(storageKey, "1");
     openNoticeModal(
-      "Nice! You unlocked 2 daily 10-minute definition sessions.",
+      `Nice! You unlocked ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily ${FREE_DEFINITION_SESSION_MINUTES}-minute definition sessions.`,
       "Friend Bonus Unlocked"
     );
   }, [authToken, authUsername, isProPlan, socialFriendCount, socialOverview?.currentUser?.userId]);
@@ -3801,7 +3883,9 @@ export default function App() {
           })
         : "";
       const isAccountDeletionBlockedBySubscription =
-        billingPlan === "pro" && !isCanceledSubscriptionStatus(billingSubscriptionStatus);
+        billingPlan === "pro" &&
+        !isLifetimePro &&
+        !isCanceledSubscriptionStatus(billingSubscriptionStatus);
 
       return (
         <div className="modalOverlay" onClick={() => setAccountPanelModal("")}>
@@ -3823,15 +3907,45 @@ export default function App() {
                 {billingSubscriptionStatus ? (
                   <p className="settingsHint">Subscription status: {billingSubscriptionStatus}</p>
                 ) : null}
+                {isLifetimePro ? (
+                  <p className="settingsHint">Lifetime Pro access: enabled (no recurring subscription).</p>
+                ) : null}
                 {billingPeriodEndLabel ? (
                   <p className="settingsHint">Current period ends: {billingPeriodEndLabel}</p>
                 ) : null}
+                <div className="settingsRow">
+                  <span>School code</span>
+                  <input
+                    className="settingsInput"
+                    type="text"
+                    value={schoolCodeInput}
+                    onChange={(event) => {
+                      setSchoolCodeInput(event.target.value.toUpperCase());
+                      if (accountActionError) setAccountActionError("");
+                    }}
+                    placeholder="Enter school code"
+                    autoComplete="off"
+                    maxLength={64}
+                    disabled={isSchoolCodeRedeeming}
+                  />
+                </div>
+                <div className="settingsRow">
+                  <span>Apply school access</span>
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    onClick={redeemSchoolCode}
+                    disabled={isSchoolCodeRedeeming || !String(schoolCodeInput || "").trim()}
+                  >
+                    {isSchoolCodeRedeeming ? "Applying..." : "Redeem Code"}
+                  </button>
+                </div>
                 {!isStripeBillingConfigured ? (
                   <p className="settingsHint">
                     Stripe billing is not configured yet. Add Stripe env vars on the backend.
                   </p>
                 ) : null}
-                {billingPlan === "pro" ? (
+                {billingPlan === "pro" && !isLifetimePro ? (
                   <div className="settingsRow">
                     <span>Manage billing</span>
                     <button
@@ -3843,6 +3957,8 @@ export default function App() {
                       {isBillingPortalSubmitting ? "Please wait..." : "Manage Subscription"}
                     </button>
                   </div>
+                ) : billingPlan === "pro" ? (
+                  <p className="settingsHint">Your plan is lifetime Pro. Billing management is not required.</p>
                 ) : (
                   <div className="settingsRow">
                     <span>{PREMIUM_UPGRADE_ENABLED ? "Upgrade account" : "Pro coming soon"}</span>
@@ -4456,7 +4572,7 @@ export default function App() {
       openNoticeModal(
         currentFreeDailyUsage.definitionSessionStarts >= freeDailyDefinitionSessionLimit
           ? freeDefinitionLimitReachedMessage
-          : "Start your free 10-minute add-definitions session first.",
+          : `Start your free ${FREE_DEFINITION_SESSION_MINUTES}-minute add-definitions session first.`,
         "Free Limit"
       );
       return;
@@ -5299,7 +5415,11 @@ export default function App() {
                   <h3>Plan</h3>
                 </div>
                 <p className="settingsHint">
-                  {billingPlan === "pro" ? "Manage subscription and billing details." : "View current billing status."}
+                  {billingPlan === "pro"
+                    ? isLifetimePro
+                      ? "View lifetime Pro status."
+                      : "Manage subscription and billing details."
+                    : "View current billing status."}
                 </p>
                 <span className="accountLauncherAction">Open</span>
               </button>
@@ -5579,7 +5699,7 @@ export default function App() {
               <div className="analyticsCard">
                 <h3>Friend Bonus</h3>
                 <p className="settingsHint">
-                  Get {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily 10-minute definition sessions when you have{" "}
+                  Get {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily {FREE_DEFINITION_SESSION_MINUTES}-minute definition sessions when you have{" "}
                   {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends.
                 </p>
                 <p className="settingsHint">
@@ -5744,7 +5864,7 @@ export default function App() {
                 <h3>Friend Bonus</h3>
                 <p className="settingsHint">
                   Reach {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends to unlock{" "}
-                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily 10-minute definition sessions.
+                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily {FREE_DEFINITION_SESSION_MINUTES}-minute definition sessions.
                 </p>
                 <p className="settingsHint">
                   Progress: {Math.min(friendProfiles.length, FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD)}/

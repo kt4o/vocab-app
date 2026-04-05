@@ -35,6 +35,15 @@ function normalizePlan(value) {
   return normalized === "pro" ? "pro" : "free";
 }
 
+function isLifetimeProEnabled(value) {
+  return Boolean(value);
+}
+
+function getEffectivePlan({ plan, lifetimePro }) {
+  if (isLifetimeProEnabled(lifetimePro)) return "pro";
+  return normalizePlan(plan);
+}
+
 function normalizeSubscriptionStatus(value) {
   return String(value || "").trim().toLowerCase() || null;
 }
@@ -112,6 +121,7 @@ async function findUserBillingInfoById(userId) {
         email,
         username,
         plan,
+        lifetime_pro,
         stripe_customer_id,
         stripe_subscription_id,
         subscription_status,
@@ -276,10 +286,14 @@ billingRouter.get("/status", async (req, res) => {
   const userId = Number(req.authUser?.id || 0);
   try {
     const row = await findUserBillingInfoById(userId);
+    const isLifetimePro = isLifetimeProEnabled(row?.lifetime_pro);
     res.json({
-      plan: normalizePlan(row?.plan),
+      plan: getEffectivePlan({ plan: row?.plan, lifetimePro: isLifetimePro }),
+      isLifetimePro,
       subscriptionStatus: normalizeSubscriptionStatus(row?.subscription_status),
       currentPeriodEnd: row?.subscription_current_period_end || null,
+      hasBillingCustomer: Boolean(String(row?.stripe_customer_id || "").trim()),
+      hasActiveSubscription: Boolean(String(row?.stripe_subscription_id || "").trim()),
       isStripeConfigured: Boolean(stripe && stripePriceId),
     });
   } catch {
@@ -301,7 +315,7 @@ billingRouter.post("/checkout-session", async (req, res) => {
       res.status(400).json({ error: "email-required-for-billing" });
       return;
     }
-    if (normalizePlan(row.plan) === "pro") {
+    if (getEffectivePlan({ plan: row.plan, lifetimePro: row.lifetime_pro }) === "pro") {
       res.status(409).json({ error: "already-on-paid-plan" });
       return;
     }

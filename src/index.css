@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
 
 * {
   margin: 0;
@@ -8,11 +8,9 @@
 
 :root {
   --font-sans:
-    "Plus Jakarta Sans", "Avenir Next", "SF Pro Text", "Segoe UI Variable Text",
-    "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display:
-    "Sora", "Avenir Next", "SF Pro Display", "Segoe UI Variable Display",
-    "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-size-body: 15.5px;
   --line-height-body: 1.55;
 }
@@ -7043,10 +7041,11 @@ body.theme-dark .recentSquare {
   border: 1px solid var(--public-border);
   border-radius: 14px;
   background: #ffffff;
-  padding: 18px;
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    0 10px 24px rgba(15, 23, 42, 0.06);
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
 }
 
 .pricingPlanCard h2 {
@@ -7060,7 +7059,12 @@ body.theme-dark .recentSquare {
     var(--public-accent) 44%,
     var(--public-border) 56%
   );
-  background: linear-gradient(180deg, #ffffff, #f4f8ff);
+  background: linear-gradient(160deg, #ffffff, #f4f8ff);
+}
+
+.pricingPlanHead {
+  display: grid;
+  gap: 6px;
 }
 
 .pricingPlanPrice {
@@ -7072,52 +7076,58 @@ body.theme-dark .recentSquare {
 }
 
 .pricingPlanCaption {
-  margin: 8px 0 14px;
+  margin: 0;
   color: var(--public-muted);
 }
 
-.pricingCompareCard {
-  border: 1px solid var(--public-border);
-  border-radius: 14px;
-  overflow: hidden;
-  background: #ffffff;
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    0 10px 24px rgba(15, 23, 42, 0.06);
-}
-
-.pricingCompareHead,
-.pricingCompareRow {
+.pricingFeatureStack {
   display: grid;
-  grid-template-columns: 1.7fr 1fr 1fr;
-  gap: 12px;
-  align-items: center;
+  gap: 14px;
 }
 
-.pricingCompareHead {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--public-border);
-  background: #f7faff;
+.pricingFeatureRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.pricingFeatureRow.isUnavailable .pricingFeatureName {
+  color: color-mix(in srgb, var(--public-muted) 65%, #ffffff 35%);
+}
+
+.pricingFeatureIcon {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.pricingFeatureIcon.isYes {
+  color: #16a34a;
+}
+
+.pricingFeatureIcon.isNo {
+  color: color-mix(in srgb, var(--public-border) 75%, var(--public-muted) 25%);
+}
+
+.pricingFeatureName {
+  margin: 0;
   color: var(--public-text);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
-.pricingCompareRows {
-  display: grid;
-}
-
-.pricingCompareRow {
-  padding: 12px 14px;
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--public-border) 76%, #ffffff 24%);
+.pricingFeatureNote {
+  margin: 2px 0 0;
   color: var(--public-muted);
+  font-size: 12px;
 }
 
-.pricingCompareRow:last-child {
-  border-bottom: 0;
-}
-
-.pricingCompareRow span:first-child {
-  color: var(--public-text);
+.pricingPlanCard .publicPrimaryBtn,
+.pricingPlanCard .publicSecondaryBtn {
+  margin: 2px 0 2px;
+  width: 100%;
+  justify-content: center;
 }
 
 @media (max-width: 1024px) {
@@ -7144,21 +7154,6 @@ body.theme-dark .recentSquare {
 
   .pricingPlanGrid {
     grid-template-columns: 1fr;
-  }
-
-  .pricingCompareHead,
-  .pricingCompareRow {
-    grid-template-columns: 1.4fr 1fr 1fr;
-    gap: 8px;
-    font-size: 12px;
-  }
-
-  .pricingCompareHead {
-    padding: 10px 10px;
-  }
-
-  .pricingCompareRow {
-    padding: 10px 10px;
   }
 }
 

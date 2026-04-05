@@ -69,6 +69,11 @@ export async function initDb() {
 
   await query(`
     ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS lifetime_pro BOOLEAN NOT NULL DEFAULT FALSE;
+  `);
+
+  await query(`
+    ALTER TABLE users
     ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
@@ -224,6 +229,42 @@ export async function initDb() {
   await query(`
     CREATE INDEX IF NOT EXISTS idx_api_rate_limits_updated_at
     ON api_rate_limits(updated_at);
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS school_access_codes (
+      id SERIAL PRIMARY KEY,
+      school_name TEXT NOT NULL,
+      code TEXT NOT NULL UNIQUE,
+      grants_lifetime_pro BOOLEAN NOT NULL DEFAULT TRUE,
+      max_activations INTEGER,
+      activation_count INTEGER NOT NULL DEFAULT 0,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      expires_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS school_code_redemptions (
+      id SERIAL PRIMARY KEY,
+      code_id INTEGER NOT NULL REFERENCES school_access_codes(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      redeemed_at TEXT NOT NULL,
+      UNIQUE(code_id, user_id),
+      UNIQUE(user_id)
+    );
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_school_access_codes_active
+    ON school_access_codes(is_active, updated_at DESC);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_school_code_redemptions_user
+    ON school_code_redemptions(user_id);
   `);
 }
 

@@ -57,9 +57,10 @@ export async function requireAuth(req, res, next) {
 
   let user = null;
   try {
-    const result = await query("SELECT id, username, plan, auth_token_created_at FROM users WHERE auth_token = $1", [
-      token,
-    ]);
+    const result = await query(
+      "SELECT id, username, plan, lifetime_pro, auth_token_created_at FROM users WHERE auth_token = $1",
+      [token]
+    );
     user = result.rows[0] || null;
   } catch {
     res.status(500).json({ error: "auth-query-failed" });
@@ -87,7 +88,14 @@ export async function requireAuth(req, res, next) {
     return;
   }
 
-  req.authUser = { id: user.id, username: user.username, plan: user.plan };
+  const normalizedPlan = String(user.plan || "").trim().toLowerCase() === "pro" ? "pro" : "free";
+  const isLifetimePro = Boolean(user.lifetime_pro);
+  req.authUser = {
+    id: user.id,
+    username: user.username,
+    plan: isLifetimePro ? "pro" : normalizedPlan,
+    isLifetimePro,
+  };
   req.authToken = token;
   next();
 }
