@@ -1,345 +1,297 @@
 import { useEffect, useState } from "react";
+import { Check, X, BookOpen, Brain, Trophy, Zap, ArrowRight } from "lucide-react";
+
+const appScreenshot = "/landing/dashboard.png";
 
 const YEAR = new Date().getFullYear();
 
-const PARTNER_NAMES = [
-  "Universities",
-  "Language Schools",
-  "Exam Prep Teams",
-  "Private Tutors",
-  "Book Clubs",
-  "Study Communities",
-  "Student Cohorts",
-  "Self-Learners",
-  "Educators",
-];
-
-const MASTERY_FLOW = [
+const FEATURES = [
   {
-    number: "01",
-    phase: "Step 1",
-    title: "Capture",
-    description: "Save new words by chapter while context is fresh.",
-    cue: "Word captured",
-    progress: 24,
-    icon: "capture",
+    name: "Word tracking, chapters, and definitions",
+    free: true,
+    pro: true,
   },
   {
-    number: "02",
-    phase: "Step 2",
-    title: "Recognize",
-    description: "Review meaning fast with focused flashcards.",
-    cue: "Recall started",
-    progress: 52,
-    icon: "recognize",
+    name: "Flashcards and quiz practice",
+    free: true,
+    pro: true,
   },
   {
-    number: "03",
-    phase: "Step 3",
-    title: "Produce",
-    description: "Type from memory until spelling is automatic.",
-    cue: "Active recall",
-    progress: 78,
-    icon: "produce",
+    name: "Unlimited word adding",
+    free: true,
+    freeNote: "Included",
+    pro: true,
+    proNote: "Included",
   },
   {
-    number: "04",
-    phase: "Step 4",
-    title: "Retain",
-    description: "Repeat weak words on schedule so they stick.",
-    cue: "Memory locked",
-    progress: 100,
-    icon: "retain",
+    name: "Smart Review queue",
+    free: false,
+    pro: true,
+  },
+  {
+    name: "Weak-Words Lab + CSV export",
+    free: false,
+    pro: true,
+  },
+  {
+    name: "Socials (friends + leaderboards)",
+    free: true,
+    freeNote: "Free League",
+    pro: true,
+    proNote: "Pro League",
+  },
+  {
+    name: "Ads",
+    free: false,
+    freeNote: "May be introduced later",
+    pro: true,
+    proNote: "Ad-free",
   },
 ];
 
-function MasteryIcon({ icon }) {
-  switch (icon) {
-    case "capture":
-      return (
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path
-            d="M7 5.5h7.5l3.5 3.5V18a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 18V7a1.5 1.5 0 0 1 1-1.4Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M14.5 5.5V9H18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M12 10v5M9.5 12.5h5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-          />
-        </svg>
-      );
-    case "recognize":
-      return (
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <rect
-            x="5"
-            y="7"
-            width="10"
-            height="7"
-            rx="1.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-          />
-          <path
-            d="M8 10.5h4M8 12.5h3"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-          />
-          <path
-            d="M13.5 16.5c2.7 0 4.8-1.2 5.9-3.1c-1.1-1.9-3.2-3.1-5.9-3.1s-4.8 1.2-5.9 3.1c1.1 1.9 3.2 3.1 5.9 3.1Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <circle cx="13.5" cy="13.4" r="1.4" fill="currentColor" />
-        </svg>
-      );
-    case "produce":
-      return (
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <rect
-            x="4.5"
-            y="7"
-            width="15"
-            height="10"
-            rx="2"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-          />
-          <path
-            d="M7.5 10.5h.01M10 10.5h.01M12.5 10.5h.01M15 10.5h.01M8.5 13.5h7"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-          />
-          <path
-            d="m15.5 5.5 3-3"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-          />
-        </svg>
-      );
-    case "retain":
-      return (
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path
-            d="M12 4.5 18 7v4.4c0 3.5-2.2 6.6-6 8.1c-3.8-1.5-6-4.6-6-8.1V7l6-2.5Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="m9.3 12.3 1.8 1.9 3.6-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
+const MAIN_FEATURES = [
+  {
+    icon: BookOpen,
+    title: "Build Your Vocabulary",
+    description: "Track words, organize them into chapters, and access comprehensive definitions all in one place.",
+  },
+  {
+    icon: Brain,
+    title: "Smart Learning System",
+    description: "Review queue that adapts to your learning pace and identifies weak words that need more practice.",
+  },
+  {
+    icon: Trophy,
+    title: "Compete & Connect",
+    description: "Join leaderboards, connect with friends, and climb the ranks in Free or Pro leagues.",
+  },
+  {
+    icon: Zap,
+    title: "Practice Your Way",
+    description: "Master vocabulary with flashcards and interactive quizzes designed to reinforce retention.",
+  },
+];
 
 export function LandingPage() {
   const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
 
   useEffect(() => {
-    document.title = "Vocalibry | Remember Vocabulary Faster";
+    document.title = "Vocalibry | Master Words, Build Fluency";
   }, []);
 
   return (
-    <div className="publicPage publicLanding landingV2 landingV2Notion">
+    <div className="min-h-screen bg-background">
       {isAnnouncementVisible ? (
-        <div className="landingV2NotionAnnouncement">
-          <div className="landingV2NotionAnnouncementInner">
-            <span className="landingV2NotionBadge">New</span>
-            <p>Chapter Planner is live: build clean word lists by book and unit in seconds.</p>
-            <a href="/register">Try Chapter Planner &rarr;</a>
+        <div className="border-b border-[#d9e6ff] bg-[#eef4ff] px-4 py-2">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-[#7e9cf0] px-2.5 py-0.5 text-xs font-medium text-white">New</span>
+              <p className="text-[13px] text-foreground">
+                Chapter Planner is live: build clean word lists by book and unit in seconds.
+                <a href="/register" className="ml-2 text-primary no-underline hover:underline">
+                  Try Chapter Planner →
+                </a>
+              </p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-7 w-7 appearance-none items-center justify-center border-0 bg-transparent p-0 text-[#5f7196] shadow-none outline-none transition-colors hover:text-[#2e3f64]"
+              aria-label="Dismiss announcement"
+              onClick={() => setIsAnnouncementVisible(false)}
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            type="button"
-            className="landingV2NotionAnnounceClose"
-            aria-label="Dismiss banner"
-            onClick={() => setIsAnnouncementVisible(false)}
-          >
-            &times;
-          </button>
         </div>
       ) : null}
 
-      <header className="publicHeader landingV2NotionHeader">
-        <a className="publicLogo landingV2NotionLogo" href="/">
-          <svg
-            className="landingV2NotionLogoMark"
-            viewBox="8 14 174 102"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-            focusable="false"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            <defs>
-              <linearGradient id="landingHeaderLogoGradient" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="var(--landing-accent-strong)" />
-                <stop offset="55%" stopColor="var(--landing-accent)" />
-                <stop offset="100%" stopColor="#bfd0ff" />
-              </linearGradient>
-            </defs>
-            <path d="M22 36h20l31 69h-20z" fill="url(#landingHeaderLogoGradient)" />
-            <path
-              d="M74 106h68c4.3 0 8.1-2.8 9.4-6.9l20-63c2-6.4-2.7-13.1-9.4-13.1H91z"
-              fill="url(#landingHeaderLogoGradient)"
-            />
-          </svg>
-          <span>Vocalibry</span>
-        </a>
-        <nav className="publicNav landingV2NotionNav" aria-label="Public pages">
-          <a href="/register">Get Started</a>
-          <a href="/pricing">Pricing</a>
-          <a href="/contact">Contact</a>
-          <a href="/terms">Terms</a>
-          <a href="/privacy">Privacy</a>
-          <a href="/disclaimer">Disclaimer</a>
-        </nav>
-        <div className="landingV2NotionActions">
-          <a href="/login">Log in</a>
-          <a className="publicHeaderCta" href="/register">
-            Start for free
-          </a>
-        </div>
-      </header>
+      <header className="sticky top-0 z-50 bg-background">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex h-16 items-center justify-between">
+            <a href="/" className="flex items-center gap-2 no-underline">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-accent to-primary" aria-hidden="true" />
+              <span className="text-lg font-semibold text-foreground">Vocalibry</span>
+            </a>
 
-      <main className="landingV2NotionMain">
-        <section className="landingV2NotionHero">
-          <div className="landingV2NotionHeroCopy">
-            <h1>Remember every word you look up.</h1>
-            <p>
-              Save words by chapter, practice with flashcards and typing quizzes, and review weak words
-              until recall is automatic.
-            </p>
-            <div className="heroActions landingV2NotionHeroActions">
-              <a className="publicPrimaryBtn" href="/register">
-                Start free
+            <nav className="hidden items-center gap-6 md:flex">
+              <a href="/register" className="text-foreground no-underline transition-colors hover:text-primary">
+                Get Started
+              </a>
+              <a href="/pricing" className="text-foreground no-underline transition-colors hover:text-primary">
+                Pricing
+              </a>
+              <a href="/contact" className="text-foreground no-underline transition-colors hover:text-primary">
+                Contact
+              </a>
+              <a href="/terms" className="text-foreground no-underline transition-colors hover:text-primary">
+                Terms
+              </a>
+              <a href="/privacy" className="text-foreground no-underline transition-colors hover:text-primary">
+                Privacy
+              </a>
+              <a href="/disclaimer" className="text-foreground no-underline transition-colors hover:text-primary">
+                Disclaimer
+              </a>
+            </nav>
+
+            <div className="flex items-center gap-3">
+              <a href="/login" className="font-medium text-foreground no-underline transition-colors hover:text-primary">
+                Log in
+              </a>
+              <a
+                href="/register"
+                className="rounded-lg bg-accent px-5 py-2 font-medium text-white no-underline shadow-[0_2px_8px_rgba(29,79,143,0.2)] transition-colors hover:bg-primary"
+              >
+                Start for free
               </a>
             </div>
           </div>
+        </div>
+      </header>
 
-          <div className="landingV2NotionPreview" aria-label="Product preview">
-            <img
-              src="/landing/book-page.png"
-              alt="Vocalibry chapter planner screenshot"
-              width="1896"
-              height="1078"
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-            />
+      <main>
+        <section className="px-4 py-20">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid items-start gap-10 lg:grid-cols-2">
+              <div className="max-w-xl">
+                <h1 className="mb-6 text-5xl font-bold text-foreground md:text-6xl">
+                  Master Words,
+                  <br />
+                  Build Fluency
+                </h1>
+                <p className="mb-8 text-xl text-muted-foreground">
+                  The vocabulary app that helps you learn smarter with flashcards, smart reviews, and
+                  competitive leaderboards.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <a
+                    href="/register"
+                    className="flex items-center gap-2 rounded-lg bg-primary px-8 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.25)] transition-colors hover:bg-[#5d81d6]"
+                  >
+                    Get Started Free
+                    <ArrowRight className="h-5 w-5" />
+                  </a>
+                  <a
+                    href="/pricing"
+                    className="rounded-lg border border-border bg-secondary px-8 py-3 font-medium text-foreground no-underline transition-colors hover:bg-muted"
+                  >
+                    Learn More
+                  </a>
+                </div>
+              </div>
+              <div className="relative">
+                <img
+                  src={appScreenshot}
+                  alt="Vocalibry App Interface"
+                  className="h-auto max-h-[560px] w-full rounded-2xl border border-border object-cover object-top shadow-[0_8px_32px_rgba(15,23,42,0.12)]"
+                  width="1896"
+                  height="1078"
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                />
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="landingV2NotionPartners" aria-label="Used by learners and educators">
-          {PARTNER_NAMES.map((name, index) => (
-            <span key={name}>
-              {name}
-              {index < PARTNER_NAMES.length - 1 ? <em aria-hidden="true">&bull;</em> : null}
-            </span>
-          ))}
+        <section className="bg-secondary px-4 py-16">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="mb-12 text-center text-3xl font-bold text-foreground">Everything You Need to Learn</h2>
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+              {MAIN_FEATURES.map((feature) => (
+                <div key={feature.title} className="text-center">
+                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-white">
+                    <feature.icon className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="mb-2 font-semibold text-foreground">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
-        <section className="landingV2Mastery" aria-label="How mastering a word works">
-          <div className="landingV2MasteryHead">
-            <p>Mastery flow</p>
-            <h2>From first look to long-term recall in four steps</h2>
-            <span className="landingV2MasteryLead">
-              Follow one repeatable loop so new vocabulary moves into long-term memory.
-            </span>
-          </div>
+        <section className="px-4 py-16" id="pricing">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-12 text-center">
+              <h2 className="mb-4 text-3xl font-bold text-foreground">Choose Your Plan</h2>
+              <p className="text-muted-foreground">Start free and upgrade when you're ready for unlimited learning.</p>
+            </div>
 
-          <ol className="landingV2MasteryFlow">
-            {MASTERY_FLOW.map((item, index) => (
-              <li key={item.phase} className="landingV2MasteryStep">
-                <article className="landingV2MasteryCard">
-                  <div className="landingV2MasteryCardTop">
-                    <span className="landingV2MasteryIndex">{item.phase}</span>
-                    <strong className="landingV2MasteryCount">{item.number}</strong>
+            <div className="grid gap-8 md:grid-cols-2">
+              <div className="rounded-2xl border border-border bg-card p-8 shadow-[0_4px_16px_rgba(15,23,42,0.08)]">
+                <div className="mb-8">
+                  <h2 className="mb-2 text-2xl font-semibold text-foreground">Free</h2>
+                  <div className="mb-3">
+                    <span className="text-5xl font-bold text-foreground">A$0</span>
                   </div>
-                  <div className="landingV2MasteryIconWrap" aria-hidden="true">
-                    <span className="landingV2MasteryIcon">
-                      <MasteryIcon icon={item.icon} />
-                    </span>
-                  </div>
-                  <h3>{item.title}</h3>
-                  <p>{item.description}</p>
-                  <div className="landingV2MasteryFooter">
-                    <span className="landingV2MasteryCue">{item.cue}</span>
-                    <div className="landingV2MasteryMeter" aria-hidden="true">
-                      <span style={{ width: `${item.progress}%` }} />
+                  <p className="text-primary">Good for getting started.</p>
+                </div>
+
+                <a
+                  href="/register"
+                  className="mb-8 inline-flex w-full items-center justify-center rounded-lg bg-accent px-4 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.2)] transition-colors hover:bg-primary"
+                >
+                  Start Free
+                </a>
+
+                <div className="space-y-4">
+                  {FEATURES.map((feature) => (
+                    <div key={feature.name} className="flex items-start gap-3">
+                      {feature.free ? (
+                        <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600" />
+                      ) : (
+                        <X className="mt-0.5 h-5 w-5 flex-shrink-0 text-border" />
+                      )}
+                      <div className="flex-1">
+                        <p className={`text-sm ${feature.free ? "text-foreground" : "text-muted-foreground/50"}`}>
+                          {feature.name}
+                        </p>
+                        {feature.freeNote ? <p className="mt-0.5 text-xs text-muted-foreground">{feature.freeNote}</p> : null}
+                      </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative rounded-2xl border border-border bg-gradient-to-br from-card to-muted p-8 shadow-[0_4px_16px_rgba(15,23,42,0.08)]">
+                <div className="mb-8">
+                  <h2 className="mb-2 text-2xl font-semibold text-foreground">Pro</h2>
+                  <div className="mb-3">
+                    <span className="text-5xl font-bold text-foreground">A$6</span>
+                    <span className="text-xl text-muted-foreground">/month</span>
                   </div>
-                </article>
-                {index < MASTERY_FLOW.length - 1 ? (
-                  <span className="landingV2MasteryConnector" aria-hidden="true">
-                    <svg viewBox="0 0 64 16" focusable="false">
-                      <path
-                        d="M2 8h56"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="m52 3 8 5-8 5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ol>
+                  <p className="text-primary">Pro coming soon.</p>
+                </div>
+
+                <a
+                  href="/pricing"
+                  className="mb-8 inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.25)] transition-colors hover:bg-[#5d81d6]"
+                >
+                  Go Pro
+                </a>
+
+                <div className="space-y-4">
+                  {FEATURES.map((feature) => (
+                    <div key={feature.name} className="flex items-start gap-3">
+                      <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600" />
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{feature.name}</p>
+                        {feature.proNote ? <p className="mt-0.5 text-xs text-muted-foreground">{feature.proNote}</p> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
       </main>
 
-      <footer className="publicFooter">
-        <p>(c) {YEAR} Vocalibry. All rights reserved.</p>
-        <div className="publicFooterLinks">
-          <a href="/pricing">Pricing</a>
-          <a href="/terms">Terms & Conditions</a>
-          <a href="/privacy">Privacy Policy</a>
-          <a href="/disclaimer">Disclaimer</a>
-          <a href="/contact">Contact</a>
+      <footer className="border-t border-border bg-secondary px-4 py-12">
+        <div className="mx-auto max-w-6xl text-center">
+          <p className="text-sm text-muted-foreground">© {YEAR} Vocabulary App. All rights reserved.</p>
         </div>
       </footer>
     </div>

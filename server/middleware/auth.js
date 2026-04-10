@@ -8,6 +8,7 @@ const AUTH_TOKEN_MAX_AGE_DAYS = (() => {
   return floored > 0 ? floored : 30;
 })();
 const AUTH_TOKEN_MAX_AGE_MS = AUTH_TOKEN_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+const VALID_ROLES = new Set(["student", "teacher", "admin"]);
 
 function parseCookies(req) {
   const cookieHeader = String(req.headers.cookie || "");
@@ -48,6 +49,13 @@ export function getAuthTokenFromRequest(req) {
   return getCookieToken(req);
 }
 
+function normalizeUserRole(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return VALID_ROLES.has(normalized) ? normalized : "student";
+}
+
 export async function requireAuth(req, res, next) {
   const token = getAuthTokenFromRequest(req);
   if (!token) {
@@ -58,7 +66,7 @@ export async function requireAuth(req, res, next) {
   let user = null;
   try {
     const result = await query(
-      "SELECT id, username, plan, lifetime_pro, auth_token_created_at FROM users WHERE auth_token = $1",
+      "SELECT id, username, plan, lifetime_pro, role, auth_token_created_at FROM users WHERE auth_token = $1",
       [token]
     );
     user = result.rows[0] || null;
@@ -95,6 +103,7 @@ export async function requireAuth(req, res, next) {
     username: user.username,
     plan: isLifetimePro ? "pro" : normalizedPlan,
     isLifetimePro,
+    role: normalizeUserRole(user.role),
   };
   req.authToken = token;
   next();

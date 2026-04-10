@@ -1,4 +1,4 @@
-const LAST_UPDATED = "March 23, 2026";
+const LAST_UPDATED = "April 8, 2026";
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function TermsPage() {
@@ -92,6 +92,11 @@ export function TermsPage() {
             We use analytics tools to measure and improve the service. We may also introduce advertising in
             the future. Ads and third-party links/content may be provided by partners. We do not guarantee or
             endorse third-party claims, offers, or products.
+          </p>
+          <p>
+            Where school or classroom access is enabled, authorized teacher or school administrators may access
+            student learning analytics for users connected to that cohort, including added-word activity and
+            difficulty/category trends for educational monitoring and instruction.
           </p>
         </section>
 

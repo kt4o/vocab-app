@@ -13,6 +13,16 @@
     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-size-body: 15.5px;
   --line-height-body: 1.55;
+  --background: #ffffff;
+  --foreground: #111111;
+  --card: #ffffff;
+  --primary: #6f92e8;
+  --primary-foreground: #ffffff;
+  --secondary: #f6f9ff;
+  --muted: #f4f8ff;
+  --muted-foreground: #4f5b6f;
+  --accent: #8fb0ff;
+  --border: #dbe4f2;
 }
 
 body {

@@ -14,6 +14,7 @@ import { analyticsRouter } from "./routes/analytics.js";
 import { billingRouter, billingWebhookRouter } from "./routes/billing.js";
 import { consumeWriteRateLimit } from "./lib/rateLimit.js";
 import { adminRouter } from "./routes/admin.js";
+import { teacherRouter } from "./routes/teacher.js";
 import { createDailySnapshotsForAllUsers, getUtcDayKey } from "./lib/snapshots.js";
 import { createCookieOriginGuard } from "./middleware/originGuard.js";
 import { createWriteRateLimitMiddleware } from "./middleware/writeRateLimit.js";
@@ -222,6 +223,7 @@ app.use("/api/social", enforceWriteRateLimit, socialRouter);
 app.use("/api/analytics", enforceWriteRateLimit, analyticsRouter);
 app.use("/api/billing", enforceWriteRateLimit, billingRouter);
 app.use("/api/admin", enforceWriteRateLimit, adminRouter);
+app.use("/api/teacher", enforceWriteRateLimit, teacherRouter);
 
 if (fs.existsSync(distIndexPath)) {
   app.use(express.static(distDir));

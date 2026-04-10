@@ -6,20 +6,11 @@ import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
 import { identifyAnalyticsUser, resetAnalyticsIdentity, trackEvent } from "./lib/analytics.js";
 import { useThemeMode } from "./hooks/useThemeMode.js";
 
-const BASE_XP_GAIN_PER_WORD = 20;
-const XP_GAIN_PER_QUIZ_CORRECT = 10;
-const BASE_XP_PER_LEVEL = 100;
-const XP_LEVEL_GROWTH = 1.2;
 const INACTIVITY_TIMEOUT_MS = 7 * 60 * 1000;
 const PRO_DAILY_GOAL_DEFAULT = 30;
 const PRO_DAILY_GOAL_MIN = 10;
 const PRO_DAILY_GOAL_MAX = 120;
 const PRO_DAILY_GOAL_STEP = 5;
-const FREE_DAILY_DEFINITION_SESSION_LIMIT = 2;
-const FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD = 3;
-const FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT = 3;
-const FREE_DEFINITION_SESSION_MINUTES = 15;
-const FREE_DEFINITION_SESSION_WINDOW_MS = FREE_DEFINITION_SESSION_MINUTES * 60 * 1000;
 const FREE_DAILY_TYPING_LIMIT = 3;
 const FREE_DAILY_MISTAKE_REVIEW_LIMIT = 3;
 const WEAK_WORDS_RECENT_DAY_WINDOW = 21;
@@ -39,17 +30,14 @@ const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const COOKIE_SESSION_AUTH_MARKER = "__cookie_session__";
-const LEGAL_VERSION = "2026-03-14";
+const LEGAL_VERSION = "2026-04-08";
 const RETENTION_PING_DAY_KEY_STORAGE = "vocab_retention_ping_day";
 const ACCOUNT_DATA_STORAGE_KEYS = [
   "vocab_books",
-  "vocab_xp",
-  "vocab_levels_enabled",
   "vocab_weekly_stats",
   "vocab_activity_history",
   "vocab_pro_daily_goal_questions",
   "vocab_free_daily_usage",
-  "vocab_free_definition_session_usage",
   "vocab_last_quiz_mistakes",
   "vocab_last_quiz_mistakes_by_book",
   "vocab_last_quiz_mistake_mode",
@@ -113,44 +101,6 @@ function normalizeSubscriptionStatus(value) {
 function isCanceledSubscriptionStatus(value) {
   const status = normalizeSubscriptionStatus(value);
   return status === "canceled" || status === "cancelled";
-}
-
-function getXpRequiredForLevel(level) {
-  return Math.floor(BASE_XP_PER_LEVEL * Math.pow(XP_LEVEL_GROWTH, Math.max(level - 1, 0)));
-}
-
-function getLevelFromXp(totalXp) {
-  let remainingXp = Math.max(totalXp, 0);
-  let level = 1;
-
-  while (remainingXp >= getXpRequiredForLevel(level)) {
-    remainingXp -= getXpRequiredForLevel(level);
-    level += 1;
-  }
-
-  return level;
-}
-
-function getXpProgress(totalXp) {
-  let remainingXp = Math.max(totalXp, 0);
-  let level = 1;
-
-  while (remainingXp >= getXpRequiredForLevel(level)) {
-    remainingXp -= getXpRequiredForLevel(level);
-    level += 1;
-  }
-
-  return remainingXp;
-}
-
-function getXpToNextLevel(totalXp) {
-  const level = getLevelFromXp(totalXp);
-  return getXpRequiredForLevel(level);
-}
-
-function getWordXpGain(streakCount) {
-  const streakBonus = Math.min(12, Math.max(streakCount - 1, 0) * 2);
-  return BASE_XP_GAIN_PER_WORD + streakBonus;
 }
 
 function getWordDefinitions(wordEntry) {
@@ -273,12 +223,6 @@ function parseJsonSafely(rawValue, fallbackValue) {
   }
 }
 
-function parseStoredScoreNumber(rawValue, fallbackValue = 0) {
-  const parsed = parseJsonSafely(rawValue, fallbackValue);
-  const safe = Number(parsed);
-  return Number.isFinite(safe) ? safe : fallbackValue;
-}
-
 function parseStoredStreak(rawValue) {
   const parsed = parseJsonSafely(rawValue, null);
   const count = Math.max(1, Math.floor(Number(parsed?.count) || 1));
@@ -318,7 +262,6 @@ function parseStoredQuizSetup(rawValue) {
 function createDefaultFreeDailyUsage(date = new Date()) {
   return {
     dayKey: getCurrentDayKey(date),
-    definitionSessionStarts: 0,
     typingAttempts: 0,
     mistakeReviewAttempts: 0,
   };
@@ -337,32 +280,8 @@ function ensureCurrentFreeDailyUsage(rawUsage, date = new Date()) {
 
   return {
     dayKey: safeDayKey,
-    definitionSessionStarts: Math.max(0, Math.floor(Number(rawUsage.definitionSessionStarts) || 0)),
     typingAttempts: Math.max(0, Math.floor(Number(rawUsage.typingAttempts) || 0)),
     mistakeReviewAttempts: Math.max(0, Math.floor(Number(rawUsage.mistakeReviewAttempts) || 0)),
-  };
-}
-
-function createDefaultFreeDefinitionSessionUsage() {
-  return {
-    startedAt: 0,
-  };
-}
-
-function ensureCurrentFreeDefinitionSessionUsage(rawUsage, date = new Date()) {
-  const now = date.getTime();
-  if (!rawUsage || typeof rawUsage !== "object" || Array.isArray(rawUsage)) {
-    return createDefaultFreeDefinitionSessionUsage(date);
-  }
-
-  const startedAt = Math.max(0, Math.floor(Number(rawUsage.startedAt) || 0));
-
-  if (!startedAt || now - startedAt >= FREE_DEFINITION_SESSION_WINDOW_MS) {
-    return createDefaultFreeDefinitionSessionUsage(date);
-  }
-
-  return {
-    startedAt,
   };
 }
 
@@ -1138,7 +1057,7 @@ const QUIZ_SUCCESS_PROMPTS = [
   "Nice work. You nailed that one.",
   "Great job. Keep the momentum going.",
   "Correct. You're building strong recall.",
-  "Excellent answer. You're leveling up fast.",
+  "Excellent answer. You're making great progress.",
 ];
 
 const QUIZ_MISS_PROMPTS = [
@@ -1166,15 +1085,6 @@ export default function App() {
   const [streak, setStreak] = useState(() => {
     const saved = localStorage.getItem("vocab_streak");
     return parseStoredStreak(saved);
-  });
-  const [xp, setXp] = useState(() => {
-    const saved = localStorage.getItem("vocab_xp");
-    return parseStoredScoreNumber(saved, 0);
-  });
-  const [isLevelsEnabled, setIsLevelsEnabled] = useState(() => {
-    const saved = localStorage.getItem("vocab_levels_enabled");
-    if (saved === null) return true;
-    return saved === "true";
   });
   const [isAddBookModalOpen, setIsAddBookModalOpen] = useState(false);
   const [newBookName, setNewBookName] = useState("");
@@ -1246,7 +1156,6 @@ export default function App() {
       return {};
     }
   });
-  const [isLevelInfoOpen, setIsLevelInfoOpen] = useState(false);
   const [editingDefinitionKey, setEditingDefinitionKey] = useState("");
   const [editingDefinitionDraft, setEditingDefinitionDraft] = useState("");
   const [difficultyInfoWord, setDifficultyInfoWord] = useState("");
@@ -1266,11 +1175,6 @@ export default function App() {
   });
   const [freeDailyUsage, setFreeDailyUsage] = useState(() =>
     ensureCurrentFreeDailyUsage(parseJsonSafely(localStorage.getItem("vocab_free_daily_usage"), null))
-  );
-  const [freeDefinitionSessionUsage, setFreeDefinitionSessionUsage] = useState(() =>
-    ensureCurrentFreeDefinitionSessionUsage(
-      parseJsonSafely(localStorage.getItem("vocab_free_definition_session_usage"), null)
-    )
   );
   const [proDailyGoalQuestions, setProDailyGoalQuestions] = useState(() =>
     parseDailyGoalTarget(localStorage.getItem("vocab_pro_daily_goal_questions"))
@@ -1333,16 +1237,13 @@ export default function App() {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isCloudStateHydrated, setIsCloudStateHydrated] = useState(false);
   const [isLocalPersistencePaused, setIsLocalPersistencePaused] = useState(false);
-  const [countdownNow, setCountdownNow] = useState(() => Date.now());
   const modalRef = useRef(null);
-  const levelInfoRef = useRef(null);
   const sidebarRef = useRef(null);
   const backupFileInputRef = useRef(null);
   const pronunciationFetchInFlightRef = useRef(new Set());
   const sessionStartedAtRef = useRef(Date.now());
   const lastUserActivityAtRef = useRef(Date.now());
   const pendingMistakeReviewSourceRef = useRef(null);
-  const previousSocialFriendCountRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -1361,16 +1262,6 @@ export default function App() {
   )
     ? selectedChapterIdForNewWords
     : fallbackChapterId;
-  const level = getLevelFromXp(xp);
-  const xpProgress = getXpProgress(xp);
-  const xpToNextLevel = getXpToNextLevel(xp);
-  const xpRemainingToNextLevel = Math.max(xpToNextLevel - xpProgress, 0);
-  const xpMultiplier = 1;
-  const currentWordXpGain = Math.max(1, Math.round(getWordXpGain(streak.count) * xpMultiplier));
-  const upcomingLevels = [level + 1, level + 2, level + 3].map((targetLevel) => ({
-    level: targetLevel,
-    requiredXp: getXpRequiredForLevel(targetLevel),
-  }));
   const sortedBooksByRecent = [...books].sort((a, b) => (b.lastOpened ?? 0) - (a.lastOpened ?? 0));
   const pinnedBooks = sortedBooksByRecent.filter((book) => Boolean(book.pinned));
   const unpinnedBooks = sortedBooksByRecent.filter((book) => !book.pinned);
@@ -1383,34 +1274,6 @@ export default function App() {
   const activityMonthlyStats = getMonthTotals(activityHistory);
   const activityTotalStats = sumActivityHistory(activityHistory);
   const currentFreeDailyUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-  const currentFreeDefinitionSessionUsage = ensureCurrentFreeDefinitionSessionUsage(freeDefinitionSessionUsage);
-  const socialFriendCount = authToken && Array.isArray(socialOverview?.friends)
-    ? socialOverview.friends.length
-    : 0;
-  const freeDailyDefinitionSessionLimit =
-    socialFriendCount >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
-      ? FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT
-      : FREE_DAILY_DEFINITION_SESSION_LIMIT;
-  const hasFriendDefinitionSessionBonus =
-    freeDailyDefinitionSessionLimit > FREE_DAILY_DEFINITION_SESSION_LIMIT;
-  const freeDefinitionSessionsUsedToday = Math.min(
-    currentFreeDailyUsage.definitionSessionStarts,
-    freeDailyDefinitionSessionLimit
-  );
-  const freeDefinitionLimitReachedMessage = hasFriendDefinitionSessionBonus
-    ? `Free plan limit reached. You have used all ${freeDailyDefinitionSessionLimit} daily ${FREE_DEFINITION_SESSION_MINUTES}-minute add-definitions sessions for today.`
-    : `Free plan limit reached. Add ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends in Socials to unlock ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily ${FREE_DEFINITION_SESSION_MINUTES}-minute sessions.`;
-  const isFreeDefinitionSessionActive =
-    countdownNow - currentFreeDefinitionSessionUsage.startedAt < FREE_DEFINITION_SESSION_WINDOW_MS;
-  const freeDefinitionSessionRemainingMs = isFreeDefinitionSessionActive
-    ? Math.max(
-        0,
-        currentFreeDefinitionSessionUsage.startedAt + FREE_DEFINITION_SESSION_WINDOW_MS - countdownNow
-      )
-    : 0;
-  const freeDefinitionSessionDisplayMs = isFreeDefinitionSessionActive
-    ? freeDefinitionSessionRemainingMs
-    : FREE_DEFINITION_SESSION_WINDOW_MS;
   const isAccountDataHydrating = Boolean(authToken) && !isCloudStateHydrated;
   const isProPlan = billingPlan === "pro";
   const weakWordCandidates = buildWeakWordCandidates(books);
@@ -1890,15 +1753,12 @@ export default function App() {
     if (isLocalPersistencePaused) return;
     const persistedState = {
       vocab_books: JSON.stringify(books),
-      vocab_xp: JSON.stringify(xp),
-      vocab_levels_enabled: String(isLevelsEnabled),
       vocab_theme: theme,
       vocab_sidebar_hidden: JSON.stringify(isSidebarHidden),
       vocab_weekly_stats: JSON.stringify(weeklyStats),
       vocab_activity_history: JSON.stringify(activityHistory),
       vocab_pro_daily_goal_questions: JSON.stringify(proDailyGoalQuestions),
       vocab_free_daily_usage: JSON.stringify(freeDailyUsage),
-      vocab_free_definition_session_usage: JSON.stringify(freeDefinitionSessionUsage),
       vocab_last_quiz_mistakes: JSON.stringify(lastQuizMistakeKeys),
       vocab_last_quiz_mistakes_by_book: JSON.stringify(lastQuizMistakeKeysByBook),
       vocab_last_quiz_mistake_mode: lastQuizMistakeMode,
@@ -1918,15 +1778,12 @@ export default function App() {
     }
   }, [
     books,
-    xp,
-    isLevelsEnabled,
     theme,
     isSidebarHidden,
     weeklyStats,
     activityHistory,
     proDailyGoalQuestions,
     freeDailyUsage,
-    freeDefinitionSessionUsage,
     lastQuizMistakeKeys,
     lastQuizMistakeKeysByBook,
     lastQuizMistakeMode,
@@ -2751,45 +2608,6 @@ export default function App() {
 
   useEffect(() => {
     if (!authToken) {
-      previousSocialFriendCountRef.current = null;
-      return;
-    }
-    if (isProPlan) {
-      previousSocialFriendCountRef.current = socialFriendCount;
-      return;
-    }
-    const previousCount = previousSocialFriendCountRef.current;
-    if (previousCount == null) {
-      previousSocialFriendCountRef.current = socialFriendCount;
-      return;
-    }
-
-    const crossedUnlockThreshold =
-      previousCount < FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD &&
-      socialFriendCount >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD;
-    previousSocialFriendCountRef.current = socialFriendCount;
-
-    if (!crossedUnlockThreshold) return;
-
-    const noticeUserKey = String(socialOverview?.currentUser?.userId || authUsername || "").trim();
-    if (!noticeUserKey) {
-      openNoticeModal(
-        `Nice! You unlocked ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily ${FREE_DEFINITION_SESSION_MINUTES}-minute definition sessions.`,
-        "Friend Bonus Unlocked"
-      );
-      return;
-    }
-    const storageKey = `vocab_friend_bonus_notice_seen_${noticeUserKey}`;
-    if (localStorage.getItem(storageKey) === "1") return;
-    localStorage.setItem(storageKey, "1");
-    openNoticeModal(
-      `Nice! You unlocked ${FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily ${FREE_DEFINITION_SESSION_MINUTES}-minute definition sessions.`,
-      "Friend Bonus Unlocked"
-    );
-  }, [authToken, authUsername, isProPlan, socialFriendCount, socialOverview?.currentUser?.userId]);
-
-  useEffect(() => {
-    if (!authToken) {
       setBillingPlan("free");
       setBillingSubscriptionStatus("");
       setBillingCurrentPeriodEnd("");
@@ -2958,8 +2776,6 @@ export default function App() {
               theme,
               books,
               streak,
-              xp,
-              isLevelsEnabled,
               isSidebarHidden,
               weeklyStats,
               activityHistory,
@@ -2984,8 +2800,6 @@ export default function App() {
     theme,
     books,
     streak,
-    xp,
-    isLevelsEnabled,
     isSidebarHidden,
     weeklyStats,
     activityHistory,
@@ -3008,17 +2822,9 @@ export default function App() {
   useThemeMode(theme);
 
   useEffect(() => {
-    if (isLevelsEnabled) return;
-    setIsLevelInfoOpen(false);
-  }, [isLevelsEnabled]);
-
-  useEffect(() => {
-    if (!isFreeDefinitionSessionActive) return undefined;
-    const intervalId = window.setInterval(() => {
-      setCountdownNow(Date.now());
-    }, 1000);
-    return () => window.clearInterval(intervalId);
-  }, [isFreeDefinitionSessionActive]);
+    localStorage.removeItem("vocab_xp");
+    localStorage.removeItem("vocab_levels_enabled");
+  }, []);
 
   useEffect(() => {
     const flushActiveTime = ({ ignoreVisibility = false } = {}) => {
@@ -3235,19 +3041,6 @@ export default function App() {
       cancelled = true;
     };
   }, [screen, currentBook, setBooks]);
-
-  useEffect(() => {
-    const handlePointerDown = (event) => {
-      const target = event.target;
-
-      if (isLevelInfoOpen && levelInfoRef.current && !levelInfoRef.current.contains(target)) {
-        setIsLevelInfoOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [isLevelInfoOpen]);
 
   // Streak logic
   function updateStreak() {
@@ -3498,8 +3291,6 @@ export default function App() {
     const importedBooks = normalizeBooksData(rawData.books);
     const importedTheme = rawData.theme === "dark" || rawData.theme === "light" ? rawData.theme : "light";
     const importedStreak = parseStoredStreak(JSON.stringify(rawData?.streak || null));
-    const importedXp = Math.max(0, Math.floor(Number(rawData?.xp) || 0));
-    const importedIsLevelsEnabled = parseStoredBoolean(rawData?.isLevelsEnabled, true);
     const importedSidebarHidden = parseStoredBoolean(rawData?.isSidebarHidden, false);
     const importedWeeklyStats = parseStoredWeeklyStats(JSON.stringify(rawData?.weeklyStats || null));
     const importedActivityHistory = parseStoredActivityHistory(
@@ -3543,8 +3334,6 @@ export default function App() {
     setTheme(importedTheme);
     setBooks(importedBooks);
     setStreak(importedStreak);
-    setXp(importedXp);
-    setIsLevelsEnabled(importedIsLevelsEnabled);
     setIsSidebarHidden(importedSidebarHidden);
     setWeeklyStats(importedWeeklyStats);
     setActivityHistory(importedActivityHistory);
@@ -3565,7 +3354,6 @@ export default function App() {
       isSidebarHidden,
       proDailyGoalQuestions,
     });
-    setFreeDefinitionSessionUsage(createDefaultFreeDefinitionSessionUsage());
   }
 
   function buildBackupSnapshot() {
@@ -3576,8 +3364,6 @@ export default function App() {
         theme,
         books,
         streak,
-        xp,
-        isLevelsEnabled,
         isSidebarHidden,
         weeklyStats,
         activityHistory,
@@ -4568,15 +4354,6 @@ export default function App() {
   // Add / delete words
   async function addWord() {
     if (!inputWord.trim() || !currentBook) return;
-    if (!isProPlan && !isFreeDefinitionSessionActive) {
-      openNoticeModal(
-        currentFreeDailyUsage.definitionSessionStarts >= freeDailyDefinitionSessionLimit
-          ? freeDefinitionLimitReachedMessage
-          : `Start your free ${FREE_DEFINITION_SESSION_MINUTES}-minute add-definitions session first.`,
-        "Free Limit"
-      );
-      return;
-    }
 
     const cleanWord = inputWord.trim();
     const normalizedInput = cleanWord.toLowerCase();
@@ -4654,7 +4431,6 @@ export default function App() {
           timeSpentSeconds: 0,
         })
       );
-      awardXp(getWordXpGain(streak.count));
       updateStreak();
       setInputWord("");
     } catch {
@@ -4662,29 +4438,6 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }
-
-  function startFreeDefinitionSession() {
-    if (isProPlan) return;
-    if (isFreeDefinitionSessionActive) return;
-
-    const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-    if (safeUsage.definitionSessionStarts >= freeDailyDefinitionSessionLimit) {
-      openNoticeModal(freeDefinitionLimitReachedMessage, "Free Limit");
-      return;
-    }
-
-    const now = new Date();
-    setFreeDefinitionSessionUsage({
-      startedAt: now.getTime(),
-    });
-    setFreeDailyUsage((prev) => {
-      const current = ensureCurrentFreeDailyUsage(prev, now);
-      return {
-        ...current,
-        definitionSessionStarts: current.definitionSessionStarts + 1,
-      };
-    });
   }
 
   function deleteWord(wordToDelete, wordIndexToDelete) {
@@ -4905,13 +4658,6 @@ export default function App() {
     );
   }
 
-  function awardXp(amount) {
-    if (!isLevelsEnabled) return;
-    if (!amount || amount <= 0) return;
-    const boostedAmount = Math.max(1, Math.round(amount * xpMultiplier));
-    setXp((prevXp) => prevXp + boostedAmount);
-  }
-
   function recordQuizQuestionCompleted(payload = null) {
     const isPayloadObject = payload && typeof payload === "object" && !Array.isArray(payload);
     const sourceBookId = isPayloadObject ? payload.sourceBookId ?? null : payload;
@@ -5053,87 +4799,6 @@ export default function App() {
           <div className="dashboardStatus isEconomyOff">
             <div className="streakWrap">
               <div className="streakTopRow">
-                {isLevelsEnabled && (
-                <div className="xpCard" ref={levelInfoRef}>
-                  <button
-                    type="button"
-                    className="xpInfoTrigger"
-                    onClick={() => setIsLevelInfoOpen((prev) => !prev)}
-                    aria-expanded={isLevelInfoOpen}
-                    aria-label="Toggle level information"
-                  >
-                    <div className="xpTopRow">
-                      <div className="levelStar" aria-label={`Level ${level}`}>
-                        <svg
-                          className="levelStarIcon"
-                          viewBox="0 0 100 100"
-                          aria-hidden="true"
-                          focusable="false" preserveAspectRatio="xMidYMid meet"
-                        >
-                          <path
-                            d="M50 12c4 0 7 2 8 5l5 14c1 3 4 5 8 5l14 1c7 0 10 8 5 12l-11 9c-3 2-4 6-3 9l4 14c2 6-5 11-11 7l-12-8c-3-2-7-2-10 0l-12 8c-6 4-13-1-11-7l4-14c1-3 0-7-3-9l-11-9c-5-4-2-12 5-12l14-1c4 0 7-2 8-5l5-14c1-3 4-5 8-5z"
-                            className="levelStarShape"
-                          />
-                          <text
-                            x="52"
-                            y="50"
-                            textAnchor="middle"
-                            dy="0.39em"
-                            className="levelStarValue"
-                          >
-                            {level}
-                          </text>
-                        </svg>
-                      </div>
-                      <div className="xpBarGroup">
-                        <div
-                          className="xpBarTrack"
-                          role="progressbar"
-                          aria-valuemin={0}
-                          aria-valuemax={xpToNextLevel}
-                          aria-valuenow={xpProgress}
-                        >
-                          <div
-                            className="xpBarFill"
-                            style={{ width: `${(xpProgress / xpToNextLevel) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                  {isLevelInfoOpen && (
-                    <div className="levelInfoCard">
-                      <div className="levelInfoGrid">
-                        <div className="levelInfoStat">
-                          <span>Total XP</span>
-                          <strong>{xp}</strong>
-                        </div>
-                        <div className="levelInfoStat">
-                          <span>Current Level</span>
-                          <strong>{level}</strong>
-                        </div>
-                        <div className="levelInfoStat">
-                          <span>To Next Level</span>
-                          <strong>{xpRemainingToNextLevel} XP</strong>
-                        </div>
-                        <div className="levelInfoStat">
-                          <span>XP Per New Word</span>
-                          <strong>{currentWordXpGain} XP</strong>
-                        </div>
-                      </div>
-                      <div className="levelInfoUpcoming">
-                        <p>Upcoming Levels</p>
-                        {upcomingLevels.map((item) => (
-                          <div key={item.level} className="levelInfoRow">
-                            <span>Level {item.level}</span>
-                            <span>{item.requiredXp} XP required</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                )}
                 <div className="streakBadge" aria-label="Current streak">
                   {"\uD83D\uDD25"} {streak.count} day{streak.count !== 1 && "s"}
                 </div>
@@ -5366,21 +5031,6 @@ export default function App() {
                   <span className="themeSwitchIcon" aria-hidden="true">
                     {theme === "dark" ? "\uD83C\uDF19" : "\u2600"}
                   </span>
-                </button>
-              </div>
-            </div>
-            <div className="analyticsCard settingsCard">
-              <h3>Features</h3>
-              <div className="settingsRow">
-                <span>Levels + XP</span>
-                <button
-                  type="button"
-                  className={`themeSwitch ${isLevelsEnabled ? "isDark" : ""}`}
-                  onClick={() => setIsLevelsEnabled((prev) => !prev)}
-                  aria-label={`${isLevelsEnabled ? "Disable" : "Enable"} level and xp features`}
-                  style={isLevelsEnabled ? { backgroundColor: "#1d4f8f", borderColor: "#1d4f8f" } : undefined}
-                >
-                  <span className="themeSwitchIcon" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -5695,22 +5345,6 @@ export default function App() {
           <p>Please log in from My Account to use leaderboard features.</p>
         ) : (
           <div className="analyticsSection socialSectionStack">
-            {!isProPlan ? (
-              <div className="analyticsCard">
-                <h3>Friend Bonus</h3>
-                <p className="settingsHint">
-                  Get {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily {FREE_DEFINITION_SESSION_MINUTES}-minute definition sessions when you have{" "}
-                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends.
-                </p>
-                <p className="settingsHint">
-                  Progress: {Math.min(friendProfiles.length, FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD)}/
-                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends
-                  {friendProfiles.length >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
-                    ? " (Unlocked)"
-                    : ""}
-                </p>
-              </div>
-            ) : null}
             <div className="analyticsCard">
               <div className="settingsRow">
                 <span>Manage friends and requests</span>
@@ -5859,22 +5493,6 @@ export default function App() {
           <p>Please log in from My Account to manage friends.</p>
         ) : (
           <div className="analyticsSection socialSectionStack">
-            {!isProPlan ? (
-              <div className="analyticsCard">
-                <h3>Friend Bonus</h3>
-                <p className="settingsHint">
-                  Reach {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD}+ friends to unlock{" "}
-                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_LIMIT} daily {FREE_DEFINITION_SESSION_MINUTES}-minute definition sessions.
-                </p>
-                <p className="settingsHint">
-                  Progress: {Math.min(friendProfiles.length, FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD)}/
-                  {FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD} friends
-                  {friendProfiles.length >= FREE_DAILY_DEFINITION_SESSION_FRIEND_BONUS_THRESHOLD
-                    ? " (Unlocked)"
-                    : ""}
-                </p>
-              </div>
-            ) : null}
             <div className="analyticsGrid">
               <div className="analyticsCard settingsCard">
                 <h3>Add Friend</h3>
@@ -6451,28 +6069,6 @@ export default function App() {
             placeholder="Add word..."
           />
           <button type="button" className="addWordBtn" onClick={addWord}>+</button>
-          {!isProPlan ? (
-            <button
-              type="button"
-              className="primaryBtn definitionSessionInlineBtn"
-              onClick={startFreeDefinitionSession}
-              disabled={
-                isFreeDefinitionSessionActive ||
-                currentFreeDailyUsage.definitionSessionStarts >= freeDailyDefinitionSessionLimit
-              }
-            >
-              {isFreeDefinitionSessionActive
-                ? formatCountdown(freeDefinitionSessionDisplayMs)
-                : `Start 10-Min Session (${freeDefinitionSessionsUsedToday}/${freeDailyDefinitionSessionLimit})`}
-            </button>
-          ) : null}
-          {!isProPlan ? (
-            <span className="definitionSessionInlineHint">
-              {hasFriendDefinitionSessionBonus
-                ? `Friend Bonus active: ${freeDefinitionSessionsUsedToday}/${freeDailyDefinitionSessionLimit} sessions used today.`
-                : "Unlock a second session by adding 3 friends."}
-            </span>
-          ) : null}
         </div>
         <p className="definitionAttributionNote">
           Definition data is fetched via Free Dictionary API (dictionaryapi.dev). Upstream source URLs and
@@ -7149,7 +6745,6 @@ export default function App() {
         }}
         mode={activeQuizMode}
         isMistakeReview={activeQuizIsMistakeReview}
-        onAwardXp={awardXp}
         onQuestionCompleted={recordQuizQuestionCompleted}
         onRecordMistake={recordMistakeForWord}
         onResolveMistake={resolveMistakeForWord}
@@ -7157,7 +6752,6 @@ export default function App() {
         onStartMistakeReview={() => requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global")}
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
-        XP_GAIN_PER_QUIZ_CORRECT={XP_GAIN_PER_QUIZ_CORRECT}
         DEFAULT_CHAPTER_ID={DEFAULT_CHAPTER_ID}
         QUIZ_SUCCESS_PROMPTS={QUIZ_SUCCESS_PROMPTS}
         QUIZ_MISS_PROMPTS={QUIZ_MISS_PROMPTS}
@@ -7174,7 +6768,6 @@ export default function App() {
         goBack={() => setScreen(quizBackScreen === "quizSelect" ? "dashboard" : quizBackScreen)}
         mode={activeQuizMode}
         isMistakeReview={activeQuizIsMistakeReview}
-        onAwardXp={awardXp}
         onQuestionCompleted={recordQuizQuestionCompleted}
         onRecordMistake={recordMistakeForWord}
         onResolveMistake={resolveMistakeForWord}
@@ -7182,7 +6775,6 @@ export default function App() {
         onStartMistakeReview={() => requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global")}
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
-        XP_GAIN_PER_QUIZ_CORRECT={XP_GAIN_PER_QUIZ_CORRECT}
         DEFAULT_CHAPTER_ID={DEFAULT_CHAPTER_ID}
         QUIZ_SUCCESS_PROMPTS={QUIZ_SUCCESS_PROMPTS}
         QUIZ_MISS_PROMPTS={QUIZ_MISS_PROMPTS}

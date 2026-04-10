@@ -1,4 +1,4 @@
-const LAST_UPDATED = "March 23, 2026";
+const LAST_UPDATED = "April 8, 2026";
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function DisclaimerPage() {
@@ -64,7 +64,16 @@ export function DisclaimerPage() {
         </section>
 
         <section>
-          <h2>6. Third-Party Services and Future Ads</h2>
+          <h2>6. Classroom and Teacher Analytics</h2>
+          <p>
+            If your account is linked to a school or classroom cohort, teacher-facing analytics are provided to
+            support learning progress monitoring. These analytics are educational indicators and should not be
+            treated as clinical, diagnostic, or high-stakes evaluation tools.
+          </p>
+        </section>
+
+        <section>
+          <h2>7. Third-Party Services and Future Ads</h2>
           <p>
             The service may include third-party tools and, in the future, advertising providers. We do not
             control third-party content and do not endorse advertised products or claims.
@@ -72,7 +81,7 @@ export function DisclaimerPage() {
         </section>
 
         <section>
-          <h2>7. Dictionary Content and Licensing</h2>
+          <h2>8. Dictionary Content and Licensing</h2>
           <p>
             Definitions may be delivered by third-party dictionary services, including Free Dictionary API
             (dictionaryapi.dev), and may include upstream collaborative dictionary content.
@@ -85,7 +94,7 @@ export function DisclaimerPage() {
         </section>
 
         <section>
-          <h2>8. Limitation of Responsibility</h2>
+          <h2>9. Limitation of Responsibility</h2>
           <p>
             To the maximum extent allowed by law, your use of the app is at your own risk, and we are not
             responsible for indirect or consequential loss arising from use of the service.
@@ -93,7 +102,7 @@ export function DisclaimerPage() {
         </section>
 
         <section>
-          <h2>9. Contact</h2>
+          <h2>10. Contact</h2>
           <p>
             Questions about this Disclaimer: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
           </p>

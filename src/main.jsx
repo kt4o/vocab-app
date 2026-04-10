@@ -25,6 +25,8 @@ const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .replace(/\/$/, "");
 const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
+const AUTH_CHECK_MAX_ATTEMPTS = 3;
+const AUTH_CHECK_RETRY_DELAY_MS = 450;
 
 function isBearerAuthToken(value) {
   return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
@@ -51,6 +53,23 @@ function navigateTo(path) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
+function isAuthFailureErrorCode(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return (
+    normalized === "missing-auth-token" ||
+    normalized === "invalid-auth-token" ||
+    normalized === "expired-auth-token"
+  );
+}
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 function AppRoute() {
   const [status, setStatus] = useState("checking");
 
@@ -58,23 +77,41 @@ function AppRoute() {
     let cancelled = false;
 
     async function verifySession() {
-      try {
-        const storedAuthToken = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
-        const headers = {};
-        if (isBearerAuthToken(storedAuthToken)) {
-          headers.Authorization = `Bearer ${storedAuthToken}`;
+      const storedAuthToken = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
+      const headers = {};
+      if (isBearerAuthToken(storedAuthToken)) {
+        headers.Authorization = `Bearer ${storedAuthToken}`;
+      }
+
+      for (let attempt = 1; attempt <= AUTH_CHECK_MAX_ATTEMPTS; attempt += 1) {
+        try {
+          const response = await fetch(`${AUTH_API_PATH}/account`, {
+            credentials: "include",
+            headers,
+          });
+          if (cancelled) return;
+
+          if (response.ok) {
+            setStatus("authorized");
+            return;
+          }
+
+          const payload = await response.json().catch(() => ({}));
+          const errorCode = String(payload?.error || "").trim().toLowerCase();
+
+          if (isAuthFailureErrorCode(errorCode)) {
+            setStatus("guest");
+            navigateTo("/login");
+            return;
+          }
+        } catch {
+          if (cancelled) return;
+          // Keep retrying below for transient network/API failures.
         }
-        const response = await fetch(`${AUTH_API_PATH}/account`, {
-          credentials: "include",
-          headers,
-        });
-        if (cancelled) return;
-        if (response.ok) {
-          setStatus("authorized");
-          return;
+
+        if (attempt < AUTH_CHECK_MAX_ATTEMPTS) {
+          await wait(AUTH_CHECK_RETRY_DELAY_MS * attempt);
         }
-      } catch {
-        // Fall back to public auth flow if session verification is unavailable.
       }
 
       if (!cancelled) {

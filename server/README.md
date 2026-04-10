@@ -35,7 +35,7 @@
    - `STRIPE_TRIAL_DAYS=30` (optional, applies trial days for first-time subscriptions only; set `0` to disable)
    - `APP_BASE_URL=https://your-frontend-domain.com` (used for Stripe success/cancel redirects)
    - `ALLOW_UNSAFE_APP_BASE_URL_IN_PRODUCTION=false` (optional safety override; defaults to `false`)
-   - `LEGAL_VERSION=2026-03-14` (optional; tracked on account creation when legal consent is accepted)
+   - `LEGAL_VERSION=2026-04-08` (optional; tracked on account creation when legal consent is accepted)
 
 ### Endpoints
 
@@ -43,7 +43,7 @@
 - `GET /api/ready`
 - `POST /api/auth/register/request-email-code` body: `{"email":"demo@example.com"}`
 - `POST /api/auth/register/verify-email-code` body: `{"email":"demo@example.com","code":"123456"}`
-- `POST /api/auth/register` body: `{"email":"demo@example.com","verifiedEmailToken":"<token>","username":"demo_user","password":"yourpass123","acceptedLegal":true,"legalVersion":"2026-03-14","marketingOptIn":false}`
+- `POST /api/auth/register` body: `{"email":"demo@example.com","verifiedEmailToken":"<token>","username":"demo_user","password":"yourpass123","acceptedLegal":true,"legalVersion":"2026-04-08","marketingOptIn":false}`
 - `POST /api/auth/password-reset/request-code` body: `{"email":"demo@example.com"}`
 - `POST /api/auth/password-reset/verify-code` body: `{"email":"demo@example.com","code":"123456"}`
 - `POST /api/auth/password-reset/complete` body: `{"email":"demo@example.com","resetToken":"<token>","password":"newpass123"}`
@@ -65,6 +65,14 @@
 - `POST /api/admin/state/users/:userId/snapshots` with header `x-admin-key: <ADMIN_API_KEY>` body: `{"note":"before manual correction"}`
 - `POST /api/admin/state/users/:userId/snapshots/:snapshotId/restore` with header `x-admin-key: <ADMIN_API_KEY>`
 - `POST /api/admin/state/snapshots/daily` with header `x-admin-key: <ADMIN_API_KEY>` (optional body: `{"dayKey":"2026-03-25"}`)
+- `GET /api/admin/school-codes/:codeId/teachers` with header `x-admin-key: <ADMIN_API_KEY>`
+- `POST /api/admin/school-codes/:codeId/teachers` with header `x-admin-key: <ADMIN_API_KEY>` body: `{"userId":123}`
+- `DELETE /api/admin/school-codes/:codeId/teachers/:userId` with header `x-admin-key: <ADMIN_API_KEY>`
+- `GET /api/admin/school-codes/:codeId/word-adds/summary?days=30` with header `x-admin-key: <ADMIN_API_KEY>`
+- `GET /api/admin/school-codes/:codeId/word-adds/trends?days=30` with header `x-admin-key: <ADMIN_API_KEY>`
+- `GET /api/teacher/cohorts` with `Authorization: Bearer <token>`
+- `GET /api/teacher/cohorts/:codeId/word-adds/summary?days=30` with `Authorization: Bearer <token>`
+- `GET /api/teacher/cohorts/:codeId/word-adds/trends?days=30` with `Authorization: Bearer <token>`
 - `GET /api/social/overview` with `Authorization: Bearer <token>`
 - `POST /api/social/requests` with `Authorization: Bearer <token>` body: `{"username":"friend_user"}`
 - `POST /api/social/requests/:requestId/respond` with `Authorization: Bearer <token>` body: `{"action":"accept"}` or `{"action":"decline"}`

@@ -1,4 +1,4 @@
-const LAST_UPDATED = "March 23, 2026";
+const LAST_UPDATED = "April 8, 2026";
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function PrivacyPage() {
@@ -55,13 +55,22 @@ export function PrivacyPage() {
             unnecessary personal data collection where possible.
           </p>
           <p>
+            Where enabled, analytics may also include session replay (sometimes called screen recordings) to help
+            diagnose usability issues and bugs. Session replay may capture page interactions such as clicks,
+            scrolling, navigation flow, and visible UI state during use.
+          </p>
+          <p>
+            We aim to avoid capturing sensitive inputs in session replay by using masking/exclusion settings where
+            possible. Payment and authentication data should not be intentionally recorded in full.
+          </p>
+          <p>
             You can limit analytics collection by blocking analytics scripts/cookies in your browser settings or
             extensions. If your browser sends a Do Not Track signal, we attempt to honor it.
           </p>
         </section>
 
         <section>
-          <h2>4. Social and Community Data</h2>
+          <h2>4. Social, School, and Community Data</h2>
           <p>
             If you use social features, we process friend requests, friend relationships, and leaderboard
             metrics derived from learning activity.
@@ -69,6 +78,11 @@ export function PrivacyPage() {
           <p>
             Your username and relevant leaderboard metrics may be visible to approved friends. Leaderboard
             rankings may be separated by plan tier (for example Free and Pro leagues).
+          </p>
+          <p>
+            If your account is connected to a school code or institutional cohort, authorized school or
+            teacher administrators may view vocabulary-learning analytics tied to that cohort, including words
+            added, difficulty/category patterns (for example CEFR level), and aggregate activity summaries.
           </p>
         </section>
 
@@ -120,6 +134,11 @@ export function PrivacyPage() {
             Where billing is active, account deletion may require cancellation of an active paid subscription
             before deletion can proceed.
           </p>
+          <p>
+            Analytics records, including session replay data where enabled, are retained only as needed for
+            diagnostics, security, and product improvement, then deleted or anonymized according to provider and
+            internal retention controls.
+          </p>
         </section>
 
         <section>
@@ -130,6 +149,10 @@ export function PrivacyPage() {
           </p>
           <p>
             You may also request support in limiting analytics tracking associated with your account activity.
+          </p>
+          <p>
+            Where required by applicable law, consent controls may be provided for analytics features, including
+            session replay technologies.
           </p>
         </section>
 

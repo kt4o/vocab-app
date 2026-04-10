@@ -15,7 +15,6 @@ export function Quiz({
   goBack,
   mode = "normal",
   isMistakeReview = false,
-  onAwardXp,
   onQuestionCompleted,
   onRecordMistake,
   onResolveMistake,
@@ -23,7 +22,6 @@ export function Quiz({
   onStartMistakeReview,
   buildQuizQuestions,
   isEquivalentTypingAnswer,
-  XP_GAIN_PER_QUIZ_CORRECT,
   DEFAULT_CHAPTER_ID,
   QUIZ_SUCCESS_PROMPTS,
   QUIZ_MISS_PROMPTS,
@@ -42,7 +40,6 @@ export function Quiz({
   const [score, setScore] = useState(0);
   const [answerStreak, setAnswerStreak] = useState(0);
   const [bestAnswerStreak, setBestAnswerStreak] = useState(0);
-  const [xpPulseTick, setXpPulseTick] = useState(0);
   const [motivationPrompt, setMotivationPrompt] = useState("");
   const [isMotivationPositive, setIsMotivationPositive] = useState(false);
   const [quizCompletionReported, setQuizCompletionReported] = useState(false);
@@ -59,7 +56,6 @@ export function Quiz({
     setScore(0);
     setAnswerStreak(0);
     setBestAnswerStreak(0);
-    setXpPulseTick(0);
     setMotivationPrompt("");
     setIsMotivationPositive(false);
     setQuizCompletionReported(false);
@@ -71,7 +67,6 @@ export function Quiz({
   const totalQuestions = questions.length;
   const correctAnswers = score;
   const wrongAnswers = Math.max(totalQuestions - correctAnswers, 0);
-  const xpEarned = correctAnswers * Math.max(1, Math.floor(Number(XP_GAIN_PER_QUIZ_CORRECT) || 0));
   const momentumLabel = getMomentumLabel(answerStreak);
   const accuracyPercent = totalQuestions
     ? Math.round((correctAnswers / totalQuestions) * 100)
@@ -114,7 +109,6 @@ export function Quiz({
     setScore(0);
     setAnswerStreak(0);
     setBestAnswerStreak(0);
-    setXpPulseTick(0);
     setMotivationPrompt("");
     setIsMotivationPositive(false);
     setQuizCompletionReported(false);
@@ -140,8 +134,6 @@ export function Quiz({
         setBestAnswerStreak((prevBest) => Math.max(prevBest, next));
         return next;
       });
-      setXpPulseTick((prev) => prev + 1);
-      onAwardXp?.(XP_GAIN_PER_QUIZ_CORRECT);
       onResolveMistake?.(current.word, current.sourceBookId, current.chapterId, {
         awardMastery: !isMistakeReview,
       });
@@ -187,8 +179,6 @@ export function Quiz({
         setBestAnswerStreak((prevBest) => Math.max(prevBest, next));
         return next;
       });
-      setXpPulseTick((prev) => prev + 1);
-      onAwardXp?.(XP_GAIN_PER_QUIZ_CORRECT);
       onResolveMistake?.(current.word, current.sourceBookId, current.chapterId, {
         awardMastery: !isMistakeReview,
       });
@@ -333,10 +323,6 @@ export function Quiz({
                   <strong>{wrongAnswers}</strong>
                 </div>
                 <div className="quizResultStat">
-                  <span className="quizResultStatLabel">XP Earned</span>
-                  <strong>{xpEarned}</strong>
-                </div>
-                <div className="quizResultStat">
                   <span className="quizResultStatLabel">Best Streak</span>
                   <strong>{bestAnswerStreak}</strong>
                 </div>
@@ -397,11 +383,6 @@ export function Quiz({
               <span>{momentumLabel}</span>
               <strong>{answerStreak} streak</strong>
             </div>
-            {isMotivationPositive && canGoToNext ? (
-              <span key={`xp-pulse-${xpPulseTick}`} className="quizXpPulse">
-                +{XP_GAIN_PER_QUIZ_CORRECT} XP
-              </span>
-            ) : null}
           </div>
 
           {isTypingMode ? (

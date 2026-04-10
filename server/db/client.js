@@ -93,6 +93,11 @@ export async function initDb() {
   `);
 
   await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'student';
+  `);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS progress (
       user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       total_xp INTEGER NOT NULL DEFAULT 0,
@@ -265,6 +270,58 @@ export async function initDb() {
   await query(`
     CREATE INDEX IF NOT EXISTS idx_school_code_redemptions_user
     ON school_code_redemptions(user_id);
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS school_teacher_assignments (
+      id SERIAL PRIMARY KEY,
+      code_id INTEGER NOT NULL REFERENCES school_access_codes(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      assigned_at TEXT NOT NULL,
+      UNIQUE(code_id, user_id)
+    );
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_school_teacher_assignments_user
+    ON school_teacher_assignments(user_id);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_school_teacher_assignments_code
+    ON school_teacher_assignments(code_id);
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS word_add_events (
+      id BIGSERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      code_id INTEGER REFERENCES school_access_codes(id) ON DELETE SET NULL,
+      word TEXT NOT NULL,
+      word_normalized TEXT NOT NULL,
+      cefr_level TEXT,
+      book_id TEXT,
+      book_name TEXT,
+      chapter_id TEXT,
+      definition_count INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL DEFAULT 'state_sync',
+      added_at TEXT NOT NULL
+    );
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_word_add_events_code_added
+    ON word_add_events(code_id, added_at DESC);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_word_add_events_user_added
+    ON word_add_events(user_id, added_at DESC);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_word_add_events_code_cefr
+    ON word_add_events(code_id, cefr_level);
   `);
 }
 

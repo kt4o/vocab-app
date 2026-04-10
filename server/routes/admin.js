@@ -47,10 +47,171 @@ function parseNullablePositiveInt(value) {
   return floored > 0 ? floored : null;
 }
 
+function parseWindowDays(value, fallbackDays = 30) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallbackDays;
+  const floored = Math.floor(parsed);
+  return Math.max(1, Math.min(365, floored));
+}
+
 function isIsoTimestamp(value) {
   const timestamp = Date.parse(String(value || ""));
   return Number.isFinite(timestamp);
 }
+
+adminRouter.get("/school-codes/:codeId/word-adds/summary", async (req, res) => {
+  const codeId = parsePositiveInt(req.params.codeId);
+  const days = parseWindowDays(req.query?.days, 30);
+  const sinceIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  if (!codeId) {
+    res.status(400).json({ error: "invalid-code-id" });
+    return;
+  }
+
+  try {
+    const codeResult = await query(
+      "SELECT id, school_name, code FROM school_access_codes WHERE id = $1",
+      [codeId]
+    );
+    const codeRow = codeResult.rows[0];
+    if (!codeRow) {
+      res.status(404).json({ error: "school-code-not-found" });
+      return;
+    }
+
+    const totalsResult = await query(
+      `
+        SELECT
+          COUNT(*)::int AS total_words_added,
+          COUNT(DISTINCT user_id)::int AS unique_students,
+          COUNT(DISTINCT word_normalized)::int AS unique_words
+        FROM word_add_events
+        WHERE code_id = $1
+          AND added_at >= $2
+      `,
+      [codeId, sinceIso]
+    );
+    const totalsRow = totalsResult.rows[0] || {};
+
+    const levelsResult = await query(
+      `
+        SELECT
+          COALESCE(NULLIF(cefr_level, ''), 'unassigned') AS level,
+          COUNT(*)::int AS count
+        FROM word_add_events
+        WHERE code_id = $1
+          AND added_at >= $2
+        GROUP BY COALESCE(NULLIF(cefr_level, ''), 'unassigned')
+        ORDER BY count DESC, level ASC
+      `,
+      [codeId, sinceIso]
+    );
+
+    const topWordsResult = await query(
+      `
+        SELECT
+          word_normalized AS word,
+          COUNT(*)::int AS count
+        FROM word_add_events
+        WHERE code_id = $1
+          AND added_at >= $2
+        GROUP BY word_normalized
+        ORDER BY count DESC, word_normalized ASC
+        LIMIT 30
+      `,
+      [codeId, sinceIso]
+    );
+
+    const studentBreakdownResult = await query(
+      `
+        SELECT
+          e.user_id,
+          u.username,
+          COUNT(*)::int AS words_added,
+          COUNT(DISTINCT e.word_normalized)::int AS unique_words
+        FROM word_add_events e
+        JOIN users u ON u.id = e.user_id
+        WHERE e.code_id = $1
+          AND e.added_at >= $2
+        GROUP BY e.user_id, u.username
+        ORDER BY words_added DESC, unique_words DESC, e.user_id ASC
+        LIMIT 100
+      `,
+      [codeId, sinceIso]
+    );
+
+    res.json({
+      codeId,
+      schoolName: String(codeRow.school_name || ""),
+      code: String(codeRow.code || ""),
+      windowDays: days,
+      since: sinceIso,
+      totals: {
+        totalWordsAdded: Number(totalsRow.total_words_added || 0),
+        uniqueStudents: Number(totalsRow.unique_students || 0),
+        uniqueWords: Number(totalsRow.unique_words || 0),
+      },
+      cefrDistribution: levelsResult.rows.map((row) => ({
+        level: String(row.level || "unassigned"),
+        count: Number(row.count || 0),
+      })),
+      topWords: topWordsResult.rows.map((row) => ({
+        word: String(row.word || ""),
+        count: Number(row.count || 0),
+      })),
+      students: studentBreakdownResult.rows.map((row) => ({
+        userId: Number(row.user_id),
+        username: String(row.username || ""),
+        wordsAdded: Number(row.words_added || 0),
+        uniqueWords: Number(row.unique_words || 0),
+      })),
+    });
+  } catch {
+    res.status(500).json({ error: "school-word-add-summary-failed" });
+  }
+});
+
+adminRouter.get("/school-codes/:codeId/word-adds/trends", async (req, res) => {
+  const codeId = parsePositiveInt(req.params.codeId);
+  const days = parseWindowDays(req.query?.days, 30);
+  const sinceIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  if (!codeId) {
+    res.status(400).json({ error: "invalid-code-id" });
+    return;
+  }
+
+  try {
+    const rowsResult = await query(
+      `
+        SELECT
+          SUBSTRING(added_at FROM 1 FOR 10) AS day_key,
+          COUNT(*)::int AS words_added,
+          COUNT(DISTINCT user_id)::int AS active_students
+        FROM word_add_events
+        WHERE code_id = $1
+          AND added_at >= $2
+        GROUP BY SUBSTRING(added_at FROM 1 FOR 10)
+        ORDER BY day_key ASC
+      `,
+      [codeId, sinceIso]
+    );
+
+    res.json({
+      codeId,
+      windowDays: days,
+      since: sinceIso,
+      days: rowsResult.rows.map((row) => ({
+        dayKey: String(row.day_key || ""),
+        wordsAdded: Number(row.words_added || 0),
+        activeStudents: Number(row.active_students || 0),
+      })),
+    });
+  } catch {
+    res.status(500).json({ error: "school-word-add-trends-failed" });
+  }
+});
 
 adminRouter.get("/school-codes", async (_req, res) => {
   try {
@@ -91,6 +252,175 @@ adminRouter.get("/school-codes", async (_req, res) => {
     });
   } catch {
     res.status(500).json({ error: "school-codes-list-failed" });
+  }
+});
+
+adminRouter.get("/school-codes/:codeId/teachers", async (req, res) => {
+  const codeId = parsePositiveInt(req.params.codeId);
+  if (!codeId) {
+    res.status(400).json({ error: "invalid-code-id" });
+    return;
+  }
+
+  try {
+    const codeResult = await query(
+      "SELECT id, school_name, code FROM school_access_codes WHERE id = $1",
+      [codeId]
+    );
+    const codeRow = codeResult.rows[0];
+    if (!codeRow) {
+      res.status(404).json({ error: "school-code-not-found" });
+      return;
+    }
+
+    const teacherResult = await query(
+      `
+        SELECT
+          a.user_id,
+          a.assigned_at,
+          u.username,
+          u.email,
+          u.role
+        FROM school_teacher_assignments a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.code_id = $1
+        ORDER BY a.assigned_at DESC, a.user_id DESC
+      `,
+      [codeId]
+    );
+
+    res.json({
+      codeId,
+      schoolName: String(codeRow.school_name || ""),
+      code: String(codeRow.code || ""),
+      teachers: teacherResult.rows.map((row) => ({
+        userId: Number(row.user_id),
+        username: String(row.username || ""),
+        email: String(row.email || "").trim().toLowerCase(),
+        role: String(row.role || "student").trim().toLowerCase(),
+        assignedAt: row.assigned_at || null,
+      })),
+    });
+  } catch {
+    res.status(500).json({ error: "school-code-teachers-list-failed" });
+  }
+});
+
+adminRouter.post("/school-codes/:codeId/teachers", async (req, res) => {
+  const codeId = parsePositiveInt(req.params.codeId);
+  const userId = parsePositiveInt(req.body?.userId);
+
+  if (!codeId) {
+    res.status(400).json({ error: "invalid-code-id" });
+    return;
+  }
+  if (!userId) {
+    res.status(400).json({ error: "invalid-user-id" });
+    return;
+  }
+
+  try {
+    const codeResult = await query(
+      "SELECT id, school_name, code FROM school_access_codes WHERE id = $1",
+      [codeId]
+    );
+    const codeRow = codeResult.rows[0];
+    if (!codeRow) {
+      res.status(404).json({ error: "school-code-not-found" });
+      return;
+    }
+
+    const userResult = await query(
+      "SELECT id, username, email, role FROM users WHERE id = $1",
+      [userId]
+    );
+    const userRow = userResult.rows[0];
+    if (!userRow) {
+      res.status(404).json({ error: "user-not-found" });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const insertResult = await query(
+      `
+        INSERT INTO school_teacher_assignments (code_id, user_id, assigned_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (code_id, user_id) DO NOTHING
+        RETURNING id
+      `,
+      [codeId, userId, now]
+    );
+
+    if (String(userRow.role || "").trim().toLowerCase() === "student") {
+      await query("UPDATE users SET role = 'teacher' WHERE id = $1", [userId]);
+    }
+
+    res.status(insertResult.rows[0] ? 201 : 200).json({
+      ok: true,
+      assigned: Boolean(insertResult.rows[0]),
+      codeId,
+      schoolName: String(codeRow.school_name || ""),
+      code: String(codeRow.code || ""),
+      teacher: {
+        userId,
+        username: String(userRow.username || ""),
+        email: String(userRow.email || "").trim().toLowerCase(),
+      },
+    });
+  } catch {
+    res.status(500).json({ error: "school-code-teacher-assign-failed" });
+  }
+});
+
+adminRouter.delete("/school-codes/:codeId/teachers/:userId", async (req, res) => {
+  const codeId = parsePositiveInt(req.params.codeId);
+  const userId = parsePositiveInt(req.params.userId);
+
+  if (!codeId) {
+    res.status(400).json({ error: "invalid-code-id" });
+    return;
+  }
+  if (!userId) {
+    res.status(400).json({ error: "invalid-user-id" });
+    return;
+  }
+
+  try {
+    const deleteResult = await query(
+      `
+        DELETE FROM school_teacher_assignments
+        WHERE code_id = $1 AND user_id = $2
+        RETURNING id
+      `,
+      [codeId, userId]
+    );
+
+    if (!deleteResult.rows[0]) {
+      res.status(404).json({ error: "teacher-assignment-not-found" });
+      return;
+    }
+
+    const remainingResult = await query(
+      "SELECT COUNT(*)::int AS count FROM school_teacher_assignments WHERE user_id = $1",
+      [userId]
+    );
+    const remainingCount = Number(remainingResult.rows[0]?.count || 0);
+
+    if (remainingCount === 0) {
+      await query(
+        "UPDATE users SET role = 'student' WHERE id = $1 AND role = 'teacher'",
+        [userId]
+      );
+    }
+
+    res.json({
+      ok: true,
+      codeId,
+      userId,
+      remainingTeacherAssignments: remainingCount,
+    });
+  } catch {
+    res.status(500).json({ error: "school-code-teacher-remove-failed" });
   }
 });
 

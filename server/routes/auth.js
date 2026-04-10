@@ -8,7 +8,7 @@ export const authRouter = Router();
 
 const authRateBuckets = new Map();
 const EMAIL_CODE_COOLDOWN_MS = 60 * 1000;
-const DEFAULT_LEGAL_VERSION = String(process.env.LEGAL_VERSION || "2026-03-14").trim() || "2026-03-14";
+const DEFAULT_LEGAL_VERSION = String(process.env.LEGAL_VERSION || "2026-04-08").trim() || "2026-04-08";
 const SESSION_COOKIE_NAME = String(process.env.AUTH_COOKIE_NAME || "vocab_session").trim() || "vocab_session";
 
 function resolveCookieSameSite() {
@@ -337,6 +337,14 @@ function normalizePlan(value) {
     .toLowerCase() === "pro"
     ? "pro"
     : "free";
+}
+
+function normalizeRole(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "teacher" || normalized === "admin") return normalized;
+  return "student";
 }
 
 function normalizeSubscriptionStatus(value) {
@@ -692,7 +700,7 @@ authRouter.post("/register", async (req, res) => {
     await trackRetentionEvent(userId, "register", { source: "auth/register" });
     await trackRetentionEvent(userId, "session_start", { source: "auth/register" });
     setSessionCookie(req, res, token);
-    res.status(201).json({ userId, username, authToken: token });
+    res.status(201).json({ userId, username, role: "student", authToken: token });
   } catch (error) {
     await client.query("ROLLBACK");
     if (error?.code === "23505") {
@@ -961,7 +969,7 @@ authRouter.post("/account/logout-all", requireAuth, async (req, res) => {
 authRouter.get("/account", requireAuth, async (req, res) => {
   const userId = Number(req.authUser?.id || 0);
   try {
-    const result = await query("SELECT id, username, email, plan, lifetime_pro FROM users WHERE id = $1", [userId]);
+    const result = await query("SELECT id, username, email, plan, lifetime_pro, role FROM users WHERE id = $1", [userId]);
     const user = result.rows[0];
     if (!user) {
       res.status(404).json({ error: "account-not-found" });
@@ -974,6 +982,7 @@ authRouter.get("/account", requireAuth, async (req, res) => {
       email: String(user.email || "").trim().toLowerCase(),
       plan: isLifetimePro ? "pro" : normalizePlan(user.plan),
       isLifetimePro,
+      role: normalizeRole(user.role),
     });
   } catch {
     res.status(500).json({ error: "account-query-failed" });
@@ -1193,7 +1202,7 @@ authRouter.post("/login", async (req, res) => {
       return;
     }
     const userResult = await query(
-      "SELECT id, username, password_hash FROM users WHERE username = $1 OR email = $2",
+      "SELECT id, username, password_hash, role FROM users WHERE username = $1 OR email = $2",
       [username, email]
     );
     const user = userResult.rows[0];
@@ -1231,7 +1240,12 @@ authRouter.post("/login", async (req, res) => {
     await trackRetentionEvent(user.id, "session_start", { source: "auth/login" });
 
     setSessionCookie(req, res, token);
-    res.json({ userId: Number(user.id), username: user.username, authToken: token });
+    res.json({
+      userId: Number(user.id),
+      username: user.username,
+      role: normalizeRole(user.role),
+      authToken: token,
+    });
   } catch {
     res.status(500).json({ error: "login-failed" });
   }

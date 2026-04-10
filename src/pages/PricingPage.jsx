@@ -15,11 +15,11 @@ const FEATURES = [
     pro: true,
   },
   {
-    name: "Daily free limits",
+    name: "Unlimited word adding",
     free: true,
-    freeNote: "Applies",
+    freeNote: "Included",
     pro: true,
-    proNote: "Removed",
+    proNote: "Included",
   },
   {
     name: "Smart Review queue",
@@ -69,7 +69,7 @@ export function PricingPage() {
           <p className="heroEyebrow">Pricing</p>
           <h1 className="mb-2 text-3xl font-semibold text-foreground">Choose the plan that fits your learning pace</h1>
           <p className="heroCopy text-muted-foreground">
-            Start free anytime. Upgrade when you want unlimited daily usage and advanced review tools.
+            Start free anytime. Upgrade when you want advanced review tools.
           </p>
         </section>
 

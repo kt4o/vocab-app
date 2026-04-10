@@ -19,6 +19,17 @@ function navigateTo(path) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
+function isAuthFailureErrorCode(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return (
+    normalized === "missing-auth-token" ||
+    normalized === "invalid-auth-token" ||
+    normalized === "expired-auth-token"
+  );
+}
+
 export function LoginPage({ initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode === "register" ? "register" : "login");
   const [registerStep, setRegisterStep] = useState("email");
@@ -319,18 +330,13 @@ export function LoginPage({ initialMode = "login" }) {
       if (!sessionCheckResponse.ok) {
         const sessionPayload = await sessionCheckResponse.json().catch(() => ({}));
         const sessionError = String(sessionPayload?.error || "").trim().toLowerCase();
-        if (
-          sessionError === "missing-auth-token" ||
-          sessionError === "invalid-auth-token" ||
-          sessionError === "expired-auth-token"
-        ) {
+        if (isAuthFailureErrorCode(sessionError)) {
           setError(
             "Login succeeded, but your browser blocked the session cookie. Check API/Frontend domain, CORS, and cookie SameSite/Secure settings."
           );
           return;
         }
-        setError("Login succeeded, but session validation failed. Please try again.");
-        return;
+        // Non-auth failures here are usually transient; continue into /app and let route guard retry.
       }
 
       navigateTo("/app");
