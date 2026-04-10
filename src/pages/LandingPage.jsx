@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, X, BookOpen, Brain, Trophy, Zap, ArrowRight } from "lucide-react";
 
-const appScreenshot = "/landing/dashboard.png";
+const appScreenshot = "/landing/book-page.png";
 
 const YEAR = new Date().getFullYear();
 
@@ -109,7 +109,12 @@ export function LandingPage() {
         <div className="mx-auto max-w-6xl px-4">
           <div className="flex h-16 items-center justify-between">
             <a href="/" className="flex items-center gap-2 no-underline">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-accent to-primary" aria-hidden="true" />
+              <img
+                src="/favicon.svg"
+                alt=""
+                aria-hidden="true"
+                className="h-8 w-8 object-contain"
+              />
               <span className="text-lg font-semibold text-foreground">Vocalibry</span>
             </a>
 
