@@ -26,9 +26,13 @@ const STATE_API_PATH = `${API_BASE_URL}/api/state`;
 const SOCIAL_API_PATH = `${API_BASE_URL}/api/social`;
 const BILLING_API_PATH = `${API_BASE_URL}/api/billing`;
 const ANALYTICS_API_PATH = `${API_BASE_URL}/api/analytics`;
+const TRANSLATION_API_PATH = `${API_BASE_URL}/api/translate`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
+const JAPANESE_LEARNER_MODE_STORAGE_KEY = "vocab_japanese_learner_mode";
+const UI_LANGUAGE_STORAGE_KEY = "vocab_ui_language";
+const DICTIONARY_PREFERENCE_STORAGE_KEY = "vocab_dictionary_preference";
 const COOKIE_SESSION_AUTH_MARKER = "__cookie_session__";
 const LEGAL_VERSION = "2026-04-08";
 const RETENTION_PING_DAY_KEY_STORAGE = "vocab_retention_ping_day";
@@ -44,9 +48,128 @@ const ACCOUNT_DATA_STORAGE_KEYS = [
   "vocab_last_quiz_mistake_mode_by_book",
   "vocab_last_quiz_setup",
   "vocab_streak",
+  UI_LANGUAGE_STORAGE_KEY,
+  DICTIONARY_PREFERENCE_STORAGE_KEY,
+  JAPANESE_LEARNER_MODE_STORAGE_KEY,
   AUTH_USERNAME_STORAGE_KEY,
   RETENTION_PING_DAY_KEY_STORAGE,
 ];
+const APP_TEXT = {
+  en: {
+    navDashboard: "Dashboard",
+    navMyBooks: "My Books",
+    navData: "Data",
+    navDefinitions: "Definitions",
+    navFlashcards: "Flashcards",
+    navQuiz: "Quiz",
+    navSocials: "Socials",
+    recentBooks: "Recent Books",
+    noBooksYet: "No books yet",
+    settings: "Settings",
+    myAccount: "My Account",
+    syncingAccount: "Syncing Account",
+    loadingAccountData: "Loading your account data",
+    syncingSession: "Your books, progress, and account settings are syncing for this session.",
+    settingsTitle: "Settings",
+    appearance: "Appearance",
+    theme: "Theme",
+    japaneseLearnerMode: "Japanese Learner Mode",
+    japaneseLearnerModeHint:
+      "Switches app text to Japanese and uses English-to-Japanese translations when adding words.",
+    japaneseLearnerModeOn: "On",
+    japaneseLearnerModeOff: "Off",
+    selectBook: "Select a Book",
+    noBooksFound: "No books found. Create a new book in the My Books tab first.",
+    chapterManagement: "Chapter Management",
+    chaptersSuffix: " Chapters",
+    selectBookFirst: "Select a book first.",
+    createChapterPlaceholder: "Create chapter...",
+    addChapter: "Add Chapter",
+    delete: "Delete",
+    wordSingular: "word",
+    wordPlural: "words",
+    addWordPlaceholder: "Add English word...",
+    definitionAttributionDictionary:
+      "Definition data is fetched via Free Dictionary API (dictionaryapi.dev). Upstream source URLs and license details are provided by that API response.",
+    definitionAttributionTranslator:
+      "Translation data is fetched from Jisho (jisho.org) for English-to-Japanese learning.",
+    autoAssignChapters: "Auto-Assign Chapters",
+    manageChapters: "Manage Chapters",
+    duplicateWord: "That word is already in this chapter.",
+    duplicateWordTitle: "Duplicate Word",
+    invalidEnglishWord: "Please enter a valid English word.",
+    invalidEnglishWordTitle: "Invalid Word",
+    definitionRequired: "A valid definition is required before this word can be added.",
+    definitionRequiredTitle: "Definition Required",
+    translationRequired: "No Japanese translation was returned. Try another English word.",
+    translationRequiredTitle: "Translation Missing",
+    jishoWordUnavailable: "This word is not available in Jisho. Please try a different English word.",
+    jishoWordUnavailableTitle: "Word Not Available",
+    translationConnectionError:
+      "Cannot connect to the translation service. In local development, start the API server with `npm run dev:server`.",
+    translationConnectionErrorTitle: "Connection Error",
+    dictionaryNetworkError: "Failed to fetch definition.",
+    translationNetworkError: "Failed to fetch translation.",
+    networkErrorTitle: "Network Error",
+  },
+  ja: {
+    navDashboard: "ダッシュボード",
+    navMyBooks: "マイブック",
+    navData: "データ",
+    navDefinitions: "単語追加",
+    navFlashcards: "フラッシュカード",
+    navQuiz: "クイズ",
+    navSocials: "ソーシャル",
+    recentBooks: "最近のブック",
+    noBooksYet: "ブックがまだありません",
+    settings: "設定",
+    myAccount: "アカウント",
+    syncingAccount: "アカウント同期中",
+    loadingAccountData: "アカウントデータを読み込み中",
+    syncingSession: "ブック、進捗、設定をこのセッションに同期しています。",
+    settingsTitle: "設定",
+    appearance: "表示",
+    theme: "テーマ",
+    japaneseLearnerMode: "日本語学習者モード",
+    japaneseLearnerModeHint:
+      "アプリ表示を日本語にし、単語追加時は英語→日本語の翻訳を使います。",
+    japaneseLearnerModeOn: "オン",
+    japaneseLearnerModeOff: "オフ",
+    selectBook: "ブックを選択",
+    noBooksFound: "ブックが見つかりません。まず「マイブック」で作成してください。",
+    chapterManagement: "章の管理",
+    chaptersSuffix: "の章",
+    selectBookFirst: "先にブックを選択してください。",
+    createChapterPlaceholder: "章を作成...",
+    addChapter: "章を追加",
+    delete: "削除",
+    wordSingular: "単語",
+    wordPlural: "単語",
+    addWordPlaceholder: "英単語を追加...",
+    definitionAttributionDictionary:
+      "定義データは Free Dictionary API（dictionaryapi.dev）から取得しています。",
+    definitionAttributionTranslator:
+      "翻訳データは英語学習向けに Jisho（jisho.org）から取得しています。",
+    autoAssignChapters: "章の自動割り当て",
+    manageChapters: "章を管理",
+    duplicateWord: "この単語はこの章に既にあります。",
+    duplicateWordTitle: "重複単語",
+    invalidEnglishWord: "有効な英単語を入力してください。",
+    invalidEnglishWordTitle: "無効な単語",
+    definitionRequired: "有効な定義が必要です。",
+    definitionRequiredTitle: "定義が必要です",
+    translationRequired: "日本語訳が取得できませんでした。別の英単語を試してください。",
+    translationRequiredTitle: "翻訳が見つかりません",
+    jishoWordUnavailable: "この単語はJishoで見つかりません。別の英単語を入力してください。",
+    jishoWordUnavailableTitle: "単語が見つかりません",
+    translationConnectionError:
+      "翻訳サービスに接続できません。ローカル開発では `npm run dev:server` を起動してください。",
+    translationConnectionErrorTitle: "接続エラー",
+    dictionaryNetworkError: "定義の取得に失敗しました。",
+    translationNetworkError: "翻訳の取得に失敗しました。",
+    networkErrorTitle: "通信エラー",
+  },
+};
 const WORD_DIFFICULTY_OPTIONS = [
   { value: "a1", label: "A1" },
   { value: "a2", label: "A2" },
@@ -214,6 +337,134 @@ function extractPronunciation(apiPayload) {
   return "";
 }
 
+async function fetchJapaneseTranslations(word) {
+  const input = String(word || "").trim();
+  if (!input) return { translations: [], provider: "", error: "" };
+  const hasJapanese = (value) => /[\u3040-\u30ff\u3400-\u9fff]/.test(String(value || ""));
+  const isJishoCompatibleInput = (value) => /^[a-z][a-z0-9' -]{1,63}$/i.test(String(value || "").trim());
+
+  const normalize = (values) => {
+    const cleaned = values
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .slice(0, 10);
+    const japanese = cleaned.filter((value) => hasJapanese(value));
+    return (japanese.length ? japanese : cleaned).slice(0, 6);
+  };
+
+  const fetchJishoDirect = async () => {
+    if (!isJishoCompatibleInput(input)) {
+      return { translations: [], provider: "jisho-direct", error: "jisho-word-not-available" };
+    }
+
+    try {
+      const res = await fetch(
+        `https://jisho.org/api/v1/search/words?keyword=${encodeURIComponent(input)}`,
+        {
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
+      if (!res.ok) {
+        return { translations: [], provider: "jisho-direct", error: "translation-provider-failed" };
+      }
+
+      const payload = await res.json().catch(() => null);
+      const items = Array.isArray(payload?.data) ? payload.data : [];
+      const candidates = [];
+      const seen = new Set();
+
+      items.slice(0, 10).forEach((item) => {
+        const japaneseList = Array.isArray(item?.japanese) ? item.japanese : [];
+        japaneseList.forEach((jpEntry) => {
+          const candidate = String(jpEntry?.word || jpEntry?.reading || "").trim();
+          if (!candidate) return;
+          const key = candidate.toLowerCase();
+          if (seen.has(key)) return;
+          seen.add(key);
+          candidates.push(candidate);
+        });
+      });
+
+      const translations = normalize(candidates);
+      if (!translations.length) {
+        return { translations: [], provider: "jisho-direct", error: "jisho-word-not-available" };
+      }
+      return { translations, provider: "jisho-direct", error: "" };
+    } catch {
+      return { translations: [], provider: "jisho-direct", error: "translation-provider-failed" };
+    }
+  };
+
+  const endpointCandidates = [`${TRANSLATION_API_PATH}/en-ja`];
+  const onLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  if (!API_BASE_URL && onLocalhost) {
+    endpointCandidates.push("http://localhost:4000/api/translate/en-ja");
+  }
+
+  const triedEndpoints = new Set();
+  let sawApiConnectionError = false;
+
+  for (const endpoint of endpointCandidates) {
+    const normalizedEndpoint = String(endpoint || "").trim();
+    if (!normalizedEndpoint || triedEndpoints.has(normalizedEndpoint)) continue;
+    triedEndpoints.add(normalizedEndpoint);
+
+    try {
+      const res = await fetch(normalizedEndpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: input }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (res.ok) {
+        const values = Array.isArray(payload?.translations) ? payload.translations : [];
+        const normalized = normalize(values);
+        if (normalized.length) {
+          const provider = String(payload?.provider || "backend")
+            .trim()
+            .toLowerCase();
+          return {
+            translations: normalized,
+            provider: provider || "backend",
+            error: "",
+          };
+        }
+      }
+
+      const errorCode = String(payload?.error || "")
+        .trim()
+        .toLowerCase();
+      if (errorCode === "jisho-word-not-available") {
+        return { translations: [], provider: "jisho", error: errorCode };
+      }
+      if (errorCode === "translation-provider-failed") {
+        sawApiConnectionError = true;
+      }
+    } catch {
+      sawApiConnectionError = true;
+    }
+  }
+
+  const directResult = await fetchJishoDirect();
+  if (directResult.translations.length > 0 || directResult.error === "jisho-word-not-available") {
+    return directResult;
+  }
+  if (sawApiConnectionError && directResult.error === "translation-provider-failed") {
+    return {
+      translations: [],
+      provider: directResult.provider || "",
+      error: "translation-connection-error",
+    };
+  }
+  return directResult;
+}
+
 function parseJsonSafely(rawValue, fallbackValue) {
   if (!rawValue) return fallbackValue;
   try {
@@ -231,7 +482,27 @@ function parseStoredStreak(rawValue) {
 }
 
 function parseStoredBoolean(value, fallbackValue = false) {
-  return typeof value === "boolean" ? value : fallbackValue;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallbackValue;
+}
+
+function parseStoredUiLanguage(value, fallbackValue = "en") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return normalized === "ja" || normalized === "en" ? normalized : fallbackValue;
+}
+
+function parseStoredDictionaryPreference(value, fallbackValue = "en_en") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return normalized === "en_ja" || normalized === "en_en" ? normalized : fallbackValue;
 }
 
 function parseStoredQuizSetup(rawValue) {
@@ -1059,12 +1330,24 @@ const QUIZ_SUCCESS_PROMPTS = [
   "Correct. You're building strong recall.",
   "Excellent answer. You're making great progress.",
 ];
+const QUIZ_SUCCESS_PROMPTS_JA = [
+  "いいですね。その調子です。",
+  "素晴らしいです。勢いを維持しましょう。",
+  "正解です。着実に記憶できています。",
+  "とても良い回答です。順調に上達しています。",
+];
 
 const QUIZ_MISS_PROMPTS = [
   "Close one. Every miss sharpens your memory.",
   "No stress. Mistakes are part of learning.",
   "Keep going. You'll lock this word in soon.",
   "Good try. Review it once and you'll get it next time.",
+];
+const QUIZ_MISS_PROMPTS_JA = [
+  "惜しいです。間違いも記憶の定着に役立ちます。",
+  "大丈夫です。ミスは学習の一部です。",
+  "このまま続けましょう。すぐに覚えられます。",
+  "よく挑戦しました。復習すれば次は正解できます。",
 ];
 
 export default function App() {
@@ -1073,6 +1356,19 @@ export default function App() {
     const saved = localStorage.getItem("vocab_theme");
     if (saved === "dark" || saved === "light") return saved;
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+  const [preferredLanguage, setPreferredLanguage] = useState(() => {
+    const legacyJapaneseMode = parseStoredBoolean(localStorage.getItem(JAPANESE_LEARNER_MODE_STORAGE_KEY), false);
+    const fallbackLanguage = legacyJapaneseMode ? "ja" : "en";
+    return parseStoredUiLanguage(localStorage.getItem(UI_LANGUAGE_STORAGE_KEY), fallbackLanguage);
+  });
+  const [dictionaryPreference, setDictionaryPreference] = useState(() => {
+    const legacyJapaneseMode = parseStoredBoolean(localStorage.getItem(JAPANESE_LEARNER_MODE_STORAGE_KEY), false);
+    const fallbackPreference = legacyJapaneseMode ? "en_ja" : "en_en";
+    return parseStoredDictionaryPreference(
+      localStorage.getItem(DICTIONARY_PREFERENCE_STORAGE_KEY),
+      fallbackPreference
+    );
   });
   const [books, setBooks] = useState(() => {
     const saved = localStorage.getItem("vocab_books");
@@ -1192,6 +1488,8 @@ export default function App() {
     username: "",
     password: "",
     confirmPassword: "",
+    preferredLanguage,
+    dictionaryPreference,
     acceptedLegal: false,
     marketingOptIn: false,
   });
@@ -1237,6 +1535,14 @@ export default function App() {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isCloudStateHydrated, setIsCloudStateHydrated] = useState(false);
   const [isLocalPersistencePaused, setIsLocalPersistencePaused] = useState(false);
+  const isJapaneseUi = preferredLanguage === "ja";
+  const useEnglishToJapaneseDictionary = dictionaryPreference === "en_ja";
+  const appLocale = isJapaneseUi ? "ja" : "en";
+  const uiText = APP_TEXT[appLocale] || APP_TEXT.en;
+  const tr = (en, ja) => (isJapaneseUi ? ja : en);
+  const showLocalTranslationDebug =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const modalRef = useRef(null);
   const sidebarRef = useRef(null);
   const backupFileInputRef = useRef(null);
@@ -1563,14 +1869,14 @@ export default function App() {
     const mainContent = isAccountDataHydrating ? (
       <div className="page accountPage">
         <div className="pageHeader">
-          <h1>Syncing Account</h1>
+          <h1>{uiText.syncingAccount}</h1>
         </div>
         <div className="analyticsSection">
           <div className="analyticsCard settingsCard accountSyncCard">
             <div className="spinner" aria-hidden="true"></div>
-            <h3>Loading your account data</h3>
+            <h3>{uiText.loadingAccountData}</h3>
             <p className="settingsHint">
-              Your books, progress, and account settings are syncing for this session.
+              {uiText.syncingSession}
             </p>
           </div>
         </div>
@@ -1632,7 +1938,7 @@ export default function App() {
                 className={`sidebarNavBtn ${screen === "dashboard" ? "isActive" : ""}`}
                 onClick={() => setScreen("dashboard")}
               >
-                <span className="sidebarNavBtnLabel">Dashboard</span>
+                <span className="sidebarNavBtnLabel">{uiText.navDashboard}</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83C\uDFE0"}</span>
               </button>
               <button
@@ -1640,7 +1946,7 @@ export default function App() {
                 className={`sidebarNavBtn ${screen === "books" ? "isActive" : ""}`}
                 onClick={() => setScreen("books")}
               >
-                <span className="sidebarNavBtnLabel">My Books</span>
+                <span className="sidebarNavBtnLabel">{uiText.navMyBooks}</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDCDA"}</span>
               </button>
               <button
@@ -1648,7 +1954,7 @@ export default function App() {
                 className={`sidebarNavBtn ${screen === "data" ? "isActive" : ""}`}
                 onClick={() => setScreen("data")}
               >
-                <span className="sidebarNavBtnLabel">Data</span>
+                <span className="sidebarNavBtnLabel">{uiText.navData}</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDCCA"}</span>
               </button>
               <button
@@ -1656,7 +1962,7 @@ export default function App() {
                 className={`sidebarNavBtn ${inDefinitions ? "isActive" : ""}`}
                 onClick={() => setScreen("definitionsSelect")}
               >
-                <span className="sidebarNavBtnLabel">Definitions</span>
+                <span className="sidebarNavBtnLabel">{uiText.navDefinitions}</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDCD8"}</span>
               </button>
               <button
@@ -1664,7 +1970,7 @@ export default function App() {
                 className={`sidebarNavBtn ${inFlashcards ? "isActive" : ""}`}
                 onClick={() => setScreen("flashcardsSelect")}
               >
-                <span className="sidebarNavBtnLabel">Flashcards</span>
+                <span className="sidebarNavBtnLabel">{uiText.navFlashcards}</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\u26A1"}</span>
               </button>
               <button
@@ -1677,7 +1983,7 @@ export default function App() {
                   setScreen("quizSelect");
                 }}
               >
-                <span className="sidebarNavBtnLabel">Quiz</span>
+                <span className="sidebarNavBtnLabel">{uiText.navQuiz}</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\u2705"}</span>
               </button>
               <button
@@ -1685,16 +1991,15 @@ export default function App() {
                 className={`sidebarNavBtn ${inSocial ? "isActive" : ""}`}
                 onClick={() => setScreen("socialLeaderboard")}
               >
-                <span className="sidebarNavBtnLabel">Socials</span>
+                <span className="sidebarNavBtnLabel">{uiText.navSocials}</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDC65"}</span>
               </button>
             </nav>
-
             <div className="sidebarSection">
-              <p className="sidebarSectionTitle">Recent Books</p>
+              <p className="sidebarSectionTitle">{uiText.recentBooks}</p>
               <div className="sidebarBooks">
                 {sidebarBookShortcuts.length === 0 ? (
-                  <p className="sidebarEmptyText">No books yet</p>
+                  <p className="sidebarEmptyText">{uiText.noBooksYet}</p>
                 ) : (
                   sidebarBookShortcuts.map((book) => (
                     <button
@@ -1716,14 +2021,14 @@ export default function App() {
             </div>
 
             <div className="sidebarSection">
-              <p className="sidebarSectionTitle">Settings</p>
+              <p className="sidebarSectionTitle">{uiText.settings}</p>
               <div className="sidebarBooks">
                 <button
                   type="button"
                   className={`sidebarNavBtn ${screen === "settings" ? "isActive" : ""}`}
                   onClick={() => setScreen("settings")}
                 >
-                  <span className="sidebarNavBtnLabel">Settings</span>
+                  <span className="sidebarNavBtnLabel">{uiText.settings}</span>
                   <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\u2699\uFE0F"}</span>
                 </button>
                 <button
@@ -1731,7 +2036,7 @@ export default function App() {
                   className={`sidebarNavBtn ${screen === "account" ? "isActive" : ""}`}
                   onClick={() => setScreen("account")}
                 >
-                  <span className="sidebarNavBtnLabel">My Account</span>
+                  <span className="sidebarNavBtnLabel">{uiText.myAccount}</span>
                   <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDC64"}</span>
                 </button>
               </div>
@@ -1754,6 +2059,8 @@ export default function App() {
     const persistedState = {
       vocab_books: JSON.stringify(books),
       vocab_theme: theme,
+      [UI_LANGUAGE_STORAGE_KEY]: preferredLanguage,
+      [DICTIONARY_PREFERENCE_STORAGE_KEY]: dictionaryPreference,
       vocab_sidebar_hidden: JSON.stringify(isSidebarHidden),
       vocab_weekly_stats: JSON.stringify(weeklyStats),
       vocab_activity_history: JSON.stringify(activityHistory),
@@ -1771,6 +2078,7 @@ export default function App() {
     Object.entries(persistedState).forEach(([key, value]) => {
       localStorage.setItem(key, value);
     });
+    localStorage.removeItem(JAPANESE_LEARNER_MODE_STORAGE_KEY);
     if (isBearerAuthToken(authToken)) {
       localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, authToken);
     } else {
@@ -1779,6 +2087,8 @@ export default function App() {
   }, [
     books,
     theme,
+    preferredLanguage,
+    dictionaryPreference,
     isSidebarHidden,
     weeklyStats,
     activityHistory,
@@ -1804,6 +2114,14 @@ export default function App() {
       .toLowerCase();
     const password = String(authForm.password || "");
     const confirmPassword = String(authForm.confirmPassword || "");
+    const registerPreferredLanguage = parseStoredUiLanguage(
+      authForm.preferredLanguage,
+      preferredLanguage
+    );
+    const registerDictionaryPreference = parseStoredDictionaryPreference(
+      authForm.dictionaryPreference,
+      dictionaryPreference
+    );
 
     if (!username || !password) {
       setAuthError("Username or email and password are required.");
@@ -1837,6 +2155,8 @@ export default function App() {
                 email,
                 username,
                 password,
+                preferredLanguage: registerPreferredLanguage,
+                dictionaryPreference: registerDictionaryPreference,
                 marketingOptIn: Boolean(authForm.marketingOptIn),
                 acceptedLegal: Boolean(authForm.acceptedLegal),
                 legalVersion: LEGAL_VERSION,
@@ -1887,11 +2207,17 @@ export default function App() {
           auth_method: "password",
         });
       }
+      if (mode === "register") {
+        setPreferredLanguage(registerPreferredLanguage);
+        setDictionaryPreference(registerDictionaryPreference);
+      }
       setAuthForm({
         email: "",
         username: "",
         password: "",
         confirmPassword: "",
+        preferredLanguage: registerPreferredLanguage,
+        dictionaryPreference: registerDictionaryPreference,
         acceptedLegal: false,
         marketingOptIn: false,
       });
@@ -1949,6 +2275,8 @@ export default function App() {
       username: "",
       password: "",
       confirmPassword: "",
+      preferredLanguage,
+      dictionaryPreference,
       acceptedLegal: false,
       marketingOptIn: false,
     });
@@ -2777,6 +3105,8 @@ export default function App() {
               books,
               streak,
               isSidebarHidden,
+              preferredLanguage,
+              dictionaryPreference,
               weeklyStats,
               activityHistory,
               lastQuizMistakeKeys,
@@ -2801,6 +3131,8 @@ export default function App() {
     books,
     streak,
     isSidebarHidden,
+    preferredLanguage,
+    dictionaryPreference,
     weeklyStats,
     activityHistory,
     lastQuizMistakeKeys,
@@ -3301,6 +3633,15 @@ export default function App() {
       rawData?.proDailyGoalQuestions === undefined
         ? proDailyGoalQuestions
         : parseDailyGoalTarget(rawData?.proDailyGoalQuestions);
+    const legacyJapaneseMode = parseStoredBoolean(rawData?.isJapaneseLearnerMode, false);
+    const importedPreferredLanguage = parseStoredUiLanguage(
+      rawData?.preferredLanguage,
+      legacyJapaneseMode ? "ja" : preferredLanguage
+    );
+    const importedDictionaryPreference = parseStoredDictionaryPreference(
+      rawData?.dictionaryPreference,
+      legacyJapaneseMode ? "en_ja" : dictionaryPreference
+    );
     const importedLastQuizMistakeKeys = Array.isArray(rawData?.lastQuizMistakeKeys)
       ? rawData.lastQuizMistakeKeys.filter((item) => typeof item === "string")
       : [];
@@ -3339,6 +3680,8 @@ export default function App() {
     setActivityHistory(importedActivityHistory);
     setFreeDailyUsage(importedFreeDailyUsage);
     setProDailyGoalQuestions(importedProDailyGoalQuestions);
+    setPreferredLanguage(importedPreferredLanguage);
+    setDictionaryPreference(importedDictionaryPreference);
     setLastQuizMistakeKeys(importedLastQuizMistakeKeys);
     setLastQuizMistakeKeysByBook(importedLastQuizMistakeKeysByBook);
     setLastQuizMistakeMode(importedLastQuizMistakeMode);
@@ -3353,6 +3696,8 @@ export default function App() {
       theme,
       isSidebarHidden,
       proDailyGoalQuestions,
+      preferredLanguage,
+      dictionaryPreference,
     });
   }
 
@@ -3369,6 +3714,8 @@ export default function App() {
         activityHistory,
         freeDailyUsage,
         proDailyGoalQuestions,
+        preferredLanguage,
+        dictionaryPreference,
         lastQuizMistakeKeys,
         lastQuizMistakeKeysByBook,
         lastQuizMistakeMode,
@@ -3504,17 +3851,17 @@ export default function App() {
             aria-labelledby="create-book-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="create-book-title">Create Book</h3>
+            <h3 id="create-book-title">{tr("Create Book", "ブック作成")}</h3>
             <input
               value={newBookName}
               onChange={(e) => setNewBookName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createBook()}
-              placeholder="Enter book name"
+              placeholder={tr("Enter book name", "ブック名を入力")}
               autoFocus
             />
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={() => setIsAddBookModalOpen(false)}>
-                Cancel
+                {tr("Cancel", "キャンセル")}
               </button>
               <button
                 type="button"
@@ -3522,7 +3869,7 @@ export default function App() {
                 onClick={createBook}
                 disabled={!newBookName.trim()}
               >
-                Create
+                {tr("Create", "作成")}
               </button>
             </div>
           </div>
@@ -3541,17 +3888,17 @@ export default function App() {
             aria-labelledby="rename-book-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="rename-book-title">Rename Book</h3>
+            <h3 id="rename-book-title">{tr("Rename Book", "ブック名を変更")}</h3>
             <input
               value={renamedBookName}
               onChange={(e) => setRenamedBookName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && confirmRenameBook()}
-              placeholder="Enter new book name"
+              placeholder={tr("Enter new book name", "新しいブック名を入力")}
               autoFocus
             />
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={() => setBookPendingRename(null)}>
-                Cancel
+                {tr("Cancel", "キャンセル")}
               </button>
               <button
                 type="button"
@@ -3559,7 +3906,7 @@ export default function App() {
                 onClick={confirmRenameBook}
                 disabled={!renamedBookName.trim()}
               >
-                Save
+                {tr("Save", "保存")}
               </button>
             </div>
           </div>
@@ -3578,8 +3925,8 @@ export default function App() {
             aria-labelledby="change-password-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="change-password-title">Reset Password</h3>
-            <p className="settingsHint">Enter the email associated with this account.</p>
+            <h3 id="change-password-title">{tr("Reset Password", "パスワード再設定")}</h3>
+            <p className="settingsHint">{tr("Enter the email associated with this account.", "このアカウントのメールアドレスを入力してください。")}</p>
             <input
               className="settingsInput"
               type="email"
@@ -3588,7 +3935,7 @@ export default function App() {
                 setAccountSecurityForm((prev) => ({ ...prev, resetEmail: event.target.value }));
                 if (accountActionError) setAccountActionError("");
               }}
-              placeholder="account email"
+              placeholder={tr("account email", "アカウントメール")}
               autoComplete="email"
               autoFocus
               onKeyDown={async (event) => {
@@ -3604,7 +3951,7 @@ export default function App() {
                 className="modalBtn ghost"
                 onClick={() => setIsChangePasswordModalOpen(false)}
               >
-                Cancel
+                {tr("Cancel", "キャンセル")}
               </button>
               <button
                 type="button"
@@ -3615,7 +3962,7 @@ export default function App() {
                   if (success) setIsChangePasswordModalOpen(false);
                 }}
               >
-                {isPasswordChangeSubmitting ? "Please wait..." : "Send Reset Email"}
+                {isPasswordChangeSubmitting ? tr("Please wait...", "処理中...") : tr("Send Reset Email", "再設定メール送信")}
               </button>
             </div>
           </div>
@@ -3634,9 +3981,9 @@ export default function App() {
             aria-labelledby="delete-account-confirm-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 id="delete-account-confirm-title">Delete Account?</h3>
+            <h3 id="delete-account-confirm-title">{tr("Delete Account?", "アカウントを削除しますか？")}</h3>
             <p>
-              This permanently removes your account and cloud data. This action cannot be undone.
+              {tr("This permanently removes your account and cloud data. This action cannot be undone.", "アカウントとクラウドデータを完全削除します。この操作は取り消せません。")}
             </p>
             <div className="modalActions">
               <button
@@ -3644,7 +3991,7 @@ export default function App() {
                 className="modalBtn ghost"
                 onClick={() => setIsDeleteAccountConfirmOpen(false)}
               >
-                Cancel
+                {tr("Cancel", "キャンセル")}
               </button>
               <button
                 type="button"
@@ -3652,7 +3999,7 @@ export default function App() {
                 onClick={deleteAccountPermanently}
                 disabled={isDeleteAccountSubmitting}
               >
-                {isDeleteAccountSubmitting ? "Deleting..." : "Delete Account"}
+                {isDeleteAccountSubmitting ? tr("Deleting...", "削除中...") : tr("Delete Account", "アカウント削除")}
               </button>
             </div>
           </div>
@@ -3685,22 +4032,22 @@ export default function App() {
           >
             {accountPanelModal === "plan" ? (
               <>
-                <h3 id="account-panel-title">Plan</h3>
+                <h3 id="account-panel-title">{tr("Plan", "プラン")}</h3>
                 <p className="settingsHint">
-                  Current plan:{" "}
-                  <strong className="billingPlanLabel">{billingPlan === "pro" ? "Pro" : "Free"}</strong>
+                  {tr("Current plan", "現在のプラン")}:{" "}
+                  <strong className="billingPlanLabel">{billingPlan === "pro" ? tr("Pro", "Pro") : tr("Free", "無料")}</strong>
                 </p>
                 {billingSubscriptionStatus ? (
-                  <p className="settingsHint">Subscription status: {billingSubscriptionStatus}</p>
+                  <p className="settingsHint">{tr("Subscription status", "サブスク状態")}: {billingSubscriptionStatus}</p>
                 ) : null}
                 {isLifetimePro ? (
-                  <p className="settingsHint">Lifetime Pro access: enabled (no recurring subscription).</p>
+                  <p className="settingsHint">{tr("Lifetime Pro access: enabled (no recurring subscription).", "永久Proが有効です（定期課金なし）。")}</p>
                 ) : null}
                 {billingPeriodEndLabel ? (
-                  <p className="settingsHint">Current period ends: {billingPeriodEndLabel}</p>
+                  <p className="settingsHint">{tr("Current period ends", "現在の期間終了日")}: {billingPeriodEndLabel}</p>
                 ) : null}
                 <div className="settingsRow">
-                  <span>School code</span>
+                  <span>{tr("School code", "スクールコード")}</span>
                   <input
                     className="settingsInput"
                     type="text"
@@ -3709,45 +4056,45 @@ export default function App() {
                       setSchoolCodeInput(event.target.value.toUpperCase());
                       if (accountActionError) setAccountActionError("");
                     }}
-                    placeholder="Enter school code"
+                    placeholder={tr("Enter school code", "スクールコードを入力")}
                     autoComplete="off"
                     maxLength={64}
                     disabled={isSchoolCodeRedeeming}
                   />
                 </div>
                 <div className="settingsRow">
-                  <span>Apply school access</span>
+                  <span>{tr("Apply school access", "スクールアクセスを適用")}</span>
                   <button
                     type="button"
                     className="primaryBtn"
                     onClick={redeemSchoolCode}
                     disabled={isSchoolCodeRedeeming || !String(schoolCodeInput || "").trim()}
                   >
-                    {isSchoolCodeRedeeming ? "Applying..." : "Redeem Code"}
+                    {isSchoolCodeRedeeming ? tr("Applying...", "適用中...") : tr("Redeem Code", "コードを適用")}
                   </button>
                 </div>
                 {!isStripeBillingConfigured ? (
                   <p className="settingsHint">
-                    Stripe billing is not configured yet. Add Stripe env vars on the backend.
+                    {tr("Stripe billing is not configured yet. Add Stripe env vars on the backend.", "Stripe請求が未設定です。バックエンドで環境変数を設定してください。")}
                   </p>
                 ) : null}
                 {billingPlan === "pro" && !isLifetimePro ? (
                   <div className="settingsRow">
-                    <span>Manage billing</span>
+                    <span>{tr("Manage billing", "請求管理")}</span>
                     <button
                       type="button"
                       className="primaryBtn"
                       onClick={openBillingPortal}
                       disabled={isBillingPortalSubmitting || !isStripeBillingConfigured}
                     >
-                      {isBillingPortalSubmitting ? "Please wait..." : "Manage Subscription"}
+                      {isBillingPortalSubmitting ? tr("Please wait...", "処理中...") : tr("Manage Subscription", "サブスク管理")}
                     </button>
                   </div>
                 ) : billingPlan === "pro" ? (
-                  <p className="settingsHint">Your plan is lifetime Pro. Billing management is not required.</p>
+                  <p className="settingsHint">{tr("Your plan is lifetime Pro. Billing management is not required.", "永久Proのため請求管理は不要です。")}</p>
                 ) : (
                   <div className="settingsRow">
-                    <span>{PREMIUM_UPGRADE_ENABLED ? "Upgrade account" : "Pro coming soon"}</span>
+                    <span>{PREMIUM_UPGRADE_ENABLED ? tr("Upgrade account", "アカウントをアップグレード") : tr("Pro coming soon", "Proは近日公開")}</span>
                     <button
                       type="button"
                       className="primaryBtn"
@@ -3760,44 +4107,44 @@ export default function App() {
                       }
                     >
                       {!PREMIUM_UPGRADE_ENABLED
-                        ? "Upgrade Coming Soon"
+                        ? tr("Upgrade Coming Soon", "アップグレード近日公開")
                         : isBillingCheckoutSubmitting
-                          ? "Redirecting..."
-                          : "Upgrade to Pro"}
+                          ? tr("Redirecting...", "移動中...")
+                          : tr("Upgrade to Pro", "Proにアップグレード")}
                     </button>
                   </div>
                 )}
                 {!PREMIUM_UPGRADE_ENABLED ? (
-                  <p className="settingsHint">Pro coming soon.</p>
+                  <p className="settingsHint">{tr("Pro coming soon.", "Proは近日公開です。")}</p>
                 ) : null}
               </>
             ) : null}
 
             {accountPanelModal === "session" ? (
               <>
-                <h3 id="account-panel-title">Session</h3>
+                <h3 id="account-panel-title">{tr("Session", "セッション")}</h3>
                 <p className="settingsHint">
-                  Signed in as <strong>{authUsername}</strong>
+                  {tr("Signed in as", "ログイン中")}: <strong>{authUsername}</strong>
                 </p>
                 <div className="settingsRow">
-                  <span>This device</span>
+                  <span>{tr("This device", "この端末")}</span>
                   <button
                     type="button"
                     className="primaryBtn"
                     onClick={() => logoutAccount({ clearLocalData: true })}
                   >
-                    Log Out
+                    {tr("Log Out", "ログアウト")}
                   </button>
                 </div>
                 <div className="settingsRow">
-                  <span>All devices</span>
+                  <span>{tr("All devices", "すべての端末")}</span>
                   <button
                     type="button"
                     className="primaryBtn"
                     onClick={logoutAllDevices}
                     disabled={isLogoutAllSubmitting}
                   >
-                    {isLogoutAllSubmitting ? "Please wait..." : "Log Out All Devices"}
+                    {isLogoutAllSubmitting ? tr("Please wait...", "処理中...") : tr("Log Out All Devices", "全端末からログアウト")}
                   </button>
                 </div>
               </>
@@ -3805,19 +4152,19 @@ export default function App() {
 
             {accountPanelModal === "profile" ? (
               <>
-                <h3 id="account-panel-title">Account Info</h3>
+                <h3 id="account-panel-title">{tr("Account Info", "アカウント情報")}</h3>
                 <div className="settingsRow">
-                  <span>Email</span>
+                  <span>{tr("Email", "メール")}</span>
                   <strong className="accountInfoValue">
-                    {isAccountProfileLoading ? "Loading..." : accountEmail || "No email available"}
+                    {isAccountProfileLoading ? tr("Loading...", "読み込み中...") : accountEmail || tr("No email available", "メール未設定")}
                   </strong>
                 </div>
                 <div className="settingsRow">
-                  <span>Username</span>
-                  <strong className="accountInfoValue">{authUsername || "Unknown"}</strong>
+                  <span>{tr("Username", "ユーザー名")}</span>
+                  <strong className="accountInfoValue">{authUsername || tr("Unknown", "不明")}</strong>
                 </div>
                 <div className="settingsRow accountPasswordRow">
-                  <span>Password</span>
+                  <span>{tr("Password", "パスワード")}</span>
                   <div className="accountPasswordActions">
                     <strong className="accountInfoValue">{"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}</strong>
                     <button
@@ -3833,23 +4180,72 @@ export default function App() {
                         setIsChangePasswordModalOpen(true);
                       }}
                     >
-                      Change Password
+                      {tr("Change Password", "パスワード変更")}
                     </button>
                   </div>
                 </div>
               </>
             ) : null}
 
+            {accountPanelModal === "preferences" ? (
+              <>
+                <h3 id="account-panel-title">{tr("Preferences", "\u30D7\u30EC\u30D5\u30A1\u30EC\u30F3\u30B9")}</h3>
+                <p className="settingsHint">
+                  {tr(
+                    "These update your account experience and sync with your cloud state.",
+                    "\u3053\u308C\u3089\u306E\u8A2D\u5B9A\u306F\u30A2\u30AB\u30A6\u30F3\u30C8\u4F53\u9A13\u306B\u9069\u7528\u3055\u308C\u3001\u30AF\u30E9\u30A6\u30C9\u72B6\u614B\u306B\u540C\u671F\u3055\u308C\u307E\u3059\u3002"
+                  )}
+                </p>
+                <div className="settingsRow">
+                  <span>{tr("Language", "\u8868\u793A\u8A00\u8A9E")}</span>
+                  <select
+                    className="settingsInput"
+                    value={preferredLanguage}
+                    onChange={(event) => {
+                      setPreferredLanguage(parseStoredUiLanguage(event.target.value, "en"));
+                    }}
+                  >
+                    <option value="en">{tr("English", "\u82F1\u8A9E")}</option>
+                    <option value="ja">{tr("Japanese", "\u65E5\u672C\u8A9E")}</option>
+                  </select>
+                </div>
+                <div className="settingsRow">
+                  <span>{tr("Dictionary", "\u8F9E\u66F8")}</span>
+                  <select
+                    className="settingsInput"
+                    value={dictionaryPreference}
+                    onChange={(event) => {
+                      setDictionaryPreference(
+                        parseStoredDictionaryPreference(event.target.value, "en_en")
+                      );
+                    }}
+                  >
+                    <option value="en_en">
+                      {tr("English to English", "\u82F1\u8A9E\u2192\u82F1\u8A9E")}
+                    </option>
+                    <option value="en_ja">
+                      {tr("English to Japanese", "\u82F1\u8A9E\u2192\u65E5\u672C\u8A9E")}
+                    </option>
+                  </select>
+                </div>
+                <p className="settingsHint">
+                  {tr(
+                    "Changes are saved automatically.",
+                    "\u5909\u66F4\u306F\u81EA\u52D5\u7684\u306B\u4FDD\u5B58\u3055\u308C\u307E\u3059\u3002"
+                  )}
+                </p>
+              </>
+            ) : null}
+
             {accountPanelModal === "danger" ? (
               <>
-                <h3 id="account-panel-title">Danger Zone</h3>
+                <h3 id="account-panel-title">{tr("Danger Zone", "危険操作")}</h3>
                 <p className="settingsHint">
-                  Deleting your account permanently removes cloud data and cannot be undone.
+                  {tr("Deleting your account permanently removes cloud data and cannot be undone.", "アカウント削除でクラウドデータは完全に消去され、取り消せません。")}
                 </p>
                 {isAccountDeletionBlockedBySubscription ? (
                   <p className="settingsHint">
-                    Cancel your Pro subscription first. You can delete your account only after status is
-                    canceled.
+                    {tr("Cancel your Pro subscription first. You can delete your account only after status is canceled.", "先にProサブスクを解約してください。状態が canceled になってから削除できます。")}
                   </p>
                 ) : null}
                 <div className="settingsPasswordWrap">
@@ -3861,7 +4257,7 @@ export default function App() {
                       setAccountSecurityForm((prev) => ({ ...prev, deletePassword: event.target.value }));
                       if (accountActionError) setAccountActionError("");
                     }}
-                    placeholder="password to delete account"
+                    placeholder={tr("password to delete account", "削除用パスワード")}
                     autoComplete="current-password"
                     disabled={isAccountDeletionBlockedBySubscription || isBillingStatusLoading}
                     autoFocus
@@ -3870,15 +4266,15 @@ export default function App() {
                     type="button"
                     className="settingsPasswordToggleBtn"
                     onClick={() => setIsPasswordVisible((prev) => !prev)}
-                    aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                    title={isPasswordVisible ? "Hide password" : "Show password"}
+                    aria-label={isPasswordVisible ? tr("Hide password", "パスワードを隠す") : tr("Show password", "パスワードを表示")}
+                    title={isPasswordVisible ? tr("Hide password", "パスワードを隠す") : tr("Show password", "パスワードを表示")}
                     disabled={isAccountDeletionBlockedBySubscription || isBillingStatusLoading}
                   >
                     {"\uD83D\uDC41"}
                   </button>
                 </div>
                 <div className="settingsRow">
-                  <span>Permanent action</span>
+                  <span>{tr("Permanent action", "永久操作")}</span>
                   <button
                     type="button"
                     className="primaryBtn settingsDangerBtn"
@@ -3889,7 +4285,7 @@ export default function App() {
                       isAccountDeletionBlockedBySubscription
                     }
                   >
-                    {isDeleteAccountSubmitting ? "Deleting..." : "Delete Account"}
+                    {isDeleteAccountSubmitting ? tr("Deleting...", "削除中...") : tr("Delete Account", "アカウント削除")}
                   </button>
                 </div>
               </>
@@ -3898,7 +4294,7 @@ export default function App() {
             {accountActionError ? <p className="settingsErrorText">{accountActionError}</p> : null}
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={() => setAccountPanelModal("")}>
-                Close
+                {tr("Close", "閉じる")}
               </button>
             </div>
           </div>
@@ -3917,23 +4313,23 @@ export default function App() {
             aria-labelledby="daily-goal-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 id="daily-goal-title">Daily Goal</h3>
+            <h3 id="daily-goal-title">{tr("Daily Goal", "1日の目標")}</h3>
             <p className="settingsHint">
-              Track today&apos;s target and jump into your highest-priority review words.
+              {tr("Track today's target and jump into your highest-priority review words.", "本日の目標を追跡し、優先度の高い復習に進みましょう。")}
             </p>
             <div className="premiumFocusGrid">
               <div className="premiumFocusMetric">
-                <span>Progress Today</span>
-                <strong>{proDailyGoalProgress} / {proDailyGoalQuestions} questions</strong>
+                <span>{tr("Progress Today", "今日の進捗")}</span>
+                <strong>{proDailyGoalProgress} / {proDailyGoalQuestions} {tr("questions", "問")}</strong>
                 <div className="premiumProgressTrack" aria-hidden="true">
                   <div className="premiumProgressFill" style={{ width: `${proDailyGoalPercent}%` }} />
                 </div>
-                <small>{hasMetProDailyGoal ? "Goal complete today." : "Complete quizzes to close the goal."}</small>
+                <small>{hasMetProDailyGoal ? tr("Goal complete today.", "今日の目標達成。") : tr("Complete quizzes to close the goal.", "クイズを完了して目標達成しましょう。")}</small>
               </div>
               <div className="premiumFocusMetric">
-                <span>Smart Queue</span>
-                <strong>{smartReviewWords.length} words ready</strong>
-                <small>Weak words prioritized by your recent performance.</small>
+                <span>{tr("Smart Queue", "スマートキュー")}</span>
+                <strong>{smartReviewWords.length} {tr("words ready", "語が準備済み")}</strong>
+                <small>{tr("Weak words prioritized by your recent performance.", "最近の成績に基づいて弱点単語を優先表示します。")}</small>
               </div>
             </div>
             {isProPlan ? (
@@ -3947,7 +4343,7 @@ export default function App() {
                     )
                   }
                 >
-                  Goal -5
+                  {tr("Goal -5", "目標 -5")}
                 </button>
                 <button
                   type="button"
@@ -3958,7 +4354,7 @@ export default function App() {
                     )
                   }
                 >
-                  Goal +5
+                  {tr("Goal +5", "目標 +5")}
                 </button>
                 <button
                   type="button"
@@ -3968,7 +4364,7 @@ export default function App() {
                     openSmartReviewSetup();
                   }}
                 >
-                  Open Quiz Setup
+                  {tr("Open Quiz Setup", "クイズ設定を開く")}
                 </button>
               </div>
             ) : (
@@ -3978,7 +4374,7 @@ export default function App() {
                   className="modalBtn primary"
                   onClick={() => setIsDailyGoalModalOpen(false)}
                 >
-                  Close
+                  {tr("Close", "閉じる")}
                 </button>
               </div>
             )}
@@ -3998,14 +4394,14 @@ export default function App() {
             aria-labelledby="delete-book-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="delete-book-title">Delete Book</h3>
-            <p>Delete "{bookPendingDelete.name}"?</p>
+            <h3 id="delete-book-title">{tr("Delete Book", "ブック削除")}</h3>
+            <p>{tr(`Delete "${bookPendingDelete.name}"?`, `"${bookPendingDelete.name}" を削除しますか？`)}</p>
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={() => setBookPendingDelete(null)}>
-                Cancel
+                {tr("Cancel", "キャンセル")}
               </button>
               <button type="button" className="modalBtn danger" onClick={confirmDeleteBook}>
-                Delete
+                {tr("Delete", "削除")}
               </button>
             </div>
           </div>
@@ -4024,14 +4420,14 @@ export default function App() {
             aria-labelledby="delete-chapter-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="delete-chapter-title">Delete Chapter</h3>
-            <p>Delete "{chapterPendingDelete.name}"?</p>
+            <h3 id="delete-chapter-title">{tr("Delete Chapter", "章を削除")}</h3>
+            <p>{tr(`Delete "${chapterPendingDelete.name}"?`, `"${chapterPendingDelete.name}" を削除しますか？`)}</p>
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={() => setChapterPendingDelete(null)}>
-                Cancel
+                {tr("Cancel", "キャンセル")}
               </button>
               <button type="button" className="modalBtn danger" onClick={confirmDeleteChapter}>
-                Delete
+                {tr("Delete", "削除")}
               </button>
             </div>
           </div>
@@ -4050,17 +4446,16 @@ export default function App() {
             aria-labelledby="delete-word-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 id="delete-word-title">Delete Tracked Word?</h3>
+            <h3 id="delete-word-title">{tr("Delete Tracked Word?", "学習単語を削除しますか？")}</h3>
             <p>
-              "{wordPendingDelete.word}" is at mastery level {wordPendingDelete.level} ({wordPendingDelete.label}).
-              Deleting it will remove its progress history.
+              {tr(`"${wordPendingDelete.word}" is at mastery level ${wordPendingDelete.level} (${wordPendingDelete.label}). Deleting it will remove its progress history.`, `"${wordPendingDelete.word}" は習熟度レベル ${wordPendingDelete.level}（${wordPendingDelete.label}）です。削除すると進捗履歴も消えます。`)}
             </p>
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={() => setWordPendingDelete(null)}>
-                Cancel
+                {tr("Cancel", "キャンセル")}
               </button>
               <button type="button" className="modalBtn danger" onClick={confirmDeleteWord}>
-                Delete Word
+                {tr("Delete Word", "単語を削除")}
               </button>
             </div>
           </div>
@@ -4079,13 +4474,13 @@ export default function App() {
             aria-labelledby="remove-friend-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 id="remove-friend-title">Remove Friend</h3>
+            <h3 id="remove-friend-title">{tr("Remove Friend", "友達を削除")}</h3>
             <p>
-              Remove @{friendPendingRemove.username || `user_${friendPendingRemove.userId}`} from your friends list?
+              {tr(`Remove @${friendPendingRemove.username || `user_${friendPendingRemove.userId}`} from your friends list?`, `@${friendPendingRemove.username || `user_${friendPendingRemove.userId}`} を友達一覧から削除しますか？`)}
             </p>
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={() => setFriendPendingRemove(null)}>
-                Cancel
+                {tr("Cancel", "キャンセル")}
               </button>
               <button type="button" className="modalBtn danger" onClick={confirmRemoveFriend}>
                 Remove
@@ -4364,30 +4759,53 @@ export default function App() {
     );
 
     if (duplicateWord) {
-      openNoticeModal("That word is already in this chapter.", "Duplicate Word");
+      openNoticeModal(uiText.duplicateWord, uiText.duplicateWordTitle);
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`
-      );
+      let definitions = [];
+      let pronunciation = "";
+      let translationProvider = "";
+      let translationErrorCode = "";
 
-      if (!res.ok) {
-        openNoticeModal("Please enter a valid English word.", "Invalid Word");
-        return;
+      if (useEnglishToJapaneseDictionary) {
+        const translationResult = await fetchJapaneseTranslations(cleanWord);
+        definitions = Array.isArray(translationResult?.translations)
+          ? translationResult.translations
+          : [];
+        translationProvider = String(translationResult?.provider || "").trim().toLowerCase();
+        translationErrorCode = String(translationResult?.error || "").trim().toLowerCase();
+        if (!definitions.length) {
+          if (translationErrorCode === "jisho-word-not-available") {
+            openNoticeModal(uiText.jishoWordUnavailable, uiText.jishoWordUnavailableTitle);
+          } else if (translationErrorCode === "translation-connection-error") {
+            openNoticeModal(uiText.translationConnectionError, uiText.translationConnectionErrorTitle);
+          } else if (translationErrorCode) {
+            openNoticeModal(uiText.translationNetworkError, uiText.networkErrorTitle);
+          } else {
+            openNoticeModal(uiText.translationRequired, uiText.translationRequiredTitle);
+          }
+          return;
+        }
+      } else {
+        const res = await fetch(
+          `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`
+        );
+
+        if (!res.ok) {
+          openNoticeModal(uiText.invalidEnglishWord, uiText.invalidEnglishWordTitle);
+          return;
+        }
+
+        const data = await res.json();
+        definitions = extractDefinitions(data);
+        pronunciation = extractPronunciation(data);
       }
 
-      const data = await res.json();
-      const definitions = extractDefinitions(data);
-      const pronunciation = extractPronunciation(data);
-
       if (!definitions.length) {
-        openNoticeModal(
-          "A valid definition is required before this word can be added.",
-          "Definition Required"
-        );
+        openNoticeModal(uiText.definitionRequired, uiText.definitionRequiredTitle);
         return;
       }
 
@@ -4403,6 +4821,8 @@ export default function App() {
                   masteryXp: 0,
                   currentDefinitionIndex: 0,
                   definition: definitions[0],
+                  meaningSource: useEnglishToJapaneseDictionary ? "translator_en_ja" : "dictionary_en",
+                  translationProvider: useEnglishToJapaneseDictionary ? translationProvider || "unknown" : "",
                   chapterId: safeSelectedChapterIdForNewWords,
                   difficulty: estimateCefrLevel(cleanWord),
                   quizPerformanceHistory: [],
@@ -4434,7 +4854,10 @@ export default function App() {
       updateStreak();
       setInputWord("");
     } catch {
-      openNoticeModal("Failed to fetch definition.", "Network Error");
+      openNoticeModal(
+        useEnglishToJapaneseDictionary ? uiText.translationNetworkError : uiText.dictionaryNetworkError,
+        uiText.networkErrorTitle
+      );
     } finally {
       setLoading(false);
     }
@@ -4800,7 +5223,7 @@ export default function App() {
             <div className="streakWrap">
               <div className="streakTopRow">
                 <div className="streakBadge" aria-label="Current streak">
-                  {"\uD83D\uDD25"} {streak.count} day{streak.count !== 1 && "s"}
+                  {"\uD83D\uDD25"} {streak.count} {tr("day", "日")}
                 </div>
               </div>
             </div>
@@ -4808,18 +5231,18 @@ export default function App() {
         </div>
 
         <div className="weeklyOverviewSection">
-          <h2 className="weeklyOverviewTitle">Weekly Overview</h2>
+          <h2 className="weeklyOverviewTitle">{tr("Weekly Overview", "週間サマリー")}</h2>
           <div className="weeklyOverviewGrid">
             <div className="weeklyOverviewCard">
-              <p className="weeklyOverviewLabel">Questions Completed</p>
+              <p className="weeklyOverviewLabel">{tr("Questions Completed", "完了した問題")}</p>
               <strong className="weeklyOverviewValue">{currentWeekStats.questionsCompleted || 0}</strong>
             </div>
             <div className="weeklyOverviewCard">
-              <p className="weeklyOverviewLabel">Time Spent</p>
+              <p className="weeklyOverviewLabel">{tr("Time Spent", "学習時間")}</p>
               <strong className="weeklyOverviewValue">{weeklyTimeSpent}</strong>
             </div>
             <div className="weeklyOverviewCard">
-              <p className="weeklyOverviewLabel">Words Added</p>
+              <p className="weeklyOverviewLabel">{tr("Words Added", "追加した単語")}</p>
               <strong className="weeklyOverviewValue">{currentWeekStats.wordsAdded}</strong>
             </div>
           </div>
@@ -4831,21 +5254,21 @@ export default function App() {
                 className="weeklyOverviewCard dailyGoalOverviewCard"
                 onClick={() => setIsDailyGoalModalOpen(true)}
               >
-                <p className="weeklyOverviewLabel">Daily Goal</p>
+                <p className="weeklyOverviewLabel">{tr("Daily Goal", "1日の目標")}</p>
                 <strong className="weeklyOverviewValue">
-                  {proDailyGoalProgress} / {proDailyGoalQuestions} questions
+                  {proDailyGoalProgress} / {proDailyGoalQuestions} {tr("questions", "問")}
                 </strong>
                 <div className="premiumProgressTrack" aria-hidden="true">
                   <div className="premiumProgressFill" style={{ width: `${proDailyGoalPercent}%` }} />
                 </div>
-                <span className="settingsHint">Tap to manage your daily goal.</span>
+                <span className="settingsHint">{tr("Tap to manage your daily goal.", "タップして目標を管理")}</span>
               </button>
             </>
           ) : null}
         </div>
 
         <div className="recentSection">
-          <h2 className="recentTitle">Quick Access</h2>
+          <h2 className="recentTitle">{tr("Quick Access", "クイックアクセス")}</h2>
           <div className="recentBar">
           <div className="recentScroll">
             <button className="recentSquare addSquare" onClick={openAddBookModal}>
@@ -4890,7 +5313,7 @@ export default function App() {
               }
             }}
           >
-            <span>{"\uD83D\uDCD8"} Definitions</span>
+            <span>{"\uD83D\uDCD8"} {tr("Definitions", "単語追加")}</span>
           </div>
           <div
             className="panelCard wide"
@@ -4904,7 +5327,7 @@ export default function App() {
               }
             }}
           >
-            <span>{"\u26A1"} Flashcards</span>
+            <span>{"\u26A1"} {tr("Flashcards", "フラッシュカード")}</span>
           </div>
           <div
             className="panelCard wide"
@@ -4926,7 +5349,7 @@ export default function App() {
               }
             }}
           >
-            <span>{"\u2705"} Quiz</span>
+            <span>{"\u2705"} {tr("Quiz", "クイズ")}</span>
           </div>
           <div
             className="panelCard wide"
@@ -4940,7 +5363,7 @@ export default function App() {
               }
             }}
           >
-            <span>{"\uD83D\uDCDA"} My Books</span>
+            <span>{"\uD83D\uDCDA"} {tr("My Books", "マイブック")}</span>
           </div>
           <div
             className="panelCard wide"
@@ -4954,7 +5377,7 @@ export default function App() {
               }
             }}
           >
-            <span>{"\uD83D\uDCCA"} Data</span>
+            <span>{"\uD83D\uDCCA"} {tr("Data", "データ")}</span>
           </div>
           <div
             className="panelCard wide"
@@ -4968,7 +5391,7 @@ export default function App() {
               }
             }}
           >
-            <span>{"\uD83D\uDC65"} Socials</span>
+            <span>{"\uD83D\uDC65"} {tr("Socials", "ソーシャル")}</span>
           </div>
           {isMobileViewport ? (
             <div
@@ -4983,7 +5406,7 @@ export default function App() {
                 }
               }}
             >
-              <span>{"\u2699\uFE0F"} Settings</span>
+              <span>{"\u2699\uFE0F"} {tr("Settings", "設定")}</span>
             </div>
           ) : null}
           {isMobileViewport ? (
@@ -4999,7 +5422,7 @@ export default function App() {
                 }
               }}
             >
-              <span>{"\uD83D\uDC64"} My Account</span>
+              <span>{"\uD83D\uDC64"} {tr("My Account", "アカウント")}</span>
             </div>
           ) : null}
         </div>
@@ -5013,15 +5436,15 @@ export default function App() {
     return renderWithSidebar(
       <div className="page accountPage">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>Settings</h1>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>{uiText.settingsTitle}</h1>
         </div>
         <div className="analyticsSection">
           <div className="analyticsGrid">
             <div className="analyticsCard settingsCard">
-              <h3>Appearance</h3>
+              <h3>{uiText.appearance}</h3>
               <div className="settingsRow">
-                <span>Theme</span>
+                <span>{uiText.theme}</span>
                 <button
                   type="button"
                   className={`themeSwitch ${theme === "dark" ? "isDark" : ""}`}
@@ -5046,8 +5469,8 @@ export default function App() {
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>My Account</h1>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>{tr("My Account", "アカウント")}</h1>
         </div>
         <div className="analyticsSection accountSection">
           {authToken ? (
@@ -5062,16 +5485,16 @@ export default function App() {
               >
                 <div className="accountLauncherHead">
                   <span className="accountLauncherIcon" aria-hidden="true">{"\uD83D\uDC8E"}</span>
-                  <h3>Plan</h3>
+                  <h3>{tr("Plan", "プラン")}</h3>
                 </div>
                 <p className="settingsHint">
                   {billingPlan === "pro"
                     ? isLifetimePro
-                      ? "View lifetime Pro status."
-                      : "Manage subscription and billing details."
-                    : "View current billing status."}
+                      ? tr("View lifetime Pro status.", "永久Proステータスを確認")
+                      : tr("Manage subscription and billing details.", "サブスクと請求を管理")
+                    : tr("View current billing status.", "現在の請求状況を確認")}
                 </p>
-                <span className="accountLauncherAction">Open</span>
+                <span className="accountLauncherAction">{tr("Open", "開く")}</span>
               </button>
               <button
                 type="button"
@@ -5083,10 +5506,10 @@ export default function App() {
               >
                 <div className="accountLauncherHead">
                   <span className="accountLauncherIcon" aria-hidden="true">{"\uD83D\uDDA5"}</span>
-                  <h3>Session</h3>
+                  <h3>{tr("Session", "セッション")}</h3>
                 </div>
-                <p className="settingsHint">Log out this device or all devices.</p>
-                <span className="accountLauncherAction">Open</span>
+                <p className="settingsHint">{tr("Log out this device or all devices.", "この端末または全端末からログアウト")}</p>
+                <span className="accountLauncherAction">{tr("Open", "開く")}</span>
               </button>
               <button
                 type="button"
@@ -5098,10 +5521,10 @@ export default function App() {
               >
                 <div className="accountLauncherHead">
                   <span className="accountLauncherIcon" aria-hidden="true">{"\uD83D\uDC64"}</span>
-                  <h3>Account Info</h3>
+                  <h3>{tr("Account Info", "アカウント情報")}</h3>
                 </div>
-                <p className="settingsHint">View email, username, and password settings.</p>
-                <span className="accountLauncherAction">Open</span>
+                <p className="settingsHint">{tr("View email, username, and password settings.", "メール・ユーザー名・パスワード設定を確認")}</p>
+                <span className="accountLauncherAction">{tr("Open", "開く")}</span>
               </button>
               <button
                 type="button"
@@ -5113,32 +5536,32 @@ export default function App() {
               >
                 <div className="accountLauncherHead">
                   <span className="accountLauncherIcon" aria-hidden="true">{"\u26A0"}</span>
-                  <h3>Danger Zone</h3>
+                  <h3>{tr("Danger Zone", "危険操作")}</h3>
                 </div>
-                <p className="settingsHint">Delete your account permanently.</p>
-                <span className="accountLauncherAction">Open</span>
+                <p className="settingsHint">{tr("Delete your account permanently.", "アカウントを完全に削除")}</p>
+                <span className="accountLauncherAction">{tr("Open", "開く")}</span>
               </button>
             </div>
           ) : (
             <div className="accountAuthWrap">
               <div className="analyticsCard settingsCard accountCard">
-                <h3>Account</h3>
+                <h3>{tr("Account", "アカウント")}</h3>
                 <>
-                  <p className="settingsHint">Create an account or sign in to sync with backend.</p>
+                  <p className="settingsHint">{tr("Create an account or sign in to sync with backend.", "アカウント作成またはログインして同期")}</p>
                   <div className="settingsAuthModeRow" role="group" aria-label="Choose account action">
                     <button
                       type="button"
                       className={`settingsAuthModeBtn ${authMode === "login" ? "isActive" : ""}`}
                       onClick={() => setAuthMode("login")}
                     >
-                      Login
+                      {tr("Login", "ログイン")}
                     </button>
                     <button
                       type="button"
                       className={`settingsAuthModeBtn ${authMode === "register" ? "isActive" : ""}`}
                       onClick={() => setAuthMode("register")}
                     >
-                      Register
+                      {tr("Register", "新規登録")}
                     </button>
                   </div>
                   {authMode === "register" ? (
@@ -5150,9 +5573,39 @@ export default function App() {
                         setAuthForm((prev) => ({ ...prev, email: event.target.value }));
                         if (authError) setAuthError("");
                       }}
-                      placeholder="email"
+                      placeholder={tr("email", "メールアドレス")}
                       autoComplete="email"
                     />
+                  ) : null}
+                  {authMode === "register" ? (
+                    <select
+                      className="settingsInput"
+                      value={authForm.preferredLanguage}
+                      onChange={(event) => {
+                        setAuthForm((prev) => ({ ...prev, preferredLanguage: event.target.value }));
+                        if (authError) setAuthError("");
+                      }}
+                    >
+                      <option value="en">{tr("Language: English", "表示言語: 英語")}</option>
+                      <option value="ja">{tr("Language: Japanese", "表示言語: 日本語")}</option>
+                    </select>
+                  ) : null}
+                  {authMode === "register" ? (
+                    <select
+                      className="settingsInput"
+                      value={authForm.dictionaryPreference}
+                      onChange={(event) => {
+                        setAuthForm((prev) => ({ ...prev, dictionaryPreference: event.target.value }));
+                        if (authError) setAuthError("");
+                      }}
+                    >
+                      <option value="en_en">
+                        {tr("Dictionary: English to English", "辞書: 英語→英語")}
+                      </option>
+                      <option value="en_ja">
+                        {tr("Dictionary: English to Japanese", "辞書: 英語→日本語")}
+                      </option>
+                    </select>
                   ) : null}
                   <input
                     className="settingsInput"
@@ -5162,7 +5615,7 @@ export default function App() {
                       if (authError) setAuthError("");
                     }}
                     placeholder={
-                      authMode === "login" ? "username or email" : "username (a-z, 0-9, _)"
+                      authMode === "login" ? tr("username or email", "ユーザー名またはメール") : tr("username (a-z, 0-9, _)", "ユーザー名 (a-z, 0-9, _)")
                     }
                     autoComplete="username"
                   />
@@ -5175,15 +5628,15 @@ export default function App() {
                         setAuthForm((prev) => ({ ...prev, password: event.target.value }));
                         if (authError) setAuthError("");
                       }}
-                      placeholder="password (min 8 chars)"
+                      placeholder={tr("password (min 8 chars)", "パスワード（8文字以上）")}
                       autoComplete={authMode === "login" ? "current-password" : "new-password"}
                     />
                     <button
                       type="button"
                       className="settingsPasswordToggleBtn"
                       onClick={() => setIsPasswordVisible((prev) => !prev)}
-                      aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                      title={isPasswordVisible ? "Hide password" : "Show password"}
+                      aria-label={isPasswordVisible ? tr("Hide password", "\u30d1\u30b9\u30ef\u30fc\u30c9\u3092\u96a0\u3059") : tr("Show password", "\u30d1\u30b9\u30ef\u30fc\u30c9\u3092\u8868\u793a")}
+                      title={isPasswordVisible ? tr("Hide password", "\u30d1\u30b9\u30ef\u30fc\u30c9\u3092\u96a0\u3059") : tr("Show password", "\u30d1\u30b9\u30ef\u30fc\u30c9\u3092\u8868\u793a")}
                     >
                       {"\uD83D\uDC41"}
                     </button>
@@ -5198,15 +5651,15 @@ export default function App() {
                           setAuthForm((prev) => ({ ...prev, confirmPassword: event.target.value }));
                           if (authError) setAuthError("");
                         }}
-                        placeholder="confirm password"
+                        placeholder={tr("confirm password", "パスワード確認")}
                         autoComplete="new-password"
                       />
                       <button
                         type="button"
                         className="settingsPasswordToggleBtn"
                         onClick={() => setIsPasswordVisible((prev) => !prev)}
-                        aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                        title={isPasswordVisible ? "Hide password" : "Show password"}
+                        aria-label={isPasswordVisible ? tr("Hide password", "\u30d1\u30b9\u30ef\u30fc\u30c9\u3092\u96a0\u3059") : tr("Show password", "\u30d1\u30b9\u30ef\u30fc\u30c9\u3092\u8868\u793a")}
+                        title={isPasswordVisible ? tr("Hide password", "\u30d1\u30b9\u30ef\u30fc\u30c9\u3092\u96a0\u3059") : tr("Show password", "\u30d1\u30b9\u30ef\u30fc\u30c9\u3092\u8868\u793a")}
                       >
                         {"\uD83D\uDC41"}
                       </button>
@@ -5224,9 +5677,9 @@ export default function App() {
                           }}
                         />
                         <span>
-                          I accept the <a href="/terms">Terms &amp; Conditions</a>,{" "}
-                          <a href="/privacy">Privacy Policy</a>, and{" "}
-                          <a href="/disclaimer">Disclaimer</a>
+                          {tr("I accept the ", "")}<a href="/terms">{tr("Terms & Conditions", "利用規約")}</a>,{" "}
+                          <a href="/privacy">{tr("Privacy Policy", "プライバシーポリシー")}</a>{tr(", and ", "、")}{" "}
+                          <a href="/disclaimer">{tr("Disclaimer", "免責事項")}</a>{tr("", "に同意します")}
                         </span>
                       </label>
                       <label className="settingsCheckRow">
@@ -5239,13 +5692,13 @@ export default function App() {
                           }}
                         />
                         <span>
-                          Send me product updates, new feature announcements, and learning tips
+                          {tr("Send me product updates, new feature announcements, and learning tips", "製品アップデート・新機能・学習ヒントを受け取る")}
                         </span>
                       </label>
                     </>
                   ) : null}
                   <div className="settingsRow">
-                    <span>{authMode === "login" ? "Use existing account" : "Create new account"}</span>
+                    <span>{authMode === "login" ? tr("Use existing account", "既存アカウントで利用") : tr("Create new account", "新規アカウントを作成")}</span>
                     <button
                       type="button"
                       className="primaryBtn"
@@ -5253,10 +5706,10 @@ export default function App() {
                       disabled={isAuthSubmitting}
                     >
                       {isAuthSubmitting
-                        ? "Please wait..."
+                        ? tr("Please wait...", "処理中...")
                         : authMode === "login"
-                          ? "Log In"
-                          : "Register"}
+                          ? tr("Log In", "ログイン")
+                          : tr("Register", "登録")}
                     </button>
                   </div>
                   {authError ? <p className="settingsErrorText">{authError}</p> : null}
@@ -5280,7 +5733,9 @@ export default function App() {
       : [];
     const ownLeagueTrack = (currentUserProfile?.plan || billingPlan) === "pro" ? "pro" : "free";
     const leagueTrack = ownLeagueTrack;
-    const leagueLabel = leagueTrack === "pro" ? "Pro League" : "Free League";
+    const leagueLabel = leagueTrack === "pro"
+      ? tr("Pro League", "Proリーグ")
+      : tr("Free League", "無料リーグ");
     const rankedProfiles = (strictLeaderboardProfiles.length > 0
       ? strictLeaderboardProfiles
       : [currentUserProfile, ...friendProfiles])
@@ -5294,17 +5749,17 @@ export default function App() {
           ? "total"
           : "weekly";
     const timeframeLabel = timeframeKey === "monthly"
-      ? "Monthly"
+      ? tr("Monthly", "月間")
       : timeframeKey === "yearly"
-        ? "Yearly"
+        ? tr("Yearly", "年間")
         : timeframeKey === "total"
-          ? "Total"
-          : "Weekly";
+          ? tr("Total", "累計")
+          : tr("Weekly", "週間");
     const timeframeOptions = [
-      { value: "weekly", label: "Weekly" },
-      { value: "monthly", label: "Monthly" },
-      { value: "yearly", label: "Yearly" },
-      { value: "total", label: "Total" },
+      { value: "weekly", label: tr("Weekly", "週間") },
+      { value: "monthly", label: tr("Monthly", "月間") },
+      { value: "yearly", label: tr("Yearly", "年間") },
+      { value: "total", label: tr("Total", "累計") },
     ];
     const metricKey = socialMetric === "questionsCompleted"
       ? "questionsCompleted"
@@ -5312,10 +5767,10 @@ export default function App() {
         ? "timeSpentSeconds"
         : "wordsAdded";
     const metricLabel = metricKey === "questionsCompleted"
-      ? "Questions"
+      ? tr("Questions", "問題数")
       : metricKey === "timeSpentSeconds"
-        ? "Time Spent"
-        : "Words Added";
+        ? tr("Time Spent", "学習時間")
+        : tr("Words Added", "追加単語");
     const leaderboardRows = rankedProfiles
       .map((profile) => ({
         userId: profile.userId,
@@ -5338,34 +5793,34 @@ export default function App() {
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>Leaderboard</h1>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>{tr("Leaderboard", "ランキング")}</h1>
         </div>
         {!authToken ? (
-          <p>Please log in from My Account to use leaderboard features.</p>
+          <p>{tr("Please log in from My Account to use leaderboard features.", "ランキング機能を使うにはアカウントからログインしてください。")}</p>
         ) : (
           <div className="analyticsSection socialSectionStack">
             <div className="analyticsCard">
               <div className="settingsRow">
-                <span>Manage friends and requests</span>
+                <span>{tr("Manage friends and requests", "友達とリクエスト管理")}</span>
                 <button
                   type="button"
                   className="primaryBtn"
                   onClick={() => setScreen("socialFriends")}
                 >
-                  Go To Friends
+                  {tr("Go To Friends", "友達管理へ")}
                 </button>
               </div>
             </div>
             <div className="analyticsCard socialLeaderboardCard">
-              <h3>Leaderboard</h3>
+              <h3>{tr("Leaderboard", "ランキング")}</h3>
               <p className="settingsHint">
-                Climb the ranks in your plan league.
+                {tr("Climb the ranks in your plan league.", "所属リーグで順位を上げましょう。")}
               </p>
-              <p className="settingsHint">League: {leagueLabel}</p>
+              <p className="settingsHint">{tr("League", "リーグ")}: {leagueLabel}</p>
               <div className="socialMetricRow">
                 <span className="socialTimeframeLabel">
-                  Timeframe
+                  {tr("Timeframe", "期間")}
                 </span>
                 <InAppDropdown
                   className="socialTimeframeDropdown"
@@ -5380,21 +5835,21 @@ export default function App() {
                   className={`settingsAuthModeBtn ${socialMetric === "wordsAdded" ? "isActive" : ""}`}
                   onClick={() => setSocialMetric("wordsAdded")}
                 >
-                  Words Added
+                  {tr("Words Added", "追加単語")}
                 </button>
                 <button
                   type="button"
                   className={`settingsAuthModeBtn ${socialMetric === "questionsCompleted" ? "isActive" : ""}`}
                   onClick={() => setSocialMetric("questionsCompleted")}
                 >
-                  Questions
+                  {tr("Questions", "問題数")}
                 </button>
                 <button
                   type="button"
                   className={`settingsAuthModeBtn ${socialMetric === "timeSpentSeconds" ? "isActive" : ""}`}
                   onClick={() => setSocialMetric("timeSpentSeconds")}
                 >
-                  Time Spent
+                  {tr("Time Spent", "学習時間")}
                 </button>
               </div>
               {myRow ? (
@@ -5415,7 +5870,7 @@ export default function App() {
                 </div>
               ) : null}
               {leaderboardRows.length === 0 ? (
-                <p className="settingsHint">No leaderboard data yet.</p>
+                <p className="settingsHint">{tr("No leaderboard data yet.", "ランキングデータはまだありません。")}</p>
               ) : (
                 <>
                   <div className="socialPodium">
@@ -5450,7 +5905,7 @@ export default function App() {
                           <div className="socialLeaderboardIdentity">
                             <div className="socialLeaderboardNameRow">
                               <strong>@{row.username}</strong>
-                              {index === 0 ? <span className="socialLeaderBadge">Leader</span> : null}
+                              {index === 0 ? <span className="socialLeaderBadge">{tr("Leader", "首位")}</span> : null}
                             </div>
                             <div className="socialLeaderboardBarTrack" aria-hidden="true">
                               <div className="socialLeaderboardBarFill" style={{ width: `${barWidth}%` }} />
@@ -5465,7 +5920,7 @@ export default function App() {
               )}
             </div>
 
-            {isSocialLoading ? <p className="settingsHint">Loading social data...</p> : null}
+            {isSocialLoading ? <p className="settingsHint">{tr("Loading social data...", "ソーシャルデータを読み込み中...")}</p> : null}
             {socialError ? <p className="settingsErrorText">{socialError}</p> : null}
           </div>
         )}
@@ -5486,17 +5941,17 @@ export default function App() {
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("socialLeaderboard")}>&times;</button>
-          <h1>Manage Friends</h1>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("socialLeaderboard")}>&times;</button>
+          <h1>{tr("Manage Friends", "友達管理")}</h1>
         </div>
         {!authToken ? (
-          <p>Please log in from My Account to manage friends.</p>
+          <p>{tr("Please log in from My Account to manage friends.", "友達管理にはアカウントからログインしてください。")}</p>
         ) : (
           <div className="analyticsSection socialSectionStack">
             <div className="analyticsGrid">
               <div className="analyticsCard settingsCard">
-                <h3>Add Friend</h3>
-                <p className="settingsHint">Search by username, then send a friend request.</p>
+                <h3>{tr("Add Friend", "友達を追加")}</h3>
+                <p className="settingsHint">{tr("Search by username, then send a friend request.", "ユーザー名で検索して友達申請を送信します。")}</p>
                 <input
                   className="settingsInput"
                   value={friendUsernameInput}
@@ -5504,26 +5959,26 @@ export default function App() {
                     setFriendUsernameInput(event.target.value);
                     if (socialError) setSocialError("");
                   }}
-                  placeholder="friend username"
+                  placeholder={tr("friend username", "友達のユーザー名")}
                   autoComplete="off"
                 />
                 <div className="settingsRow">
-                  <span>Send request</span>
+                  <span>{tr("Send request", "申請を送信")}</span>
                   <button
                     type="button"
                     className="primaryBtn"
                     onClick={sendFriendRequest}
                     disabled={socialActionLoadingKey === "send-request"}
                   >
-                    {socialActionLoadingKey === "send-request" ? "Sending..." : "Add Friend"}
+                    {socialActionLoadingKey === "send-request" ? tr("Sending...", "送信中...") : tr("Add Friend", "友達追加")}
                   </button>
                 </div>
               </div>
 
               <div className="analyticsCard">
-                <h3>Incoming Requests</h3>
+                <h3>{tr("Incoming Requests", "受信リクエスト")}</h3>
                 {incomingRequests.length === 0 ? (
-                  <p className="settingsHint">No incoming requests.</p>
+                  <p className="settingsHint">{tr("No incoming requests.", "受信リクエストはありません。")}</p>
                 ) : (
                   <div className="socialList">
                     {incomingRequests.map((request) => (
@@ -5538,7 +5993,7 @@ export default function App() {
                             onClick={() => respondToFriendRequest(request.requestId, "accept")}
                             disabled={socialActionLoadingKey === `respond-${request.requestId}-accept`}
                           >
-                            Accept
+                            {tr("Accept", "承認")}
                           </button>
                           <button
                             type="button"
@@ -5546,7 +6001,7 @@ export default function App() {
                             onClick={() => respondToFriendRequest(request.requestId, "decline")}
                             disabled={socialActionLoadingKey === `respond-${request.requestId}-decline`}
                           >
-                            Decline
+                            {tr("Decline", "拒否")}
                           </button>
                         </div>
                       </div>
@@ -5557,9 +6012,9 @@ export default function App() {
             </div>
 
             <div className="analyticsCard">
-              <h3>Friends</h3>
+              <h3>{tr("Friends", "友達")}</h3>
               {friendProfiles.length === 0 ? (
-                <p className="settingsHint">Add friends to start competing.</p>
+                <p className="settingsHint">{tr("Add friends to start competing.", "友達を追加して競争を始めましょう。")}</p>
               ) : (
                 <div className="socialList">
                   {friendProfiles.map((friend) => {
@@ -5574,7 +6029,7 @@ export default function App() {
                             <strong className="socialFriendName">@{friend.username}</strong>
                             <div className="socialFriendBadgeRow socialFriendBadgeRowInline">
                               <span className="socialFriendBadge streak">
-                                {"\uD83D\uDD25"} {friendStreak}-day streak
+                                {"\uD83D\uDD25"} {friendStreak}{tr("-day streak", "日連続")}
                               </span>
                             </div>
                           </div>
@@ -5585,7 +6040,7 @@ export default function App() {
                           onClick={() => askRemoveFriend(friend)}
                           disabled={socialActionLoadingKey === `remove-${friend.userId}`}
                         >
-                          Remove
+                          {tr("Remove", "削除")}
                         </button>
                       </div>
                     );
@@ -5593,9 +6048,9 @@ export default function App() {
                 </div>
               )}
               <div className="socialOutgoing">
-                <h3>Outgoing Requests</h3>
+                <h3>{tr("Outgoing Requests", "送信済みリクエスト")}</h3>
                 {outgoingRequests.length === 0 ? (
-                  <p className="settingsHint">No outgoing requests.</p>
+                  <p className="settingsHint">{tr("No outgoing requests.", "送信済みリクエストはありません。")}</p>
                 ) : (
                   <div className="socialList">
                     {outgoingRequests.map((request) => (
@@ -5609,7 +6064,7 @@ export default function App() {
                           onClick={() => cancelOutgoingFriendRequest(request.requestId)}
                           disabled={socialActionLoadingKey === `cancel-request-${request.requestId}`}
                         >
-                          Cancel Request
+                          {tr("Cancel Request", "申請を取り消す")}
                         </button>
                       </div>
                     ))}
@@ -5618,7 +6073,7 @@ export default function App() {
               </div>
             </div>
 
-            {isSocialLoading ? <p className="settingsHint">Loading social data...</p> : null}
+            {isSocialLoading ? <p className="settingsHint">{tr("Loading social data...", "ソーシャルデータを読み込み中...")}</p> : null}
             {socialError ? <p className="settingsErrorText">{socialError}</p> : null}
           </div>
         )}
@@ -5630,10 +6085,10 @@ export default function App() {
   // ---------- DATA ----------
   if (screen === "data") {
     const overviewCards = [
-      { key: "daily", title: "Daily", stats: activityDailyStats },
-      { key: "weekly", title: "Weekly", stats: activityWeeklyStats },
-      { key: "monthly", title: "Monthly", stats: activityMonthlyStats },
-      { key: "total", title: "Total", stats: activityTotalStats },
+      { key: "daily", title: tr("Daily", "日次"), stats: activityDailyStats },
+      { key: "weekly", title: tr("Weekly", "週間"), stats: activityWeeklyStats },
+      { key: "monthly", title: tr("Monthly", "月間"), stats: activityMonthlyStats },
+      { key: "total", title: tr("Total", "累計"), stats: activityTotalStats },
     ];
     const selectedOverviewCard =
       overviewCards.find((card) => card.key === selectedDataTimeframe) || overviewCards[1];
@@ -5654,8 +6109,8 @@ export default function App() {
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>Data</h1>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>{tr("Data", "データ")}</h1>
         </div>
 
         <div className="analyticsSection">
@@ -5663,7 +6118,7 @@ export default function App() {
             <>
               <div className="dataTimeframeRow">
                 <label htmlFor="data-timeframe-select" className="dataTimeframeLabel">
-                  Timeframe
+                  {tr("Timeframe", "期間")}
                 </label>
                 <select
                   id="data-timeframe-select"
@@ -5683,15 +6138,15 @@ export default function App() {
                   <h3>{selectedOverviewCard.title}</h3>
                   <div className="activityOverviewStats">
                     <div className="activityOverviewStat">
-                      <span>Questions</span>
+                      <span>{tr("Questions", "問題数")}</span>
                       <strong>{selectedOverviewCard.stats.questionsCompleted || 0}</strong>
                     </div>
                     <div className="activityOverviewStat">
-                      <span>Words</span>
+                      <span>{tr("Words", "単語")}</span>
                       <strong>{selectedOverviewCard.stats.wordsAdded}</strong>
                     </div>
                     <div className="activityOverviewStat">
-                      <span>Time</span>
+                      <span>{tr("Time", "時間")}</span>
                       <strong>{formatWeeklyTime(selectedOverviewCard.stats.timeSpentSeconds)}</strong>
                     </div>
                   </div>
@@ -5705,15 +6160,15 @@ export default function App() {
                   <h3>{card.title}</h3>
                   <div className="activityOverviewStats">
                     <div className="activityOverviewStat">
-                      <span>Questions</span>
+                      <span>{tr("Questions", "問題数")}</span>
                       <strong>{card.stats.questionsCompleted || 0}</strong>
                     </div>
                     <div className="activityOverviewStat">
-                      <span>Words</span>
+                      <span>{tr("Words", "単語")}</span>
                       <strong>{card.stats.wordsAdded}</strong>
                     </div>
                     <div className="activityOverviewStat">
-                      <span>Time</span>
+                      <span>{tr("Time", "時間")}</span>
                       <strong>{formatWeeklyTime(card.stats.timeSpentSeconds)}</strong>
                     </div>
                   </div>
@@ -5724,7 +6179,7 @@ export default function App() {
 
           <div className="analyticsGrid">
             <div className="analyticsCard">
-              <h3>Words Added Over Time (Last 14 Days)</h3>
+              <h3>{tr("Words Added Over Time (Last 14 Days)", "追加単語の推移（過去14日）")}</h3>
               <div className="chartGridLayout">
                 <div className="chartYAxis" aria-hidden="true">
                   {trendTicks.map((tick, index) => (
@@ -5737,7 +6192,7 @@ export default function App() {
                       <span key={`trend-line-${index}`} style={{ bottom: `${fraction * 100}%` }} />
                     ))}
                   </div>
-                  <div className="trendBars" role="img" aria-label="Words added over last 14 days">
+                  <div className="trendBars" role="img" aria-label={tr("Words added over last 14 days", "過去14日の追加単語")}>
                     {wordTrend.map((item) => {
                       const heightPercent = Math.round((item.value / maxTrendValue) * 100);
                       return (
@@ -5757,7 +6212,7 @@ export default function App() {
             </div>
 
             <div className="analyticsCard">
-              <h3>Questions Completed Over Time (Last 14 Days)</h3>
+              <h3>{tr("Questions Completed Over Time (Last 14 Days)", "解答数の推移（過去14日）")}</h3>
               <div className="chartGridLayout">
                 <div className="chartYAxis" aria-hidden="true">
                   {questionTrendTicks.map((tick, index) => (
@@ -5770,7 +6225,7 @@ export default function App() {
                       <span key={`question-trend-line-${index}`} style={{ bottom: `${fraction * 100}%` }} />
                     ))}
                   </div>
-                  <div className="trendBars" role="img" aria-label="Questions completed over last 14 days">
+                  <div className="trendBars" role="img" aria-label={tr("Questions completed over last 14 days", "過去14日の解答数")}>
                     {questionTrend.map((item) => {
                       const heightPercent = Math.round((item.value / maxQuestionTrendValue) * 100);
                       return (
@@ -5790,7 +6245,7 @@ export default function App() {
             </div>
 
             <div className="analyticsCard">
-              <h3>Words by CEFR Level</h3>
+              <h3>{tr("Words by CEFR Level", "CEFRレベル別単語数")}</h3>
               <div className="chartGridLayout">
                 <div className="chartYAxis" aria-hidden="true">
                   {difficultyTicks.map((tick, index) => (
@@ -5803,7 +6258,7 @@ export default function App() {
                       <span key={`difficulty-line-${index}`} style={{ bottom: `${fraction * 100}%` }} />
                     ))}
                   </div>
-                  <div className="difficultyChart" role="img" aria-label="Word count by CEFR level">
+                  <div className="difficultyChart" role="img" aria-label={tr("Word count by CEFR level", "CEFRレベル別単語数")}>
                     {difficultyWordCounts.map((item) => {
                       const heightPercent = Math.round((item.count / maxDifficultyWordCount) * 100);
                       return (
@@ -5824,7 +6279,7 @@ export default function App() {
             </div>
 
             <div className="analyticsCard">
-              <h3>Words by Mastery Level</h3>
+              <h3>{tr("Words by Mastery Level", "習熟度別単語数")}</h3>
               <div className="chartGridLayout">
                 <div className="chartYAxis" aria-hidden="true">
                   {masteryTicks.map((tick, index) => (
@@ -5837,7 +6292,7 @@ export default function App() {
                       <span key={`mastery-line-${index}`} style={{ bottom: `${fraction * 100}%` }} />
                     ))}
                   </div>
-                  <div className="difficultyChart masteryChart" role="img" aria-label="Word count by mastery level">
+                  <div className="difficultyChart masteryChart" role="img" aria-label={tr("Word count by mastery level", "習熟度別単語数")}>
                     {masteryLevelCounts.map((item) => {
                       const heightPercent = Math.round((item.count / maxMasteryWordCount) * 100);
                       return (
@@ -5861,14 +6316,14 @@ export default function App() {
           {isProPlan ? (
             <div className="analyticsCard premiumDataCard">
               <div className="premiumFocusHeader">
-                <h3>Weak-Words Lab</h3>
+                <h3>{tr("Weak-Words Lab", "弱点単語ラボ")}</h3>
               </div>
               <p className="settingsHint">
-                Find the exact words that cost you points and export them for focused drills.
+                {tr("Find the exact words that cost you points and export them for focused drills.", "失点しやすい単語を特定し、集中練習用にエクスポートできます。")}
               </p>
               <p className="quizSetupHint">
-                Rolling window: last {WEAK_WORDS_RECENT_DAY_WINDOW} days and up to{" "}
-                {WEAK_WORDS_RECENT_QUESTION_WINDOW} recent answers per word.
+                {tr("Rolling window:", "分析期間:")} {WEAK_WORDS_RECENT_DAY_WINDOW}{tr(" days and up to", "日、かつ各単語につき最新")}{" "}
+                {WEAK_WORDS_RECENT_QUESTION_WINDOW}{tr(" recent answers per word.", "件まで")}
               </p>
               <div className="premiumWeakList">
                 {weakWordCandidates.slice(0, 8).map((entry, index) => (
@@ -5895,35 +6350,35 @@ export default function App() {
                   </div>
                 ))}
                 {weakWordCandidates.length === 0 ? (
-                  <p className="quizSetupHint">No weak-word data yet. Complete quizzes to build insights.</p>
+                  <p className="quizSetupHint">{tr("No weak-word data yet. Complete quizzes to build insights.", "弱点データはまだありません。クイズを解いてデータを作成しましょう。")}</p>
                 ) : null}
               </div>
               <div className="premiumActionRow">
                 <button type="button" className="primaryBtn" onClick={openSmartReviewSetup}>
-                  Open Quiz Setup
+                  {tr("Open Quiz Setup", "クイズ設定を開く")}
                 </button>
                 <button type="button" className="primaryBtn" onClick={exportWeakWordsCsv}>
-                  Export Weak Words CSV
+                  {tr("Export Weak Words CSV", "弱点単語CSVを出力")}
                 </button>
               </div>
             </div>
           ) : null}
 
           <div className="analyticsCard backupRestoreCard">
-            <h3>Backup & Restore</h3>
+            <h3>{tr("Backup & Restore", "バックアップと復元")}</h3>
             <p className="quizSetupHint">
-              Export your full app data to JSON, or import a previous backup file.
+              {tr("Export your full app data to JSON, or import a previous backup file.", "全データをJSONで出力、またはバックアップを読み込みできます。")}
             </p>
             <div className="quizResultActions">
               <button type="button" className="primaryBtn" onClick={exportBackup}>
-                Export Backup
+                {tr("Export Backup", "バックアップを出力")}
               </button>
               <button
                 type="button"
                 className="primaryBtn"
                 onClick={() => backupFileInputRef.current?.click()}
               >
-                Import Backup
+                {tr("Import Backup", "バックアップを読み込み")}
               </button>
               <input
                 ref={backupFileInputRef}
@@ -5945,10 +6400,10 @@ export default function App() {
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>My Books</h1>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>{tr("My Books", "マイブック")}</h1>
         </div>
-        <button className="primaryBtn" onClick={openAddBookModal}>+ Add Book</button>
+        <button className="primaryBtn" onClick={openAddBookModal}>+ {tr("Add Book", "ブック追加")}</button>
         <div className="bookGrid selectBookGrid">
           {sortedBooksByRecent.map((book) => renderMyBookCard(book))}
         </div>
@@ -5962,7 +6417,7 @@ export default function App() {
     return renderWithSidebar(
       <div className="page bookMenuPage">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
           <h1>{currentBook?.name}</h1>
         </div>
         <div className="panelGrid bookModeGrid">
@@ -5979,8 +6434,8 @@ export default function App() {
             }}
           >
             <span className="bookModeIcon" aria-hidden="true">{"\uD83D\uDCD8"}</span>
-            <strong>Definitions</strong>
-            <p>Add and manage words, meanings, and chapter placement.</p>
+            <strong>{tr("Definitions", "単語追加")}</strong>
+            <p>{tr("Add and manage words, meanings, and chapter placement.", "単語・意味・章を追加/管理します。")}</p>
           </div>
 
           <div
@@ -5996,8 +6451,8 @@ export default function App() {
             }}
           >
             <span className="bookModeIcon" aria-hidden="true">{"\u26A1"}</span>
-            <strong>Flashcards</strong>
-            <p>Drill recall quickly with focused review sessions.</p>
+            <strong>{tr("Flashcards", "フラッシュカード")}</strong>
+            <p>{tr("Drill recall quickly with focused review sessions.", "集中復習で素早く記憶を強化します。")}</p>
           </div>
           <div
             className="panelCard bookModeCard"
@@ -6020,8 +6475,8 @@ export default function App() {
             }}
           >
             <span className="bookModeIcon" aria-hidden="true">{"\u2705"}</span>
-            <strong>Quiz</strong>
-            <p>Test active recall with normal, typing, or mistake mode.</p>
+            <strong>{tr("Quiz", "クイズ")}</strong>
+            <p>{tr("Test active recall with normal, typing, or mistake mode.", "通常・タイピング・ミス復習で能動想起を鍛えます。")}</p>
           </div>
         </div>
         {renderModal()}
@@ -6034,11 +6489,11 @@ export default function App() {
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>Select a Book</h1>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>{uiText.selectBook}</h1>
         </div>
         {sortedBooksByRecent.length === 0 ? (
-          <p className="quizSetupHint">No books found. Create a new book in the My Books tab first.</p>
+          <p className="quizSetupHint">{uiText.noBooksFound}</p>
         ) : (
           <div className="bookGrid selectBookGrid">
             {sortedBooksByRecent.map((book) =>
@@ -6058,25 +6513,30 @@ export default function App() {
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("bookMenu")}>&times;</button>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("bookMenu")}>&times;</button>
           <h1>{currentBook?.name}</h1>
         </div>
         <div className="inputRow">
           <input
             value={inputWord}
             onChange={(e) => setInputWord(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addWord()}
-            placeholder="Add word..."
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              if (e.nativeEvent?.isComposing) return;
+              addWord();
+            }}
+            placeholder={uiText.addWordPlaceholder}
           />
           <button type="button" className="addWordBtn" onClick={addWord}>+</button>
         </div>
         <p className="definitionAttributionNote">
-          Definition data is fetched via Free Dictionary API (dictionaryapi.dev). Upstream source URLs and
-          license details are provided by that API response.
+          {useEnglishToJapaneseDictionary
+            ? uiText.definitionAttributionTranslator
+            : uiText.definitionAttributionDictionary}
         </p>
         <div className="chapterControlsRow">
           <div className="chapterControlField">
-            <span>Auto-Assign Chapters</span>
+            <span>{uiText.autoAssignChapters}</span>
             <InAppDropdown
               value={safeSelectedChapterIdForNewWords}
               options={currentBookChapters.map((chapter) => ({
@@ -6091,7 +6551,7 @@ export default function App() {
             className="primaryBtn"
             onClick={() => setScreen("chapters")}
           >
-            Manage Chapters
+            {uiText.manageChapters}
           </button>
         </div>
         {loading && <div className="spinner"></div>}
@@ -6141,6 +6601,13 @@ export default function App() {
                       >
                         {getDifficultyLabel(w.difficulty)}
                       </button>
+                      {showLocalTranslationDebug &&
+                      useEnglishToJapaneseDictionary &&
+                      String(w.translationProvider || "").trim() ? (
+                        <span className="translationSourceBadge">
+                          {`provider: ${String(w.translationProvider || "").trim()}`}
+                        </span>
+                      ) : null}
                       {isDefinitionEdited(w) && <span className="definitionEditedBadge">Edited</span>}
                     </div>
                     <div className="wordMasteryRow">
@@ -6262,11 +6729,11 @@ export default function App() {
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("definitions")}>&times;</button>
-          <h1>{currentBook?.name ? `${currentBook.name} Chapters` : "Chapter Management"}</h1>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("definitions")}>&times;</button>
+          <h1>{currentBook?.name ? `${currentBook.name}${uiText.chaptersSuffix}` : uiText.chapterManagement}</h1>
         </div>
         {!currentBook ? (
-          <p>Select a book first.</p>
+          <p>{uiText.selectBookFirst}</p>
         ) : (
           <>
             <div className="chapterCreateRow">
@@ -6274,7 +6741,7 @@ export default function App() {
                 value={newChapterName}
                 onChange={(event) => setNewChapterName(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && addChapter()}
-                placeholder="Create chapter..."
+                placeholder={uiText.createChapterPlaceholder}
               />
               <button
                 type="button"
@@ -6282,7 +6749,7 @@ export default function App() {
                 onClick={addChapter}
                 disabled={!newChapterName.trim()}
               >
-                Add Chapter
+                {uiText.addChapter}
               </button>
             </div>
             <div className="chapterList">
@@ -6296,7 +6763,7 @@ export default function App() {
                     <div>
                       <strong>{chapter.name}</strong>
                       <p>
-                        {wordCount} word{wordCount !== 1 && "s"}
+                        {wordCount} {wordCount === 1 ? uiText.wordSingular : uiText.wordPlural}
                       </p>
                     </div>
                     <button
@@ -6305,7 +6772,7 @@ export default function App() {
                       onClick={() => askDeleteChapter(chapter)}
                       disabled={currentBookChapters.length <= 1}
                     >
-                      Delete
+                      {uiText.delete}
                     </button>
                   </div>
                 );
@@ -6323,11 +6790,11 @@ export default function App() {
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label="Go back" onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>Select a Book</h1>
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>{uiText.selectBook}</h1>
         </div>
         {sortedBooksByRecent.length === 0 ? (
-          <p className="quizSetupHint">No books found. Create a new book in the My Books tab first.</p>
+          <p className="quizSetupHint">{uiText.noBooksFound}</p>
         ) : (
           <div className="bookGrid selectBookGrid">
             {sortedBooksByRecent.map((book) =>
@@ -6380,8 +6847,8 @@ export default function App() {
     const chaptersStepIndex = includesTypeStep ? 2 : 1;
     const reviewStepIndex = includesTypeStep ? 3 : 2;
     const stepTitles = includesTypeStep
-      ? ["Quiz Type", "Books", "Chapters", "Review"]
-      : ["Books", "Chapters", "Review"];
+      ? [tr("Quiz Type", "クイズ種類"), tr("Books", "ブック"), tr("Chapters", "章"), tr("確認", "確認")]
+      : [tr("Books", "ブック"), tr("Chapters", "章"), tr("Review", "確認")];
     const isAtTypeStep = quizSetupStep === typeStepIndex;
     const isAtBooksStep = quizSetupStep === booksStepIndex;
     const isAtChaptersStep = quizSetupStep === chaptersStepIndex;
@@ -6392,9 +6859,9 @@ export default function App() {
       (isAtChaptersStep && selectedChapterCount > 0);
     const nextStepHint =
       isAtBooksStep && selectedBookCount === 0
-        ? "Select at least one book to continue."
+        ? tr("Select at least one book to continue.", "続行するには1冊以上選択してください。")
         : isAtChaptersStep && selectedChapterCount === 0
-          ? "Select at least one chapter to continue."
+          ? tr("Select at least one chapter to continue.", "続行するには1章以上選択してください。")
             : "";
 
     return renderWithSidebar(
@@ -6402,15 +6869,15 @@ export default function App() {
         <div className="pageHeader">
           <button
             className="backBtn"
-            aria-label="Go back"
+            aria-label={tr("Go back", "\u623b\u308b")}
             onClick={() => setScreen(quizBackScreen === "quizSelect" ? "dashboard" : quizBackScreen)}
           >
             &times;
           </button>
-          <h1>Quiz Setup</h1>
+          <h1>{tr("Quiz Setup", "クイズ設定")}</h1>
         </div>
         <p className="quizSetupIntro">
-          Build your quiz in simple steps.
+          {tr("Build your quiz in simple steps.", "ステップに沿ってクイズを作成します。")}
         </p>
         <div className="quizSetupStepRow" aria-label="Quiz setup steps">
           {stepTitles.map((label, index) => {
@@ -6432,7 +6899,7 @@ export default function App() {
         {isAtTypeStep && (
           <div className="chapterControlField quizChapterField">
             <div className="quizSetupFieldHeader">
-              <span>Step 1. Quiz Type</span>
+            <span>{tr("Step 1. Quiz Type", "ステップ1. クイズ種類")}</span>
               <div className="quizSetupQuickActions">
                 <button
                   type="button"
@@ -6440,22 +6907,22 @@ export default function App() {
                   onClick={applyQuickQuizSetup}
                   disabled={!lastQuizSetup}
                 >
-                  {lastQuizSetup ? "Quick Setup" : "No Last Setup"}
+                  {lastQuizSetup ? tr("Quick Setup", "前回設定を適用") : tr("No Last Setup", "前回設定なし")}
                 </button>
               </div>
             </div>
-            <div className="quizModeCardGrid" role="group" aria-label="Select quiz type">
+            <div className="quizModeCardGrid" role="group" aria-label={tr("Select quiz type", "クイズ種類を選択")}>
               <button
                 type="button"
                 className={`quizModeCard ${quizMode === "normal" ? "isActive" : ""}`}
                 onClick={() => setQuizMode("normal")}
               >
                 <span className="quizModeCardIcon" aria-hidden="true">{"\uD83C\uDFAF"}</span>
-                <strong>Multiple Choice</strong>
+                <strong>{tr("Multiple Choice", "選択式")}</strong>
                 <small>
-                  Pick the correct answer from options.
+                  {tr("Pick the correct answer from options.", "選択肢から正解を選びます。")}
                   <br />
-                  Strengthens: comprehension, quick recognition, and definition recall.
+                  {tr("Strengthens: comprehension, quick recognition, and definition recall.", "理解力・認識速度・意味想起を強化します。")}
                 </small>
               </button>
               <button
@@ -6468,11 +6935,11 @@ export default function App() {
                   <span className="quizLimitBadge">{freeTypingRemaining} left</span>
                 ) : null}
                 <span className="quizModeCardIcon" aria-hidden="true">{"\u2328"}</span>
-                <strong>Typing</strong>
+                <strong>{tr("Typing", "タイピング")}</strong>
                 <small>
-                  Type the exact target word.
+                  {tr("Type the exact target word.", "正確な単語を入力します。")}
                   <br />
-                  Strengthens: spelling precision, active recall, and improved essay writing.
+                  {tr("Strengthens: spelling precision, active recall, and improved essay writing.", "綴り精度・能動想起・作文力を強化します。")}
                 </small>
               </button>
               <button
@@ -6485,8 +6952,8 @@ export default function App() {
                   <span className="quizLimitBadge">{freeMistakeRemaining} left</span>
                 ) : null}
                 <span className="quizModeCardIcon" aria-hidden="true">{"\uD83D\uDD01"}</span>
-                <strong>Mistake Review</strong>
-                <small>Practice only words you previously got wrong.</small>
+                <strong>{tr("Mistake Review", "ミス復習")}</strong>
+                <small>{tr("Practice only words you previously got wrong.", "以前間違えた単語だけを練習します。")}</small>
               </button>
               <button
                 type="button"
@@ -6498,9 +6965,9 @@ export default function App() {
                   <span className="quizLimitBadge">Pro</span>
                 ) : null}
                 <span className="quizModeCardIcon" aria-hidden="true">{"\uD83E\uDDE0"}</span>
-                <strong>Smart Review</strong>
+                <strong>{tr("Smart Review", "スマート復習")}</strong>
                 <small>
-                  Auto-build a focused quiz from weak words based on your recent accuracy.
+                  {tr("Auto-build a focused quiz from weak words based on your recent accuracy.", "最近の正答率から弱点単語で自動構成します。")}
                 </small>
               </button>
             </div>
@@ -6509,7 +6976,7 @@ export default function App() {
         {isAtBooksStep && (
         <div className="chapterControlField quizChapterField">
           <div className="quizSetupFieldHeader">
-            <span>{includesTypeStep ? "Step 2. Books" : "Step 1. Books"}</span>
+            <span>{includesTypeStep ? tr("Step 2. Books", "ステップ2. ブック") : tr("Step 1. Books", "ステップ1. ブック")}</span>
             <div className="quizSetupQuickActions">
               <button
                 type="button"
@@ -6522,7 +6989,7 @@ export default function App() {
                 }
                 disabled={books.length === 0}
               >
-                Select all
+                {tr("Select all", "すべて選択")}
               </button>
               <button
                 type="button"
@@ -6536,11 +7003,11 @@ export default function App() {
                 }
                 disabled={selectedBookCount === 0}
               >
-                Clear
+                {tr("Clear", "クリア")}
               </button>
             </div>
           </div>
-          <div className="quizChapterPills" role="group" aria-label="Select books">
+          <div className="quizChapterPills" role="group" aria-label={tr("Select books", "ブックを選択")}>
             {sortedBooksByRecent.map((book) => (
               <button
                 key={book.id}
@@ -6554,16 +7021,16 @@ export default function App() {
               </button>
             ))}
           </div>
-          {books.length === 0 && <p className="quizSetupHint">No books available yet.</p>}
+          {books.length === 0 && <p className="quizSetupHint">{tr("No books available yet.", "利用可能なブックがありません。")}</p>}
           {selectedBookCount === 0 && (
-            <p className="quizSetupHint">Select at least one book to see chapters.</p>
+            <p className="quizSetupHint">{tr("Select at least one book to see chapters.", "章を表示するには1冊以上選択してください。")}</p>
           )}
         </div>
         )}
         {isAtChaptersStep && (
         <div className="chapterControlField quizChapterField">
           <div className="quizSetupFieldHeader">
-            <span>{includesTypeStep ? "Step 3. Chapters" : "Step 2. Chapters"}</span>
+            <span>{includesTypeStep ? tr("Step 3. Chapters", "ステップ3. 章") : tr("Step 2. Chapters", "ステップ2. 章")}</span>
             <div className="quizSetupQuickActions">
               <button
                 type="button"
@@ -6576,7 +7043,7 @@ export default function App() {
                 }
                 disabled={selectedBookCount === 0 || chapterOptionKeys.length === 0}
               >
-                Select all
+                {tr("Select all", "すべて選択")}
               </button>
               <button
                 type="button"
@@ -6589,11 +7056,11 @@ export default function App() {
                 }
                 disabled={selectedChapterCount === 0}
               >
-                Clear
+                {tr("Clear", "クリア")}
               </button>
             </div>
           </div>
-          <div className="quizChapterGroups" role="group" aria-label="Select chapters by book">
+          <div className="quizChapterGroups" role="group" aria-label={tr("Select chapters by book", "ブックごとに章を選択")}>
             {quizSetupChapterGroups.map((group) => (
               <div key={group.bookId} className="quizChapterGroup">
                 <div className="quizChapterGroupHeader">
@@ -6609,7 +7076,7 @@ export default function App() {
                     }
                     disabled={group.chapters.length === 0 || group.chapters.every((chapter) => selectedChapterKeysSet.has(chapter.key))}
                   >
-                    Select all
+                    {tr("Select all", "すべて選択")}
                   </button>
                 </div>
                 <div className="quizChapterPills" role="group" aria-label={`${group.bookName} chapters`}>
@@ -6629,32 +7096,32 @@ export default function App() {
             ))}
           </div>
           {selectedBookCount > 0 && quizSetupChapterGroups.length === 0 && (
-            <p className="quizSetupHint">No chapters found for the selected books.</p>
+            <p className="quizSetupHint">{tr("No chapters found for the selected books.", "選択したブックに章がありません。")}</p>
           )}
           {selectedBookCount > 0 && quizSetupChapterGroups.length > 0 && selectedChapterCount === 0 && (
-            <p className="quizSetupHint">Select at least one chapter.</p>
+            <p className="quizSetupHint">{tr("Select at least one chapter.", "1章以上選択してください。")}</p>
           )}
         </div>
         )}
         {isAtReviewStep && (
           <div className="quizSetupReviewCard">
-            <h3>Review & Start</h3>
+            <h3>{tr("Review & Start", "確認して開始")}</h3>
             <div className="quizSetupSummary">
-              <span>Mode: {quizMode === "typing" ? "Typing" : quizMode === "mistake" ? "Mistake Review" : quizMode === "smart" ? "Smart Review" : "Multiple Choice"}</span>
-              <span>Books: {selectedBookCount}</span>
-              <span>Chapters: {selectedChapterCount}</span>
-              <span>Matching words: {quizSetupWords.length}</span>
+              <span>{tr("Mode", "モード")}: {quizMode === "typing" ? tr("Typing", "タイピング") : quizMode === "mistake" ? tr("Mistake Review", "ミス復習") : quizMode === "smart" ? tr("Smart Review", "スマート復習") : tr("Multiple Choice", "選択式")}</span>
+              <span>{tr("Books", "ブック")}: {selectedBookCount}</span>
+              <span>{tr("Chapters", "章")}: {selectedChapterCount}</span>
+              <span>{tr("Matching words", "対象単語")}: {quizSetupWords.length}</span>
             </div>
           </div>
         )}
         {quizMode === "mistake" && !hasPreviousQuizMistakes && (
           <p className="quizSetupHint">
-            No previous quiz mistakes found yet. Complete a regular quiz first.
+            {tr("No previous quiz mistakes found yet. Complete a regular quiz first.", "前回までのミスがありません。先に通常クイズを完了してください。")}
           </p>
         )}
         {!canStartQuiz && isAtReviewStep && (
           <p className="quizSetupHint">
-            Select at least one book and chapter with at least 2 matching words.
+            {tr("Select at least one book and chapter with at least 2 matching words.", "2語以上含むブックと章を選択してください。")}
           </p>
         )}
         {nextStepHint ? <p className="quizSetupHint">{nextStepHint}</p> : null}
@@ -6666,7 +7133,7 @@ export default function App() {
               onClick={() => setQuizSetupStep((prev) => Math.max(0, prev - 1))}
               disabled={quizSetupStep === 0}
             >
-              Back
+              {tr("Back", "戻る")}
             </button>
             {isAtReviewStep ? (
               <button
@@ -6675,7 +7142,7 @@ export default function App() {
                 disabled={!canStartQuiz}
                 onClick={startQuizSession}
               >
-                Start {quizMode === "typing" ? "Typing Quiz" : quizMode === "mistake" ? "Mistake Review" : quizMode === "smart" ? "Smart Review" : "Quiz"}
+                {tr("Start", "開始")} {quizMode === "typing" ? tr("Typing Quiz", "タイピングクイズ") : quizMode === "mistake" ? tr("Mistake Review", "ミス復習") : quizMode === "smart" ? tr("Smart Review", "スマート復習") : tr("Quiz", "クイズ")}
               </button>
             ) : (
               <button
@@ -6698,15 +7165,15 @@ export default function App() {
                     }
                     setIsQuickQuizSetupArmed(false);
                     openNoticeModal(
-                      "Your last quiz setup no longer matches available books/chapters. Please update setup and try again.",
-                      "Quick Setup Unavailable"
+                      tr("Your last quiz setup no longer matches available books/chapters. Please update setup and try again.", "前回の設定が現在のブック/章と一致しません。更新して再試行してください。"),
+                      tr("Quick Setup Unavailable", "前回設定を適用できません")
                     );
                     return;
                   }
                   setQuizSetupStep((prev) => Math.min(reviewStepIndex, prev + 1));
                 }}
               >
-                Next
+                {tr("Next", "次へ")}
               </button>
             )}
           </div>
@@ -6727,6 +7194,7 @@ export default function App() {
         WORD_DIFFICULTY_OPTIONS={WORD_DIFFICULTY_OPTIONS}
         InAppDropdownComponent={InAppDropdown}
         getSelectedDefinition={getSelectedDefinition}
+        locale={appLocale}
       />
     );
   }
@@ -6753,8 +7221,9 @@ export default function App() {
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
         DEFAULT_CHAPTER_ID={DEFAULT_CHAPTER_ID}
-        QUIZ_SUCCESS_PROMPTS={QUIZ_SUCCESS_PROMPTS}
-        QUIZ_MISS_PROMPTS={QUIZ_MISS_PROMPTS}
+        QUIZ_SUCCESS_PROMPTS={isJapaneseUi ? QUIZ_SUCCESS_PROMPTS_JA : QUIZ_SUCCESS_PROMPTS}
+        QUIZ_MISS_PROMPTS={isJapaneseUi ? QUIZ_MISS_PROMPTS_JA : QUIZ_MISS_PROMPTS}
+        locale={appLocale}
       />
     );
   }
@@ -6776,14 +7245,18 @@ export default function App() {
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
         DEFAULT_CHAPTER_ID={DEFAULT_CHAPTER_ID}
-        QUIZ_SUCCESS_PROMPTS={QUIZ_SUCCESS_PROMPTS}
-        QUIZ_MISS_PROMPTS={QUIZ_MISS_PROMPTS}
+        QUIZ_SUCCESS_PROMPTS={isJapaneseUi ? QUIZ_SUCCESS_PROMPTS_JA : QUIZ_SUCCESS_PROMPTS}
+        QUIZ_MISS_PROMPTS={isJapaneseUi ? QUIZ_MISS_PROMPTS_JA : QUIZ_MISS_PROMPTS}
+        locale={appLocale}
       />
     );
   }
 
   return null;
 }
+
+
+
 
 
 

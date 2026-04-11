@@ -160,13 +160,11 @@ export function LandingPage() {
             <div className="grid items-start gap-10 lg:grid-cols-2">
               <div className="max-w-xl">
                 <h1 className="mb-6 text-5xl font-bold text-foreground md:text-6xl">
-                  Master Words,
-                  <br />
-                  Build Fluency
+                  Never forget a word again.
                 </h1>
                 <p className="mb-8 text-xl text-muted-foreground">
-                  The vocabulary app that helps you learn smarter with flashcards, smart reviews, and
-                  competitive leaderboards.
+                  Learn new words in short sessions, test recall with quizzes, review every mistake before it fades,
+                  and repeat with spaced practice so each word moves into long-term memory.
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <a

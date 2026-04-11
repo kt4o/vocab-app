@@ -11,12 +11,31 @@ const EMAIL_CODE_COOLDOWN_MS = 60 * 1000;
 const DEFAULT_LEGAL_VERSION = String(process.env.LEGAL_VERSION || "2026-04-08").trim() || "2026-04-08";
 const SESSION_COOKIE_NAME = String(process.env.AUTH_COOKIE_NAME || "vocab_session").trim() || "vocab_session";
 
+function isProductionEnv() {
+  return String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+}
+
+function getEmailFailureHint(errorCode) {
+  switch (String(errorCode || "").trim().toUpperCase()) {
+    case "ESOCKET":
+      return "Could not open SMTP socket. Check firewall/egress rules and SMTP host/port.";
+    case "EAUTH":
+      return "SMTP auth failed. Verify SMTP_USER/SMTP_PASS (or app password) are correct.";
+    case "ETIMEDOUT":
+      return "SMTP connection timed out. Check provider reachability and network restrictions.";
+    case "ECONNECTION":
+      return "SMTP connection failed. Verify host, port, and secure mode settings.";
+    default:
+      return "Email delivery failed. Check backend logs for transporter/provider details.";
+  }
+}
+
 function resolveCookieSameSite() {
   const configured = String(process.env.AUTH_COOKIE_SAMESITE || "")
     .trim()
     .toLowerCase();
   if (configured === "strict" || configured === "none") return configured;
-  const isProduction = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+  const isProduction = isProductionEnv();
   return isProduction ? "none" : "lax";
 }
 
@@ -31,7 +50,7 @@ function shouldUseSecureCookies(req) {
     .trim()
     .toLowerCase();
   if (forwardedProto === "https") return true;
-  return String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+  return isProductionEnv();
 }
 
 function getSessionCookieOptions(req, { clear = false } = {}) {
@@ -78,6 +97,20 @@ function normalizeUsername(value) {
   return String(value || "")
     .trim()
     .toLowerCase();
+}
+
+function normalizeUiLanguagePreference(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return normalized === "ja" ? "ja" : "en";
+}
+
+function normalizeDictionaryPreference(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return normalized === "en_ja" ? "en_ja" : "en_en";
 }
 
 function isValidUsername(value) {
@@ -503,14 +536,27 @@ authRouter.post("/register/request-email-code", async (req, res) => {
     await sendVerificationCodeEmail(email, code);
     res.json({ ok: true, delivery: "smtp" });
   } catch (error) {
-    if (String(error?.code || "") === "EMAIL_TRANSPORT_NOT_CONFIGURED") {
+    const errorCode = String(error?.code || "");
+    const errorMessage = String(error?.message || "");
+    if (errorCode === "EMAIL_TRANSPORT_NOT_CONFIGURED") {
       res.status(500).json({ error: "email-delivery-not-configured" });
       return;
     }
     console.error("register request-email-code failed", {
-      errorCode: String(error?.code || ""),
-      errorMessage: String(error?.message || ""),
+      errorCode,
+      errorMessage,
     });
+    if (!isProductionEnv()) {
+      res.status(500).json({
+        error: "request-email-code-failed",
+        emailDebug: {
+          code: errorCode || "UNKNOWN",
+          message: errorMessage || "Unknown email error",
+          hint: getEmailFailureHint(errorCode),
+        },
+      });
+      return;
+    }
     res.status(500).json({ error: "request-email-code-failed" });
   }
 });
@@ -585,6 +631,8 @@ authRouter.post("/register", async (req, res) => {
   const verifiedEmailToken = String(req.body?.verifiedEmailToken || "").trim();
   const username = normalizeUsername(req.body?.username);
   const password = String(req.body?.password || "");
+  const preferredLanguage = normalizeUiLanguagePreference(req.body?.preferredLanguage);
+  const dictionaryPreference = normalizeDictionaryPreference(req.body?.dictionaryPreference);
   const marketingOptIn = Boolean(req.body?.marketingOptIn);
   const acceptedLegal = Boolean(req.body?.acceptedLegal);
   const legalVersionRaw = String(req.body?.legalVersion || DEFAULT_LEGAL_VERSION).trim();
@@ -690,9 +738,9 @@ authRouter.post("/register", async (req, res) => {
     await client.query(
       `
         INSERT INTO app_state (user_id, state_json, updated_at)
-        VALUES ($1, '{}'::jsonb, $2)
+        VALUES ($1, $2::jsonb, $3)
       `,
-      [userId, now]
+      [userId, JSON.stringify({ preferredLanguage, dictionaryPreference }), now]
     );
 
     await client.query("DELETE FROM email_verifications WHERE email = $1", [email]);
@@ -769,14 +817,27 @@ authRouter.post("/password-reset/request-code", async (req, res) => {
     await sendPasswordResetCodeEmail(email, code);
     res.json({ ok: true, delivery: "smtp" });
   } catch (error) {
-    if (String(error?.code || "") === "EMAIL_TRANSPORT_NOT_CONFIGURED") {
+    const errorCode = String(error?.code || "");
+    const errorMessage = String(error?.message || "");
+    if (errorCode === "EMAIL_TRANSPORT_NOT_CONFIGURED") {
       res.status(500).json({ error: "email-delivery-not-configured" });
       return;
     }
     console.error("password-reset request-code failed", {
-      errorCode: String(error?.code || ""),
-      errorMessage: String(error?.message || ""),
+      errorCode,
+      errorMessage,
     });
+    if (!isProductionEnv()) {
+      res.status(500).json({
+        error: "password-reset-request-failed",
+        emailDebug: {
+          code: errorCode || "UNKNOWN",
+          message: errorMessage || "Unknown email error",
+          hint: getEmailFailureHint(errorCode),
+        },
+      });
+      return;
+    }
     res.status(500).json({ error: "password-reset-request-failed" });
   }
 });

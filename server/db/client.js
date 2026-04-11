@@ -323,6 +323,28 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_word_add_events_code_cefr
     ON word_add_events(code_id, cefr_level);
   `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS translation_cache (
+      cache_key TEXT PRIMARY KEY,
+      source_lang TEXT NOT NULL,
+      target_lang TEXT NOT NULL,
+      input_text TEXT NOT NULL,
+      translations_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+      provider TEXT NOT NULL DEFAULT 'jisho',
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  await query(`
+    ALTER TABLE translation_cache
+    ALTER COLUMN provider SET DEFAULT 'jisho';
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_translation_cache_updated_at
+    ON translation_cache(updated_at);
+  `);
 }
 
 export async function closeDb() {

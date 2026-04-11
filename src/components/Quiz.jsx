@@ -1,12 +1,127 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import hintIconOn from "../assets/typing-hint-icon-on.svg";
 
-function getMomentumLabel(streak) {
-  if (streak >= 6) return "On Fire";
-  if (streak >= 4) return "Hot Streak";
-  if (streak >= 2) return "Locked In";
-  if (streak === 1) return "Warming Up";
-  return "Build Momentum";
+const QUIZ_COPY = {
+  en: {
+    perfectRun: "Perfect Run",
+    strongFinish: "Strong Finish",
+    solidProgress: "Solid Progress",
+    keepGoing: "Keep Going",
+    excellentEffort: "Excellent effort. You're learning fast.",
+    niceWork: "Nice work. Your vocabulary is improving.",
+    goodAttempt: "Good attempt. Every round makes you better.",
+    challengeYourself: "Challenge yourself and beat this score on the next run.",
+    reviewAndRetry: "Review missed words once, then run the quiz again for a higher score.",
+    mistakeReview: "Mistake Review",
+    typingQuiz: "Typing Quiz",
+    noMistakesYet: "No mistakes to review from the previous quiz yet.",
+    noWordsForSetup: "No words match your quiz setup. Go back and choose different filters.",
+    needTwoMistakes: "Need at least 2 wrong words from the previous quiz to start mistake review.",
+    needTwoWords: "Add at least 2 words in your selected setup to start a quiz.",
+    couldNotBuildMistakes: "Could not build a mistake review quiz yet.",
+    couldNotBuildQuiz: "Could not generate quiz questions yet. Add more words with definitions.",
+    mistakeReviewComplete: "Mistake Review Complete",
+    typingQuizComplete: "Typing Quiz Complete",
+    quizComplete: "Quiz Complete",
+    accuracy: "Accuracy",
+    correct: "Correct",
+    missed: "Missed",
+    bestStreak: "Best Streak",
+    finalScore: "Final score",
+    reviewMistakes: "Review Mistakes",
+    notAvailable: "Not available",
+    startMistakeReview: "Start Mistake Review",
+    tryAgain: "Try Again",
+    back: "Back",
+    questionOf: "Question",
+    score: "Score",
+    streak: "streak",
+    typeWordPrompt: "Type the word for this definition:",
+    typeWordPlaceholder: "Type the word...",
+    showTypingHint: "Show typing hint",
+    showHint: "Show hint",
+    check: "Check",
+    hintPrefix: "Hint: starts with",
+    lettersSuffix: "letters",
+    correctPrefix: "Correct:",
+    correctWordPrefix: "Correct word:",
+    definitionPromptPrefix: "What is the definition of",
+    finish: "Finish",
+    next: "Next",
+    exitQuizTitle: "Exit Quiz?",
+    exitQuizBody: "Your current quiz progress will be lost.",
+    continueQuiz: "Continue Quiz",
+    exitQuiz: "Exit Quiz",
+    onFire: "On Fire",
+    hotStreak: "Hot Streak",
+    lockedIn: "Locked In",
+    warmingUp: "Warming Up",
+    buildMomentum: "Build Momentum",
+  },
+  ja: {
+    perfectRun: "パーフェクト",
+    strongFinish: "好成績",
+    solidProgress: "順調に上達中",
+    keepGoing: "この調子で続けよう",
+    excellentEffort: "素晴らしいです。とても速く上達しています。",
+    niceWork: "いいですね。語彙力が伸びています。",
+    goodAttempt: "よくできました。毎回の挑戦が力になります。",
+    challengeYourself: "次はこのスコアを超えてみましょう。",
+    reviewAndRetry: "間違えた単語を見直して、もう一度挑戦しましょう。",
+    mistakeReview: "ミス復習",
+    typingQuiz: "タイピングクイズ",
+    noMistakesYet: "前回のクイズで復習するミスはまだありません。",
+    noWordsForSetup: "条件に合う単語がありません。戻って条件を変更してください。",
+    needTwoMistakes: "ミス復習を開始するには、前回クイズの誤答が2件以上必要です。",
+    needTwoWords: "クイズを開始するには、2語以上追加してください。",
+    couldNotBuildMistakes: "ミス復習クイズを作成できませんでした。",
+    couldNotBuildQuiz: "クイズ問題を作成できませんでした。単語と意味を追加してください。",
+    mistakeReviewComplete: "ミス復習 完了",
+    typingQuizComplete: "タイピングクイズ 完了",
+    quizComplete: "クイズ 完了",
+    accuracy: "正答率",
+    correct: "正解",
+    missed: "不正解",
+    bestStreak: "最高連続正解",
+    finalScore: "最終スコア",
+    reviewMistakes: "ミスを復習",
+    notAvailable: "表示できません",
+    startMistakeReview: "ミス復習を開始",
+    tryAgain: "もう一度",
+    back: "戻る",
+    questionOf: "問題",
+    score: "スコア",
+    streak: "連続正解",
+    typeWordPrompt: "この意味に対応する英単語を入力してください:",
+    typeWordPlaceholder: "英単語を入力...",
+    showTypingHint: "タイピングのヒントを表示",
+    showHint: "ヒントを表示",
+    check: "判定",
+    hintPrefix: "ヒント: 先頭は",
+    lettersSuffix: "文字",
+    correctPrefix: "正解:",
+    correctWordPrefix: "正解の単語:",
+    definitionPromptPrefix: "次の意味に当てはまる単語はどれですか",
+    finish: "終了",
+    next: "次へ",
+    exitQuizTitle: "クイズを終了しますか？",
+    exitQuizBody: "現在のクイズ進捗は失われます。",
+    continueQuiz: "クイズを続ける",
+    exitQuiz: "終了する",
+    onFire: "絶好調",
+    hotStreak: "好調",
+    lockedIn: "集中中",
+    warmingUp: "ウォームアップ",
+    buildMomentum: "勢いをつけよう",
+  },
+};
+
+function getMomentumLabel(streak, copy) {
+  if (streak >= 6) return copy.onFire;
+  if (streak >= 4) return copy.hotStreak;
+  if (streak >= 2) return copy.lockedIn;
+  if (streak === 1) return copy.warmingUp;
+  return copy.buildMomentum;
 }
 
 export function Quiz({
@@ -25,6 +140,7 @@ export function Quiz({
   DEFAULT_CHAPTER_ID,
   QUIZ_SUCCESS_PROMPTS,
   QUIZ_MISS_PROMPTS,
+  locale = "en",
 }) {
   const justAnsweredAtRef = useRef(0);
   const lastAdvanceAtRef = useRef(0);
@@ -43,7 +159,9 @@ export function Quiz({
   const [motivationPrompt, setMotivationPrompt] = useState("");
   const [isMotivationPositive, setIsMotivationPositive] = useState(false);
   const [quizCompletionReported, setQuizCompletionReported] = useState(false);
+  const [isTypingComposing, setIsTypingComposing] = useState(false);
   const isTypingMode = mode === "typing";
+  const copy = QUIZ_COPY[locale] || QUIZ_COPY.en;
 
   useEffect(() => {
     setQuestions(buildQuizQuestions(words));
@@ -67,28 +185,28 @@ export function Quiz({
   const totalQuestions = questions.length;
   const correctAnswers = score;
   const wrongAnswers = Math.max(totalQuestions - correctAnswers, 0);
-  const momentumLabel = getMomentumLabel(answerStreak);
+  const momentumLabel = getMomentumLabel(answerStreak, copy);
   const accuracyPercent = totalQuestions
     ? Math.round((correctAnswers / totalQuestions) * 100)
     : 0;
   const resultBadge =
     accuracyPercent === 100
-      ? "Perfect Run"
+      ? copy.perfectRun
       : accuracyPercent >= 80
-        ? "Strong Finish"
+        ? copy.strongFinish
         : accuracyPercent >= 60
-          ? "Solid Progress"
-          : "Keep Going";
+          ? copy.solidProgress
+          : copy.keepGoing;
   const resultHeadline =
     accuracyPercent >= 80
-      ? "Excellent effort. You're learning fast."
+      ? copy.excellentEffort
       : accuracyPercent >= 60
-        ? "Nice work. Your vocabulary is improving."
-        : "Good attempt. Every round makes you better.";
+        ? copy.niceWork
+        : copy.goodAttempt;
   const resultMotivation =
     accuracyPercent >= 80
-      ? "Challenge yourself and beat this score on the next run."
-      : "Review missed words once, then run the quiz again for a higher score.";
+      ? copy.challengeYourself
+      : copy.reviewAndRetry;
   const resultIcon =
     accuracyPercent === 100
       ? "\uD83C\uDFC6"
@@ -159,6 +277,7 @@ export function Quiz({
   function handleTypedAnswer(event) {
     event.preventDefault();
     if (!current || typedSubmitted) return;
+    if (isTypingComposing) return;
     justAnsweredAtRef.current = Date.now();
 
     const isCorrect = isEquivalentTypingAnswer(typedAnswer, current.word);
@@ -249,6 +368,7 @@ export function Quiz({
 
     const handleEnterForNext = (event) => {
       if (event.key !== "Enter") return;
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.repeat) return;
       if (Date.now() - justAnsweredAtRef.current < 250) return;
       event.preventDefault();
@@ -262,33 +382,33 @@ export function Quiz({
   return (
     <div className="page">
       <div className="pageHeader">
-        <button className="backBtn" aria-label="Go back" onClick={handleBackAttempt}>&times;</button>
+        <button className="backBtn" aria-label={copy.back} onClick={handleBackAttempt}>&times;</button>
         <h1>
           {title || "Quiz"}
           {isMistakeReview
-            ? " - Mistake Review"
+            ? ` - ${copy.mistakeReview}`
             : mode === "typing"
-              ? " - Typing Quiz"
+              ? ` - ${copy.typingQuiz}`
                 : ""}
         </h1>
       </div>
       {words.length === 0 ? (
         <p>
           {isMistakeReview
-            ? "No mistakes to review from the previous quiz yet."
-            : "No words match your quiz setup. Go back and choose different filters."}
+            ? copy.noMistakesYet
+            : copy.noWordsForSetup}
         </p>
       ) : words.length < 2 ? (
         <p>
           {isMistakeReview
-            ? "Need at least 2 wrong words from the previous quiz to start mistake review."
-            : "Add at least 2 words in your selected setup to start a quiz."}
+            ? copy.needTwoMistakes
+            : copy.needTwoWords}
         </p>
       ) : questions.length === 0 ? (
         <p>
           {isMistakeReview
-            ? "Could not build a mistake review quiz yet."
-            : "Could not generate quiz questions yet. Add more words with definitions."}
+            ? copy.couldNotBuildMistakes
+            : copy.couldNotBuildQuiz}
         </p>
       ) : isFinished ? (
         <div className={`quizResultCard ${mistakeReviewItems.length > 0 ? "hasMistakes" : ""}`}>
@@ -300,10 +420,10 @@ export function Quiz({
                   <p className="quizResultBadge">{resultBadge}</p>
                   <h2>
                     {isMistakeReview
-                      ? "Mistake Review Complete"
+                      ? copy.mistakeReviewComplete
                       : mode === "typing"
-                        ? "Typing Quiz Complete"
-                          : "Quiz Complete"}
+                        ? copy.typingQuizComplete
+                          : copy.quizComplete}
                   </h2>
                   <p className="quizResultHeadline">{resultHeadline}</p>
                 </div>
@@ -311,19 +431,19 @@ export function Quiz({
 
               <div className="quizResultStats">
                 <div className="quizResultStat">
-                  <span className="quizResultStatLabel">Accuracy</span>
+                  <span className="quizResultStatLabel">{copy.accuracy}</span>
                   <strong>{accuracyPercent}%</strong>
                 </div>
                 <div className="quizResultStat">
-                  <span className="quizResultStatLabel">Correct</span>
+                  <span className="quizResultStatLabel">{copy.correct}</span>
                   <strong>{correctAnswers}</strong>
                 </div>
                 <div className="quizResultStat">
-                  <span className="quizResultStatLabel">Missed</span>
+                  <span className="quizResultStatLabel">{copy.missed}</span>
                   <strong>{wrongAnswers}</strong>
                 </div>
                 <div className="quizResultStat">
-                  <span className="quizResultStatLabel">Best Streak</span>
+                  <span className="quizResultStatLabel">{copy.bestStreak}</span>
                   <strong>{bestAnswerStreak}</strong>
                 </div>
               </div>
@@ -331,20 +451,20 @@ export function Quiz({
                 <div className="quizResultProgressFill" style={{ width: `${accuracyPercent}%` }} />
               </div>
               <p className="quizScoreLine">
-                Final score: {score} / {questions.length}
+                {copy.finalScore}: {score} / {questions.length}
               </p>
               <p className="quizResultMotivation">{resultMotivation}</p>
             </div>
 
             {mistakeReviewItems.length > 0 && (
               <div className="quizMistakeReviewCard">
-                <h3>Review Mistakes</h3>
+                <h3>{copy.reviewMistakes}</h3>
                 <div className="quizMistakeReviewList">
                   {mistakeReviewItems.map((item, itemIndex) => (
                     <div className="quizMistakeReviewItem" key={`${item.word}-${itemIndex}`}>
                       <strong>{item.word}</strong>
                       <p className="quizMistakeDefinition">
-                        {item.definition || item.correctAnswer || "Not available"}
+                        {item.definition || item.correctAnswer || copy.notAvailable}
                       </p>
                     </div>
                   ))}
@@ -359,14 +479,14 @@ export function Quiz({
                 className="primaryBtn"
                 onClick={() => onStartMistakeReview?.()}
               >
-                Start Mistake Review
+                {copy.startMistakeReview}
               </button>
             ) : null}
             <button className="primaryBtn" onClick={restartQuiz}>
-              Try Again
+              {copy.tryAgain}
             </button>
             <button className="primaryBtn" onClick={goBack}>
-              Back
+              {copy.back}
             </button>
           </div>
         </div>
@@ -374,20 +494,20 @@ export function Quiz({
         <div className="quizCard">
           <div className="quizMeta">
             <span>
-              Question {index + 1} of {questions.length}
+              {copy.questionOf} {index + 1} / {questions.length}
             </span>
-            <span>Score: {score}</span>
+            <span>{copy.score}: {score}</span>
           </div>
           <div className="quizMomentumRow">
             <div className={`quizStreakBadge ${answerStreak >= 2 ? "isHot" : ""}`}>
               <span>{momentumLabel}</span>
-              <strong>{answerStreak} streak</strong>
+              <strong>{answerStreak} {copy.streak}</strong>
             </div>
           </div>
 
           {isTypingMode ? (
             <>
-              <h2 className="quizPrompt">Type the word for this definition:</h2>
+              <h2 className="quizPrompt">{copy.typeWordPrompt}</h2>
               <p className="quizDefinitionPrompt">{current.correctDefinition}</p>
               <form className="quizTypeForm" onSubmit={handleTypedAnswer}>
                 <input
@@ -395,16 +515,18 @@ export function Quiz({
                   className="quizTypeInput"
                   value={typedAnswer}
                   onChange={(event) => setTypedAnswer(event.target.value)}
-                  placeholder="Type the word..."
+                  placeholder={copy.typeWordPlaceholder}
                   autoComplete="off"
                   disabled={typedSubmitted}
+                  onCompositionStart={() => setIsTypingComposing(true)}
+                  onCompositionEnd={() => setIsTypingComposing(false)}
                 />
                 {!isTypingHintVisible && (
                   <button
                     type="button"
                     className="quizHintBtn"
-                    aria-label="Show typing hint"
-                    title="Show hint"
+                    aria-label={copy.showTypingHint}
+                    title={copy.showHint}
                     onClick={() => setIsTypingHintVisible(true)}
                     disabled={typedSubmitted}
                   >
@@ -421,26 +543,26 @@ export function Quiz({
                   className="primaryBtn"
                   disabled={typedSubmitted || !typedAnswer.trim()}
                 >
-                  Check
+                  {copy.check}
                 </button>
               </form>
               {isTypingHintVisible && (
                 <p className="quizHintText">
-                  Hint: starts with "{String(current.word || "").charAt(0)}" (
-                  {String(current.word || "").length} letters)
+                  {copy.hintPrefix} "{String(current.word || "").charAt(0)}" (
+                  {String(current.word || "").length} {copy.lettersSuffix})
                 </p>
               )}
               {typedSubmitted && (
                 <p className={`quizTypedResult ${isMotivationPositive ? "correct" : "wrong"}`}>
                   {isMotivationPositive
-                    ? `Correct: ${current.word}`
-                    : `Correct word: ${current.word}`}
+                    ? `${copy.correctPrefix} ${current.word}`
+                    : `${copy.correctWordPrefix} ${current.word}`}
                 </p>
               )}
             </>
           ) : (
             <>
-              <h2 className="quizPrompt">{`What is the definition of "${current.word}"?`}</h2>
+              <h2 className="quizPrompt">{`${copy.definitionPromptPrefix} "${current.word}"?`}</h2>
 
               <div className="quizOptions">
                 {current.options.map((option) => {
@@ -478,7 +600,7 @@ export function Quiz({
               onClick={goToNext}
               disabled={!canGoToNext}
             >
-              {index + 1 === questions.length ? "Finish" : "Next"}
+              {index + 1 === questions.length ? copy.finish : copy.next}
             </button>
           </div>
         </div>
@@ -492,15 +614,15 @@ export function Quiz({
             aria-labelledby="quiz-exit-confirm-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 id="quiz-exit-confirm-title">Exit Quiz?</h3>
-            <p>Your current quiz progress will be lost.</p>
+            <h3 id="quiz-exit-confirm-title">{copy.exitQuizTitle}</h3>
+            <p>{copy.exitQuizBody}</p>
             <div className="modalActions">
               <button
                 type="button"
                 className="modalBtn ghost"
                 onClick={() => setIsExitConfirmOpen(false)}
               >
-                Continue Quiz
+                {copy.continueQuiz}
               </button>
               <button
                 type="button"
@@ -510,7 +632,7 @@ export function Quiz({
                   goBack();
                 }}
               >
-                Exit Quiz
+                {copy.exitQuiz}
               </button>
             </div>
           </div>
