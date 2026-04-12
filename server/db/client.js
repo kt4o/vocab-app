@@ -345,6 +345,27 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_translation_cache_updated_at
     ON translation_cache(updated_at);
   `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS definition_cache (
+      cache_key TEXT PRIMARY KEY,
+      input_word TEXT NOT NULL,
+      definitions_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+      pronunciation TEXT NOT NULL DEFAULT '',
+      provider TEXT NOT NULL DEFAULT 'dictionaryapi',
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  await query(`
+    ALTER TABLE definition_cache
+    ALTER COLUMN provider SET DEFAULT 'dictionaryapi';
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_definition_cache_updated_at
+    ON definition_cache(updated_at);
+  `);
 }
 
 export async function closeDb() {

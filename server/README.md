@@ -21,6 +21,7 @@
    - `SNAPSHOT_MAX_PER_USER=200` (optional; maximum retained snapshots per user)
    - `DAILY_SNAPSHOT_ENABLED=true` (optional; set `false` to disable scheduled daily snapshots)
    - `DAILY_SNAPSHOT_HOUR_UTC=3` (optional; hour 0-23 in UTC for daily snapshot run)
+   - `DEFINITION_CACHE_TTL_MS=604800000` (optional; English definition cache TTL in milliseconds, default 7 days)
    - `ADMIN_API_KEY=your-long-random-secret` (required for `/api/admin/*` endpoints)
    - `SMTP_HOST=smtp.your-provider.com`
    - `SMTP_PORT=587`
@@ -47,6 +48,7 @@
 - `POST /api/auth/password-reset/request-code` body: `{"email":"demo@example.com"}`
 - `POST /api/auth/password-reset/verify-code` body: `{"email":"demo@example.com","code":"123456"}`
 - `POST /api/auth/password-reset/complete` body: `{"email":"demo@example.com","resetToken":"<token>","password":"newpass123"}`
+- `POST /api/define/en` body: `{"word":"adapt"}`
 - `POST /api/auth/login` body: `{"identifier":"demo_user_or_email","password":"yourpass123"}`
 - `POST /api/auth/account/change-password` with `Authorization: Bearer <token>` body: `{"currentPassword":"oldpass123","newPassword":"newpass123"}`
 - `POST /api/auth/account/logout-all` with `Authorization: Bearer <token>`

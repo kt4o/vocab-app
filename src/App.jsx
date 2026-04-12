@@ -27,6 +27,7 @@ const SOCIAL_API_PATH = `${API_BASE_URL}/api/social`;
 const BILLING_API_PATH = `${API_BASE_URL}/api/billing`;
 const ANALYTICS_API_PATH = `${API_BASE_URL}/api/analytics`;
 const TRANSLATION_API_PATH = `${API_BASE_URL}/api/translate`;
+const DEFINITION_API_PATH = `${API_BASE_URL}/api/define`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
@@ -90,7 +91,7 @@ const APP_TEXT = {
     wordPlural: "words",
     addWordPlaceholder: "Add English word...",
     definitionAttributionDictionary:
-      "Definition data is fetched via Free Dictionary API (dictionaryapi.dev). Upstream source URLs and license details are provided by that API response.",
+      "Definition data is fetched through the backend with Free Dictionary API (dictionaryapi.dev) plus fallback sources and caching for reliability.",
     definitionAttributionTranslator:
       "Translation data is fetched from Jisho (jisho.org) for English-to-Japanese learning.",
     autoAssignChapters: "Auto-Assign Chapters",
@@ -305,36 +306,81 @@ function getWordMasteryBlocks(wordEntry) {
   return `${"█".repeat(filled)}${"░".repeat(empty)}`;
 }
 
-function extractDefinitions(apiPayload) {
-  const seen = new Set();
-  const all = [];
-
-  (apiPayload?.[0]?.meanings || []).forEach((meaning) => {
-    (meaning?.definitions || []).forEach((item) => {
-      const text = (item?.definition || "").trim();
-      if (!text) return;
-      const normalized = text.toLowerCase();
-      if (seen.has(normalized)) return;
-      seen.add(normalized);
-      all.push(text);
-    });
-  });
-
-  return all;
-}
-
-function extractPronunciation(apiPayload) {
-  const firstEntry = Array.isArray(apiPayload) ? apiPayload[0] : null;
-  const direct = String(firstEntry?.phonetic || "").trim();
-  if (direct) return direct;
-
-  const phoneticOptions = Array.isArray(firstEntry?.phonetics) ? firstEntry.phonetics : [];
-  for (const option of phoneticOptions) {
-    const text = String(option?.text || "").trim();
-    if (text) return text;
+async function fetchEnglishDefinitions(word) {
+  const input = String(word || "").trim();
+  if (!input) {
+    return {
+      definitions: [],
+      pronunciation: "",
+      provider: "",
+      error: "definition-word-required",
+    };
   }
 
-  return "";
+  const endpointCandidates = [`${DEFINITION_API_PATH}/en`];
+  const onLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  if (!API_BASE_URL && onLocalhost) {
+    endpointCandidates.push("http://localhost:4000/api/define/en");
+  }
+
+  const triedEndpoints = new Set();
+  let lastErrorCode = "";
+
+  for (const endpoint of endpointCandidates) {
+    const normalizedEndpoint = String(endpoint || "").trim();
+    if (!normalizedEndpoint || triedEndpoints.has(normalizedEndpoint)) continue;
+    triedEndpoints.add(normalizedEndpoint);
+
+    try {
+      const res = await fetch(normalizedEndpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word: input }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (res.ok) {
+        const definitions = Array.isArray(payload?.definitions)
+          ? payload.definitions.map((item) => String(item || "").trim()).filter(Boolean)
+          : [];
+        return {
+          definitions,
+          pronunciation: String(payload?.pronunciation || "").trim(),
+          provider: String(payload?.provider || "backend").trim().toLowerCase(),
+          error: definitions.length ? "" : "definition-not-found",
+        };
+      }
+
+      const errorCode = String(payload?.error || "")
+        .trim()
+        .toLowerCase();
+      if (
+        errorCode === "definition-not-found" ||
+        errorCode === "invalid-english-word" ||
+        errorCode === "definition-word-required"
+      ) {
+        return {
+          definitions: [],
+          pronunciation: "",
+          provider: "backend",
+          error: errorCode || "definition-not-found",
+        };
+      }
+      lastErrorCode = errorCode || "definition-provider-failed";
+    } catch {
+      lastErrorCode = "definition-provider-failed";
+    }
+  }
+
+  return {
+    definitions: [],
+    pronunciation: "",
+    provider: "backend",
+    error: lastErrorCode || "definition-request-failed",
+  };
 }
 
 async function fetchJapaneseTranslations(word) {
@@ -3336,13 +3382,9 @@ export default function App() {
         pronunciationFetchInFlightRef.current.add(fetchKey);
 
         try {
-          const res = await fetch(
-            `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`
-          );
-          if (!res.ok) continue;
-
-          const data = await res.json();
-          const pronunciation = extractPronunciation(data);
+          const definitionResult = await fetchEnglishDefinitions(word);
+          const pronunciation = String(definitionResult?.pronunciation || "").trim();
+          const definitionProvider = String(definitionResult?.provider || "").trim().toLowerCase();
           if (!pronunciation || cancelled) continue;
 
           setBooks((prevBooks) =>
@@ -3353,7 +3395,11 @@ export default function App() {
                 ...book,
                 words: book.words.map((w) =>
                   w.word === word && !String(w.pronunciation || w.pronounciation || "").trim()
-                    ? { ...w, pronunciation }
+                    ? {
+                        ...w,
+                        pronunciation,
+                        definitionProvider: String(w.definitionProvider || "").trim() || definitionProvider,
+                      }
                     : w
                 ),
               };
@@ -4768,6 +4814,7 @@ export default function App() {
       let definitions = [];
       let pronunciation = "";
       let translationProvider = "";
+      let definitionProvider = "";
       let translationErrorCode = "";
 
       if (useEnglishToJapaneseDictionary) {
@@ -4790,18 +4837,23 @@ export default function App() {
           return;
         }
       } else {
-        const res = await fetch(
-          `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`
-        );
-
-        if (!res.ok) {
+        const definitionResult = await fetchEnglishDefinitions(cleanWord);
+        definitions = Array.isArray(definitionResult?.definitions) ? definitionResult.definitions : [];
+        pronunciation = String(definitionResult?.pronunciation || "").trim();
+        definitionProvider = String(definitionResult?.provider || "").trim().toLowerCase();
+        const definitionErrorCode = String(definitionResult?.error || "").trim().toLowerCase();
+        if (
+          definitionErrorCode === "definition-not-found" ||
+          definitionErrorCode === "invalid-english-word" ||
+          definitionErrorCode === "definition-word-required"
+        ) {
           openNoticeModal(uiText.invalidEnglishWord, uiText.invalidEnglishWordTitle);
           return;
         }
-
-        const data = await res.json();
-        definitions = extractDefinitions(data);
-        pronunciation = extractPronunciation(data);
+        if (definitionErrorCode) {
+          openNoticeModal(uiText.dictionaryNetworkError, uiText.networkErrorTitle);
+          return;
+        }
       }
 
       if (!definitions.length) {
@@ -4823,6 +4875,7 @@ export default function App() {
                   definition: definitions[0],
                   meaningSource: useEnglishToJapaneseDictionary ? "translator_en_ja" : "dictionary_en",
                   translationProvider: useEnglishToJapaneseDictionary ? translationProvider || "unknown" : "",
+                  definitionProvider: useEnglishToJapaneseDictionary ? "" : definitionProvider || "unknown",
                   chapterId: safeSelectedChapterIdForNewWords,
                   difficulty: estimateCefrLevel(cleanWord),
                   quizPerformanceHistory: [],
@@ -6602,10 +6655,13 @@ export default function App() {
                         {getDifficultyLabel(w.difficulty)}
                       </button>
                       {showLocalTranslationDebug &&
-                      useEnglishToJapaneseDictionary &&
-                      String(w.translationProvider || "").trim() ? (
+                      (String(
+                        useEnglishToJapaneseDictionary ? w.translationProvider : w.definitionProvider
+                      ).trim()) ? (
                         <span className="translationSourceBadge">
-                          {`provider: ${String(w.translationProvider || "").trim()}`}
+                          {`provider: ${String(
+                            useEnglishToJapaneseDictionary ? w.translationProvider : w.definitionProvider
+                          ).trim()}`}
                         </span>
                       ) : null}
                       {isDefinitionEdited(w) && <span className="definitionEditedBadge">Edited</span>}
@@ -6847,7 +6903,7 @@ export default function App() {
     const chaptersStepIndex = includesTypeStep ? 2 : 1;
     const reviewStepIndex = includesTypeStep ? 3 : 2;
     const stepTitles = includesTypeStep
-      ? [tr("Quiz Type", "クイズ種類"), tr("Books", "ブック"), tr("Chapters", "章"), tr("確認", "確認")]
+      ? [tr("Quiz Type", "クイズ種類"), tr("Books", "ブック"), tr("Chapters", "章"), tr("Review", "確認")]
       : [tr("Books", "ブック"), tr("Chapters", "章"), tr("Review", "確認")];
     const isAtTypeStep = quizSetupStep === typeStepIndex;
     const isAtBooksStep = quizSetupStep === booksStepIndex;
