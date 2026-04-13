@@ -153,6 +153,18 @@ export function PricingPage() {
             </div>
           </article>
         </section>
+
+        <section className="rounded-2xl border border-border bg-secondary px-6 py-6 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
+          <h2 className="mb-2 text-2xl font-semibold text-foreground">Not sure which plan you need?</h2>
+          <p className="max-w-3xl text-muted-foreground">
+            Start with the learning method first. Our guide on{" "}
+            <a href="/how-to-expand-your-vocabulary" className="font-medium text-primary no-underline hover:underline">
+              how to expand your vocabulary
+            </a>{" "}
+            explains the daily routine behind effective vocabulary growth, including context, retrieval practice,
+            spaced repetition, and active use.
+          </p>
+        </section>
       </main>
     </div>
   );

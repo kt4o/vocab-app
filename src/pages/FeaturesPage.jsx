@@ -50,8 +50,8 @@ export function FeaturesPage() {
               <span className="text-lg font-semibold text-foreground">Vocalibry</span>
             </a>
             <nav className="hidden items-center gap-6 md:flex">
-              <a href="/how-to-expand-your-vocabulary" className="text-foreground no-underline transition-colors hover:text-primary">
-                Vocabulary Guide
+              <a href="/guides" className="text-foreground no-underline transition-colors hover:text-primary">
+                Guides
               </a>
               <a href="/features" className="text-foreground no-underline transition-colors hover:text-primary">
                 Features
@@ -103,6 +103,21 @@ export function FeaturesPage() {
                 </article>
               ))}
             </div>
+
+            <section className="mt-12 rounded-2xl border border-border bg-secondary p-8 text-center">
+              <h2 className="mb-3 text-2xl font-semibold text-foreground">Want the strategy behind the features?</h2>
+              <p className="mx-auto mb-5 max-w-3xl text-muted-foreground">
+                If you are trying to improve vocabulary, the tools work best when they are tied to a clear learning
+                method. Read our research-backed guide on how to expand your vocabulary with contextual learning,
+                retrieval practice, spaced repetition, and active use.
+              </p>
+              <a
+                href="/how-to-expand-your-vocabulary"
+                className="font-medium text-primary no-underline transition-colors hover:text-[#5d81d6]"
+              >
+                Read the vocabulary guide
+              </a>
+            </section>
 
             <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
               <a

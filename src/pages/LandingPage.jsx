@@ -145,6 +145,39 @@ const VOCAB_GROWTH_TIPS = [
   },
 ];
 
+const GUIDE_LINKS = [
+  {
+    title: "How to expand your vocabulary",
+    description:
+      "A research-backed guide to building vocabulary with context, retrieval practice, spaced repetition, and active use.",
+    href: "/how-to-expand-your-vocabulary",
+  },
+  {
+    title: "How to memorize vocabulary",
+    description:
+      "Learn how to remember words more effectively with smaller study sets, active recall, and better review timing.",
+    href: "/how-to-memorize-vocabulary",
+  },
+  {
+    title: "How to learn vocabulary in context",
+    description:
+      "Understand how context improves meaning, tone, collocations, and real-world usage so words feel more natural.",
+    href: "/how-to-learn-vocabulary-in-context",
+  },
+  {
+    title: "Spaced repetition for vocabulary",
+    description:
+      "See how review timing helps vocabulary stay in memory and why spacing beats cramming.",
+    href: "/spaced-repetition-for-vocabulary",
+  },
+  {
+    title: "How many words should you learn per day?",
+    description:
+      "Pick a realistic daily vocabulary target that supports steady progress without overwhelming review.",
+    href: "/how-many-words-should-you-learn-per-day",
+  },
+];
+
 export function LandingPage() {
   const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
 
@@ -188,8 +221,8 @@ export function LandingPage() {
             </a>
 
             <nav className="hidden items-center gap-6 md:flex">
-              <a href="/how-to-expand-your-vocabulary" className="text-foreground no-underline transition-colors hover:text-primary">
-                Vocabulary Guide
+              <a href="/guides" className="text-foreground no-underline transition-colors hover:text-primary">
+                Guides
               </a>
               <a href="/features" className="text-foreground no-underline transition-colors hover:text-primary">
                 Features
@@ -346,6 +379,35 @@ export function LandingPage() {
           </div>
         </section>
 
+        <section className="px-4 py-16" id="guides">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-10 text-center">
+              <h2 className="mb-3 text-3xl font-bold text-foreground">Vocabulary Learning Guides</h2>
+              <p className="mx-auto max-w-3xl text-muted-foreground">
+                Explore practical guides on how to improve vocabulary, memorize words more effectively, and learn new
+                language in context.
+              </p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              {GUIDE_LINKS.map((guide) => (
+                <article
+                  key={guide.href}
+                  className="rounded-2xl border border-border bg-card p-6 shadow-[0_4px_14px_rgba(15,23,42,0.06)]"
+                >
+                  <h3 className="mb-3 text-xl font-semibold text-foreground">{guide.title}</h3>
+                  <p className="mb-4 text-muted-foreground">{guide.description}</p>
+                  <a
+                    href={guide.href}
+                    className="font-medium text-primary no-underline transition-colors hover:text-[#5d81d6]"
+                  >
+                    Read guide
+                  </a>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="px-4 py-16" id="pricing">
           <div className="mx-auto max-w-6xl">
             <div className="mb-12 text-center">
@@ -469,7 +531,12 @@ export function LandingPage() {
             <div className="flex flex-col gap-2 text-sm">
               <a href="/features" className="text-muted-foreground no-underline transition-colors hover:text-primary">Features</a>
               <a href="/pricing" className="text-muted-foreground no-underline transition-colors hover:text-primary">Pricing</a>
-              <a href="/how-to-expand-your-vocabulary" className="text-muted-foreground no-underline transition-colors hover:text-primary">Vocabulary Guide</a>
+              <a href="/guides" className="text-muted-foreground no-underline transition-colors hover:text-primary">All Guides</a>
+              <a href="/guides" className="text-muted-foreground no-underline transition-colors hover:text-primary">All Guides</a>
+              <a href="/how-to-memorize-vocabulary" className="text-muted-foreground no-underline transition-colors hover:text-primary">Memorize Vocabulary</a>
+              <a href="/how-to-learn-vocabulary-in-context" className="text-muted-foreground no-underline transition-colors hover:text-primary">Vocabulary in Context</a>
+              <a href="/spaced-repetition-for-vocabulary" className="text-muted-foreground no-underline transition-colors hover:text-primary">Spaced Repetition</a>
+              <a href="/how-many-words-should-you-learn-per-day" className="text-muted-foreground no-underline transition-colors hover:text-primary">Words Per Day</a>
               <a href="/contact" className="text-muted-foreground no-underline transition-colors hover:text-primary">Contact</a>
             </div>
           </div>

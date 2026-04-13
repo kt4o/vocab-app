@@ -12,6 +12,11 @@ import { ContactPage } from "./pages/ContactPage.jsx";
 import { PricingPage } from "./pages/PricingPage.jsx";
 import { FeaturesPage } from "./pages/FeaturesPage.jsx";
 import { VocabularyGuidePage } from "./pages/VocabularyGuidePage.jsx";
+import { MemorizeVocabularyPage } from "./pages/MemorizeVocabularyPage.jsx";
+import { VocabularyInContextPage } from "./pages/VocabularyInContextPage.jsx";
+import { GuidesPage } from "./pages/GuidesPage.jsx";
+import { SpacedRepetitionVocabularyPage } from "./pages/SpacedRepetitionVocabularyPage.jsx";
+import { WordsPerDayPage } from "./pages/WordsPerDayPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import {
@@ -56,6 +61,101 @@ const FAQ_ENTRIES = [
   },
 ];
 
+const VOCABULARY_GUIDE_FAQ_ENTRIES = [
+  {
+    question: "What is the best way to expand your vocabulary?",
+    answer:
+      "The best way to expand your vocabulary is to learn useful words in context, review them with active recall, space your practice over time, and use the words in your own speaking or writing.",
+  },
+  {
+    question: "How can I improve my vocabulary every day?",
+    answer:
+      "A short daily routine works well. Save a few useful words from real reading or listening, review them with flashcards or quiz prompts, and use at least one of them in a sentence of your own.",
+  },
+  {
+    question: "Is reading enough to improve vocabulary?",
+    answer:
+      "Reading helps a lot, especially when it is extensive and understandable, but it works better when combined with deliberate review. Reading gives you exposure, while retrieval practice and active use help words stick.",
+  },
+  {
+    question: "How many new words should you learn each week?",
+    answer:
+      "A manageable target is usually better than an ambitious one. For many learners, 10 to 20 useful words per week is enough if the words are reviewed well and reused in context.",
+  },
+];
+
+const MEMORIZE_VOCABULARY_FAQ_ENTRIES = [
+  {
+    question: "What is the fastest way to memorize vocabulary?",
+    answer:
+      "The fastest reliable method is to learn useful words in context, review them with active recall, and revisit them on a spaced schedule. Speed comes from consistency, not from cramming.",
+  },
+  {
+    question: "Why do I forget new words so quickly?",
+    answer:
+      "Many learners forget words quickly because they only reread them. Words last longer when you retrieve them from memory, meet them again in context, and use them yourself.",
+  },
+  {
+    question: "How many words should I memorize at a time?",
+    answer:
+      "A smaller set is usually better. For many learners, 5 to 15 words in a session is enough if the words are reviewed properly and reused over several days.",
+  },
+];
+
+const VOCABULARY_IN_CONTEXT_FAQ_ENTRIES = [
+  {
+    question: "Why is learning vocabulary in context better?",
+    answer:
+      "Learning vocabulary in context helps you remember meaning, tone, grammar, and common word partnerships at the same time. It leads to deeper understanding than memorizing isolated definitions.",
+  },
+  {
+    question: "Can you learn vocabulary just by reading?",
+    answer:
+      "Reading is one of the best sources of contextual learning, especially when the material is understandable and interesting. It works even better when you save useful words and review them actively later.",
+  },
+  {
+    question: "What does it mean to learn a word in context?",
+    answer:
+      "It means learning the word inside a real sentence or situation so you can understand not just what it means, but how it is used.",
+  },
+];
+
+const SPACED_REPETITION_FAQ_ENTRIES = [
+  {
+    question: "What is spaced repetition for vocabulary?",
+    answer:
+      "Spaced repetition is a review method where you revisit vocabulary over gradually increasing intervals instead of cramming in one sitting.",
+  },
+  {
+    question: "Does spaced repetition help you remember words longer?",
+    answer:
+      "Yes. Spaced review is widely supported by learning research because it strengthens memory over time and reduces the quick forgetting that follows cramming.",
+  },
+  {
+    question: "How often should I review vocabulary?",
+    answer:
+      "New words should be reviewed sooner, while familiar words can be reviewed less often. The right schedule depends on how easily you can recall each word.",
+  },
+];
+
+const WORDS_PER_DAY_FAQ_ENTRIES = [
+  {
+    question: "How many vocabulary words should I learn per day?",
+    answer:
+      "For many learners, 5 to 15 new words per day is a realistic target. The best number depends on how much time you have for review and how difficult the words are.",
+  },
+  {
+    question: "Is learning 20 words a day too much?",
+    answer:
+      "It can be too much if you do not have enough time to review them properly. High volume only helps when retention stays strong.",
+  },
+  {
+    question: "What matters more, daily word count or review quality?",
+    answer:
+      "Review quality matters more. A smaller number of words that you can recall and use is better than a large number you quickly forget.",
+  },
+];
+
 const ROUTE_SEO = {
   landing: {
     title: "How to Expand Your Vocabulary Faster | Vocalibry",
@@ -76,9 +176,39 @@ const ROUTE_SEO = {
     indexable: true,
   },
   "vocabulary-guide": {
-    title: "How to Expand Your Vocabulary: Practical Daily System | Vocalibry",
+    title: "How to Expand Your Vocabulary: Research-Backed Ways to Learn More Words | Vocalibry",
     description:
-      "Learn how to expand your vocabulary with a practical daily plan, active recall, spaced repetition, and focused mistake review.",
+      "Learn how to expand your vocabulary with research-backed strategies like contextual learning, retrieval practice, spaced repetition, and active use.",
+    indexable: true,
+  },
+  "memorize-vocabulary": {
+    title: "How to Memorize Vocabulary and Actually Remember It | Vocalibry",
+    description:
+      "Learn how to memorize vocabulary with active recall, spaced repetition, contextual examples, and better review habits.",
+    indexable: true,
+  },
+  "vocabulary-in-context": {
+    title: "How to Learn Vocabulary in Context | Vocalibry",
+    description:
+      "Learn how to study vocabulary in context so you remember meaning, tone, collocations, and real-world usage more effectively.",
+    indexable: true,
+  },
+  guides: {
+    title: "Vocabulary Guides and Study Strategies | Vocalibry",
+    description:
+      "Explore vocabulary learning guides on memorization, contextual learning, spaced repetition, and daily study habits.",
+    indexable: true,
+  },
+  "spaced-repetition-vocabulary": {
+    title: "Spaced Repetition for Vocabulary | Vocalibry",
+    description:
+      "Learn how spaced repetition helps vocabulary stick longer and how to combine review timing with active recall.",
+    indexable: true,
+  },
+  "words-per-day": {
+    title: "How Many Words Should You Learn Per Day? | Vocalibry",
+    description:
+      "Find a realistic daily vocabulary target based on review time, retention, and the difficulty of the words you study.",
     indexable: true,
   },
   contact: {
@@ -179,6 +309,11 @@ function getRoute(pathname) {
   if (normalizedPath === "/pricing") return "pricing";
   if (normalizedPath === "/features") return "features";
   if (normalizedPath === "/how-to-expand-your-vocabulary") return "vocabulary-guide";
+  if (normalizedPath === "/how-to-memorize-vocabulary") return "memorize-vocabulary";
+  if (normalizedPath === "/how-to-learn-vocabulary-in-context") return "vocabulary-in-context";
+  if (normalizedPath === "/guides") return "guides";
+  if (normalizedPath === "/spaced-repetition-for-vocabulary") return "spaced-repetition-vocabulary";
+  if (normalizedPath === "/how-many-words-should-you-learn-per-day") return "words-per-day";
   if (normalizedPath === "/contact") return "contact";
   return "landing";
 }
@@ -311,7 +446,17 @@ function RootPage() {
     upsertMetaTag("name", "robots", seo.indexable ? "index,follow" : "noindex,nofollow");
     upsertCanonicalLink(canonicalUrl);
 
-    upsertMetaTag("property", "og:type", "website");
+    upsertMetaTag(
+      "property",
+      "og:type",
+      route === "vocabulary-guide" ||
+        route === "memorize-vocabulary" ||
+        route === "vocabulary-in-context" ||
+        route === "spaced-repetition-vocabulary" ||
+        route === "words-per-day"
+        ? "article"
+        : "website",
+    );
     upsertMetaTag("property", "og:site_name", "Vocalibry");
     upsertMetaTag("property", "og:title", seo.title);
     upsertMetaTag("property", "og:description", seo.description);
@@ -386,9 +531,9 @@ function RootPage() {
         "@graph": [
           {
             "@type": "Article",
-            headline: "How to expand your vocabulary: a practical daily system",
+            headline: "How to expand your vocabulary: what research suggests actually works",
             description:
-              "A practical guide to improve English vocabulary using active recall, spaced repetition, and mistake-focused review.",
+              "A research-backed guide to improving vocabulary through contextual learning, retrieval practice, spaced repetition, and active use.",
             author: {
               "@type": "Organization",
               name: "Vocalibry",
@@ -402,6 +547,210 @@ function RootPage() {
               },
             },
             mainEntityOfPage: `${SITE_URL}/how-to-expand-your-vocabulary`,
+            url: `${SITE_URL}/how-to-expand-your-vocabulary`,
+            image: ogImageUrl,
+            inLanguage: "en",
+            keywords: [
+              "how to expand your vocabulary",
+              "how to improve vocabulary",
+              "improve vocabulary",
+              "build vocabulary",
+              "vocabulary learning tips",
+            ],
+          },
+          {
+            "@type": "FAQPage",
+            mainEntity: VOCABULARY_GUIDE_FAQ_ENTRIES.map((entry) => ({
+              "@type": "Question",
+              name: entry.question,
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: entry.answer,
+              },
+            })),
+          },
+        ],
+      });
+    } else if (route === "memorize-vocabulary") {
+      upsertJsonLd(jsonLdId, {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            headline: "How to memorize vocabulary and actually remember it",
+            description:
+              "A practical guide to memorizing vocabulary with active recall, spaced repetition, contextual examples, and active use.",
+            author: {
+              "@type": "Organization",
+              name: "Vocalibry",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Vocalibry",
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}/favicon.png`,
+              },
+            },
+            mainEntityOfPage: `${SITE_URL}/how-to-memorize-vocabulary`,
+            url: `${SITE_URL}/how-to-memorize-vocabulary`,
+            image: ogImageUrl,
+            inLanguage: "en",
+            keywords: [
+              "how to memorize vocabulary",
+              "memorize vocabulary",
+              "how to remember vocabulary",
+              "vocabulary memory tips",
+            ],
+          },
+          {
+            "@type": "FAQPage",
+            mainEntity: MEMORIZE_VOCABULARY_FAQ_ENTRIES.map((entry) => ({
+              "@type": "Question",
+              name: entry.question,
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: entry.answer,
+              },
+            })),
+          },
+        ],
+      });
+    } else if (route === "vocabulary-in-context") {
+      upsertJsonLd(jsonLdId, {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            headline: "How to learn vocabulary in context",
+            description:
+              "A practical guide to learning vocabulary in context through reading, listening, sentence examples, collocations, and active recall.",
+            author: {
+              "@type": "Organization",
+              name: "Vocalibry",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Vocalibry",
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}/favicon.png`,
+              },
+            },
+            mainEntityOfPage: `${SITE_URL}/how-to-learn-vocabulary-in-context`,
+            url: `${SITE_URL}/how-to-learn-vocabulary-in-context`,
+            image: ogImageUrl,
+            inLanguage: "en",
+            keywords: [
+              "how to learn vocabulary in context",
+              "learn vocabulary in context",
+              "vocabulary in context",
+              "contextual vocabulary learning",
+            ],
+          },
+          {
+            "@type": "FAQPage",
+            mainEntity: VOCABULARY_IN_CONTEXT_FAQ_ENTRIES.map((entry) => ({
+              "@type": "Question",
+              name: entry.question,
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: entry.answer,
+              },
+            })),
+          },
+        ],
+      });
+    } else if (route === "guides") {
+      upsertJsonLd(jsonLdId, {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "CollectionPage",
+            name: "Vocabulary guides and study strategies",
+            url: `${SITE_URL}/guides`,
+            description:
+              "A hub page for vocabulary learning guides on memorization, contextual learning, spaced repetition, and study habits.",
+          },
+        ],
+      });
+    } else if (route === "spaced-repetition-vocabulary") {
+      upsertJsonLd(jsonLdId, {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            headline: "Spaced repetition for vocabulary",
+            description:
+              "A practical guide to using spaced repetition for vocabulary with review timing, active recall, and long-term retention in mind.",
+            author: {
+              "@type": "Organization",
+              name: "Vocalibry",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Vocalibry",
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}/favicon.png`,
+              },
+            },
+            mainEntityOfPage: `${SITE_URL}/spaced-repetition-for-vocabulary`,
+            url: `${SITE_URL}/spaced-repetition-for-vocabulary`,
+            image: ogImageUrl,
+            inLanguage: "en",
+            keywords: ["spaced repetition for vocabulary", "vocabulary spaced repetition", "review vocabulary"],
+          },
+          {
+            "@type": "FAQPage",
+            mainEntity: SPACED_REPETITION_FAQ_ENTRIES.map((entry) => ({
+              "@type": "Question",
+              name: entry.question,
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: entry.answer,
+              },
+            })),
+          },
+        ],
+      });
+    } else if (route === "words-per-day") {
+      upsertJsonLd(jsonLdId, {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            headline: "How many words should you learn per day?",
+            description:
+              "A practical guide to choosing a realistic daily vocabulary target based on time, review capacity, and retention.",
+            author: {
+              "@type": "Organization",
+              name: "Vocalibry",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Vocalibry",
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}/favicon.png`,
+              },
+            },
+            mainEntityOfPage: `${SITE_URL}/how-many-words-should-you-learn-per-day`,
+            url: `${SITE_URL}/how-many-words-should-you-learn-per-day`,
+            image: ogImageUrl,
+            inLanguage: "en",
+            keywords: ["how many words should you learn per day", "vocabulary words per day", "daily vocabulary target"],
+          },
+          {
+            "@type": "FAQPage",
+            mainEntity: WORDS_PER_DAY_FAQ_ENTRIES.map((entry) => ({
+              "@type": "Question",
+              name: entry.question,
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: entry.answer,
+              },
+            })),
           },
         ],
       });
@@ -431,6 +780,11 @@ function RootPage() {
   if (route === "pricing") pageContent = <PricingPage />;
   if (route === "features") pageContent = <FeaturesPage />;
   if (route === "vocabulary-guide") pageContent = <VocabularyGuidePage />;
+  if (route === "memorize-vocabulary") pageContent = <MemorizeVocabularyPage />;
+  if (route === "vocabulary-in-context") pageContent = <VocabularyInContextPage />;
+  if (route === "guides") pageContent = <GuidesPage />;
+  if (route === "spaced-repetition-vocabulary") pageContent = <SpacedRepetitionVocabularyPage />;
+  if (route === "words-per-day") pageContent = <WordsPerDayPage />;
   if (route === "contact") pageContent = <ContactPage />;
 
   return (
