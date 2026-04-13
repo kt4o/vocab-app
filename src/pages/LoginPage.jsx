@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { identifyAnalyticsUser, trackEvent } from "../lib/analytics.js";
+import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
@@ -349,16 +350,7 @@ export function LoginPage({ initialMode = "login" }) {
 
   return (
     <div className="publicPage loginPage">
-      <header className="publicHeader">
-        <a className="publicLogo" href="/">
-          Vocalibry
-        </a>
-        <nav className="publicNav" aria-label="Public pages">
-          <a href="/pricing">Pricing</a>
-          <a href="/terms">Terms</a>
-          <a href="/privacy">Privacy</a>
-        </nav>
-      </header>
+      <PublicSiteHeader />
 
       <main className="landingMain">
         <section className="publicAuthCard">

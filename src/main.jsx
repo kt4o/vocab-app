@@ -158,7 +158,7 @@ const WORDS_PER_DAY_FAQ_ENTRIES = [
 
 const ROUTE_SEO = {
   landing: {
-    title: "How to Expand Your Vocabulary Faster | Vocalibry",
+    title: "Vocalibry",
     description:
       "Learn how to expand your vocabulary with a proven daily system: track words, study with flashcards, and improve recall using targeted quizzes.",
     indexable: true,

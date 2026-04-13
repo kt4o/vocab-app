@@ -1,22 +1,12 @@
+import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
+
 const LAST_UPDATED = "April 8, 2026";
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function TermsPage() {
   return (
     <div className="publicPage legalPage">
-      <header className="publicHeader">
-        <a className="publicLogo" href="/">
-          Vocalibry
-        </a>
-        <nav className="publicNav" aria-label="Public pages">
-          <a href="/pricing">Pricing</a>
-          <a href="/privacy">Privacy</a>
-          <a href="/disclaimer">Disclaimer</a>
-          <a className="publicHeaderCta" href="/login">
-            Log in
-          </a>
-        </nav>
-      </header>
+      <PublicSiteHeader />
 
       <main className="legalMain">
         <h1>Terms and Conditions</h1>

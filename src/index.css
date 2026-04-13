@@ -1660,6 +1660,220 @@ body.theme-dark .accountLauncherAction {
   color: var(--muted);
 }
 
+.adaptiveReviewSection {
+  width: min(100%, 760px);
+}
+
+.adaptiveReviewSection > .analyticsCard + .analyticsCard {
+  margin-top: 12px;
+}
+
+.adaptiveReviewHeroCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.adaptiveReviewHeroCopy {
+  min-width: 0;
+}
+
+.adaptiveReviewHeroCard h3,
+.adaptiveReviewStateCard h3 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.adaptiveReviewStatsRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.adaptiveReviewStatPill {
+  min-width: 96px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.adaptiveReviewStatPill span {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.adaptiveReviewStatPill strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text);
+}
+
+.adaptiveReviewStatPill.isOverdue strong {
+  color: var(--text);
+}
+
+.adaptiveReviewStateCard {
+  max-width: 100%;
+}
+
+.adaptiveReviewCard {
+  padding: 18px 20px;
+}
+
+.adaptiveReviewCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.adaptiveReviewMetaLine {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.adaptiveReviewPromptLabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adaptiveReviewHelpText {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.adaptiveReviewFlashcardWrap {
+  margin-bottom: 16px;
+}
+
+.adaptiveReviewFlashcard {
+  min-height: 280px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: none;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.adaptiveReviewFlashcard:hover {
+  border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+}
+
+.adaptiveReviewFlashcard.isRevealed {
+  background: var(--surface-alt);
+}
+
+.adaptiveReviewFlashcardInner {
+  min-height: 280px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.adaptiveReviewWord {
+  font-size: clamp(30px, 4.8vw, 42px);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.adaptiveReviewPronunciation {
+  margin: 12px 0 0;
+  max-width: 420px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.adaptiveReviewDefinition {
+  max-width: 560px;
+  margin: 0;
+  font-size: clamp(22px, 3.2vw, 28px);
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.adaptiveReviewFooter {
+  display: block;
+}
+
+.adaptiveReviewActions {
+  margin-top: 0;
+  justify-content: flex-start;
+}
+
+.adaptiveReviewRatingsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.adaptiveReviewRatingBtn {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.adaptiveReviewRatingBtn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+  background: var(--surface-alt);
+}
+
+.adaptiveReviewRatingBtn:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.adaptiveReviewRatingBtn strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 15px;
+}
+
+.adaptiveReviewRatingBtn span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.adaptiveReviewRatingBtn.isSaving {
+  border-color: color-mix(in srgb, var(--border) 55%, var(--accent) 45%);
+  background: var(--surface-alt);
+}
+
 .chartGridLayout {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
@@ -7306,6 +7520,31 @@ body.theme-dark .recentSquare {
 
   .settingsCard {
     max-width: 100%;
+  }
+
+  .adaptiveReviewHeroCard,
+  .adaptiveReviewCardTop,
+  .adaptiveReviewFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .adaptiveReviewStatsRow {
+    justify-content: flex-start;
+  }
+
+  .adaptiveReviewHelpText {
+    text-align: left;
+    white-space: normal;
+  }
+
+  .adaptiveReviewFlashcard,
+  .adaptiveReviewFlashcardInner {
+    min-height: 240px;
+  }
+
+  .adaptiveReviewRatingsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .settingsRow {

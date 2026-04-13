@@ -52,33 +52,40 @@ const FEATURES = [
 const MAIN_FEATURES = [
   {
     icon: BookOpen,
-    title: "Build Your Vocabulary",
-    description: "Track words, organize them into chapters, and access comprehensive definitions all in one place.",
+    title: "Save Words From Real Reading",
+    description: "Capture unfamiliar words from books, essays, and articles, then organize them by book and chapter.",
   },
   {
     icon: Brain,
-    title: "Smart Learning System",
-    description: "Review queue that adapts to your learning pace and identifies weak words that need more practice.",
+    title: "Review Before They Fade",
+    description: "Use active recall and smart review to bring back looked-up words before they slip out of memory.",
   },
   {
     icon: Trophy,
-    title: "Compete & Connect",
-    description: "Join leaderboards, connect with friends, and climb the ranks in Free or Pro leagues.",
+    title: "Track Real Progress",
+    description: "See your streak, quiz activity, and vocabulary growth so reading turns into measurable improvement.",
   },
   {
     icon: Zap,
-    title: "Practice Your Way",
-    description: "Master vocabulary with flashcards and interactive quizzes designed to reinforce retention.",
+    title: "Turn Recognition Into Recall",
+    description: "Practice with flashcards, typing, and quizzes until words feel familiar enough to use, not just recognize.",
   },
 ];
 
 const FAQ_ITEMS = [
   {
-    question: "How can I expand my vocabulary faster?",
+    question: "Who is Vocalibry for?",
     answer:
-      "Follow a simple daily loop: collect practical words, test yourself with active recall, and review mistakes before they fade. Vocalibry gives you that structure in one place.",
+      "Vocalibry is for people who already understand English well, read regularly, and keep looking up useful words they later forget. It gives those words a repeatable review system.",
     linkLabel: "See how it works",
     linkHref: "#how-it-works",
+  },
+  {
+    question: "Why do looked-up words disappear so quickly?",
+    answer:
+      "Because understanding a word once is not the same as remembering it later. Words stick better when you revisit them with active recall instead of relying on the original dictionary lookup.",
+    linkLabel: "Read the guide",
+    linkHref: "/how-to-expand-your-vocabulary",
   },
   {
     question: "Is Vocalibry free to use?",
@@ -88,40 +95,33 @@ const FAQ_ITEMS = [
     linkHref: "/pricing",
   },
   {
-    question: "How does Vocalibry help me remember words long-term?",
+    question: "How does Vocalibry help me remember book vocabulary long-term?",
     answer:
-      "Vocalibry combines active recall, repeated quiz practice, and targeted review so weak words are revisited before you forget them.",
+      "Vocalibry helps you save useful words from reading, review them with flashcards and quizzes, and revisit weak words in focused sessions so they are less likely to fade.",
     linkLabel: "Explore features",
     linkHref: "/features",
-  },
-  {
-    question: "Can I organize vocabulary by class or textbook chapter?",
-    answer:
-      "Yes. You can create books and chapters so your vocabulary lists match your school units, exam topics, or personal study plan.",
-    linkLabel: "Create your account",
-    linkHref: "/register",
   },
 ];
 
 const HOW_IT_WORKS_STEPS = [
   {
-    title: "1. Add Words At Your Level",
+    title: "1. Save Words You Meet While Reading",
     description:
-      "Build your list from school units, exam topics, or daily reading and keep each word organized by book and chapter.",
+      "Add unfamiliar but useful words from novels, nonfiction, essays, or articles and keep them grouped by book and chapter.",
     ctaLabel: "Create your free account",
     ctaHref: "/register",
   },
   {
-    title: "2. Practice With Recall Loops",
+    title: "2. Review With Active Recall",
     description:
-      "Use flashcards and quiz modes to repeatedly retrieve meanings, spelling, and usage until recall becomes automatic.",
-    ctaLabel: "See plan details",
-    ctaHref: "/pricing",
+      "Use flashcards and quiz modes to pull the meaning back from memory so the word becomes easier to recognize and reuse.",
+    ctaLabel: "Explore features",
+    ctaHref: "/features",
   },
   {
-    title: "3. Fix Weak Spots Faster",
+    title: "3. Revisit The Words You Keep Losing",
     description:
-      "Review mistakes and revisit low-accuracy words in focused sessions so gaps are corrected before they become habits.",
+      "Focus on mistakes and weak words first so the vocabulary you almost remember gets the extra repetition it needs.",
     ctaLabel: "Start learning now",
     ctaHref: "/register",
   },
@@ -129,19 +129,19 @@ const HOW_IT_WORKS_STEPS = [
 
 const VOCAB_GROWTH_TIPS = [
   {
-    title: "Use words in context, not isolated lists",
+    title: "Do not trust the dictionary moment",
     description:
-      "Save vocabulary from reading, class, and conversation so each word has meaningful context you can remember.",
+      "Looking up a word while reading helps comprehension, but the memory is often shallow. Save the word and come back to it later.",
   },
   {
-    title: "Practice active recall every day",
+    title: "Keep the word tied to the book",
     description:
-      "Short quizzes and flashcards force your brain to retrieve words, which builds stronger long-term memory than passive review.",
+      "Vocabulary is easier to remember when it stays connected to the sentence, scene, or chapter where you first met it.",
   },
   {
-    title: "Review weak words before you forget",
+    title: "Recall beats rereading",
     description:
-      "Track mistakes and revisit low-accuracy words first so the hardest vocabulary gets more focused repetition.",
+      "Short review sessions with flashcards and quizzes usually do more for retention than repeatedly glancing at the definition.",
   },
 ];
 
@@ -149,19 +149,19 @@ const GUIDE_LINKS = [
   {
     title: "How to expand your vocabulary",
     description:
-      "A research-backed guide to building vocabulary with context, retrieval practice, spaced repetition, and active use.",
+      "A research-backed guide to building vocabulary from meaningful input, active recall, spaced repetition, and active use.",
     href: "/how-to-expand-your-vocabulary",
   },
   {
     title: "How to memorize vocabulary",
     description:
-      "Learn how to remember words more effectively with smaller study sets, active recall, and better review timing.",
+      "Learn how to remember looked-up words more effectively with smaller study sets, active recall, and better review timing.",
     href: "/how-to-memorize-vocabulary",
   },
   {
     title: "How to learn vocabulary in context",
     description:
-      "Understand how context improves meaning, tone, collocations, and real-world usage so words feel more natural.",
+      "Understand how context from books and real sentences improves meaning, tone, collocations, and real-world usage.",
     href: "/how-to-learn-vocabulary-in-context",
   },
   {
@@ -189,7 +189,7 @@ export function LandingPage() {
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-[#7e9cf0] px-2.5 py-0.5 text-xs font-medium text-white">New</span>
               <p className="text-[13px] text-foreground">
-                Chapter Planner is live: build clean word lists by book and unit in seconds.
+                Chapter Planner is live: organize words from the books you read into clean chapter-based lists.
                 <a href="/register" className="ml-2 text-primary no-underline hover:underline">
                   Try Chapter Planner →
                 </a>
@@ -258,32 +258,39 @@ export function LandingPage() {
           <div className="mx-auto max-w-6xl">
             <div className="grid items-start gap-10 lg:grid-cols-2">
               <div className="max-w-xl">
+                <p className="mb-4 text-sm font-semibold uppercase tracking-[0.08em] text-primary">
+                  Built for fluent readers
+                </p>
                 <h1 className="mb-6 text-5xl font-bold text-foreground md:text-6xl">
-                  How to expand your vocabulary and remember it.
+                  Remember the words you look up while reading.
                 </h1>
                 <p className="mb-8 text-xl text-muted-foreground">
-                  Build a stronger English vocabulary with daily active recall, smart review, flashcards, and quizzes tailored to your level.
+                  Vocalibry helps strong English readers save unfamiliar words from books, review them with active recall,
+                  and stop forgetting them a day later.
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <a
                     href="/register"
                     className="flex items-center gap-2 rounded-lg bg-primary px-8 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.25)] transition-colors hover:bg-[#5d81d6]"
                   >
-                    Get Started Free
+                    Start free
                     <ArrowRight className="h-5 w-5" />
                   </a>
                   <a
-                    href="/pricing"
+                    href="#how-it-works"
                     className="rounded-lg border border-border bg-secondary px-8 py-3 font-medium text-foreground no-underline transition-colors hover:bg-muted"
                   >
-                    Learn More
+                    See how it works
                   </a>
                 </div>
+                <p className="mt-5 text-sm text-muted-foreground">
+                  Save words from real reading, organize them by book, and review weak vocabulary before it fades.
+                </p>
               </div>
               <div className="relative">
                 <img
                   src={appScreenshot}
-                  alt="Vocalibry App Interface"
+                  alt="Vocalibry app interface showing book-based vocabulary organization and review tools"
                   className="h-auto max-h-[560px] w-full rounded-2xl border border-border object-cover object-top shadow-[0_8px_32px_rgba(15,23,42,0.12)]"
                   width="1896"
                   height="1078"
@@ -298,7 +305,11 @@ export function LandingPage() {
 
         <section className="bg-secondary px-4 py-16">
           <div className="mx-auto max-w-6xl">
-            <h2 className="mb-12 text-center text-3xl font-bold text-foreground">Everything You Need to Learn</h2>
+            <h2 className="mb-4 text-center text-3xl font-bold text-foreground">Built for readers, not random word lists</h2>
+            <p className="mx-auto mb-12 max-w-3xl text-center text-muted-foreground">
+              If you already understand English but want stronger recall and more precise expression, your reading habit
+              can become your vocabulary system.
+            </p>
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
               {MAIN_FEATURES.map((feature) => (
                 <div key={feature.title} className="text-center">
@@ -318,7 +329,7 @@ export function LandingPage() {
             <div className="mb-10 text-center">
               <h2 className="mb-3 text-3xl font-bold text-foreground">How It Works</h2>
               <p className="text-muted-foreground">
-                A simple loop designed to turn new vocabulary into long-term confidence.
+                A simple loop for turning looked-up words into vocabulary you actually remember.
               </p>
             </div>
             <div className="grid gap-6 md:grid-cols-3">
@@ -344,10 +355,10 @@ export function LandingPage() {
         <section className="bg-secondary px-4 py-16" id="expand-vocabulary">
           <div className="mx-auto max-w-6xl">
             <div className="mb-10 text-center">
-              <h2 className="mb-3 text-3xl font-bold text-foreground">How to Expand Your Vocabulary</h2>
+              <h2 className="mb-3 text-3xl font-bold text-foreground">Why readers forget useful words</h2>
               <p className="mx-auto max-w-3xl text-muted-foreground">
-                If you are asking how to improve English vocabulary, start with a system you can repeat every day:
-                collect useful words, test recall, and review mistakes until they stick.
+                Reading exposes you to strong vocabulary, but exposure alone is not enough. The best way to retain words
+                from books is to save them in context, test recall later, and revisit the ones that still feel shaky.
               </p>
             </div>
             <div className="grid gap-6 md:grid-cols-3">
@@ -362,7 +373,7 @@ export function LandingPage() {
               ))}
             </div>
             <p className="mt-8 text-center text-muted-foreground">
-              Want a faster routine? Compare plans on{" "}
+              Want the full method? Compare plans on{" "}
               <a href="/pricing" className="font-medium text-primary no-underline hover:underline">
                 Pricing
               </a>{" "}
@@ -370,7 +381,7 @@ export function LandingPage() {
               <a href="/how-to-expand-your-vocabulary" className="font-medium text-primary no-underline hover:underline">
                 vocabulary guide
               </a>{" "}
-              for a step-by-step system, then explore all study tools on{" "}
+              for a step-by-step system for readers, then explore all study tools on{" "}
               <a href="/features" className="font-medium text-primary no-underline hover:underline">
                 Features
               </a>
@@ -382,10 +393,10 @@ export function LandingPage() {
         <section className="px-4 py-16" id="guides">
           <div className="mx-auto max-w-6xl">
             <div className="mb-10 text-center">
-              <h2 className="mb-3 text-3xl font-bold text-foreground">Vocabulary Learning Guides</h2>
+              <h2 className="mb-3 text-3xl font-bold text-foreground">Guides for building vocabulary from reading</h2>
               <p className="mx-auto max-w-3xl text-muted-foreground">
-                Explore practical guides on how to improve vocabulary, memorize words more effectively, and learn new
-                language in context.
+                Explore practical guides on remembering words you look up, learning vocabulary in context, and turning
+                book reading into lasting vocabulary growth.
               </p>
             </div>
             <div className="grid gap-6 md:grid-cols-3">
@@ -412,7 +423,7 @@ export function LandingPage() {
           <div className="mx-auto max-w-6xl">
             <div className="mb-12 text-center">
               <h2 className="mb-4 text-3xl font-bold text-foreground">Choose Your Plan</h2>
-              <p className="text-muted-foreground">Start free and upgrade when you're ready for unlimited learning.</p>
+              <p className="text-muted-foreground">Start free and build a reading-driven vocabulary habit that lasts.</p>
             </div>
 
             <div className="grid gap-8 md:grid-cols-2">
@@ -422,7 +433,7 @@ export function LandingPage() {
                   <div className="mb-3">
                     <span className="text-5xl font-bold text-foreground">A$0</span>
                   </div>
-                  <p className="text-primary">Good for getting started.</p>
+                  <p className="text-primary">Good for starting your reading vocabulary system.</p>
                 </div>
 
                 <a
@@ -458,7 +469,7 @@ export function LandingPage() {
                     <span className="text-5xl font-bold text-foreground">A$6</span>
                     <span className="text-xl text-muted-foreground">/month</span>
                   </div>
-                  <p className="text-primary">Pro coming soon.</p>
+                  <p className="text-primary">For readers who want deeper review tools.</p>
                 </div>
 
                 <a
@@ -489,7 +500,7 @@ export function LandingPage() {
             <div className="mb-10 text-center">
               <h2 className="mb-3 text-3xl font-bold text-foreground">Frequently Asked Questions</h2>
               <p className="text-muted-foreground">
-                Quick answers about how Vocalibry works and who it is for.
+                Quick answers for readers who want to stop forgetting useful words.
               </p>
             </div>
             <div className="space-y-4">
@@ -522,7 +533,7 @@ export function LandingPage() {
               <span className="text-base font-semibold text-foreground">Vocalibry</span>
             </a>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              Build vocabulary with daily recall loops, focused review, and practical study tools.
+              Turn looked-up words from books into vocabulary you actually remember and use.
             </p>
           </div>
 
@@ -531,7 +542,6 @@ export function LandingPage() {
             <div className="flex flex-col gap-2 text-sm">
               <a href="/features" className="text-muted-foreground no-underline transition-colors hover:text-primary">Features</a>
               <a href="/pricing" className="text-muted-foreground no-underline transition-colors hover:text-primary">Pricing</a>
-              <a href="/guides" className="text-muted-foreground no-underline transition-colors hover:text-primary">All Guides</a>
               <a href="/guides" className="text-muted-foreground no-underline transition-colors hover:text-primary">All Guides</a>
               <a href="/how-to-memorize-vocabulary" className="text-muted-foreground no-underline transition-colors hover:text-primary">Memorize Vocabulary</a>
               <a href="/how-to-learn-vocabulary-in-context" className="text-muted-foreground no-underline transition-colors hover:text-primary">Vocabulary in Context</a>

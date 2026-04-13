@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { CEFR_WORDLIST } from "./data/cefrWordlist";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
+import { AdaptiveReviewSession } from "./components/AdaptiveReviewSession";
 import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
 import { identifyAnalyticsUser, resetAnalyticsIdentity, trackEvent } from "./lib/analytics.js";
 import { useThemeMode } from "./hooks/useThemeMode.js";
@@ -28,6 +29,7 @@ const BILLING_API_PATH = `${API_BASE_URL}/api/billing`;
 const ANALYTICS_API_PATH = `${API_BASE_URL}/api/analytics`;
 const TRANSLATION_API_PATH = `${API_BASE_URL}/api/translate`;
 const DEFINITION_API_PATH = `${API_BASE_URL}/api/define`;
+const REVIEW_API_PATH = `${API_BASE_URL}/api/review`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
@@ -1581,6 +1583,11 @@ export default function App() {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isCloudStateHydrated, setIsCloudStateHydrated] = useState(false);
   const [isLocalPersistencePaused, setIsLocalPersistencePaused] = useState(false);
+  const [adaptiveReviewItems, setAdaptiveReviewItems] = useState([]);
+  const [adaptiveReviewStats, setAdaptiveReviewStats] = useState({ dueNow: 0, overdue: 0 });
+  const [adaptiveReviewLoading, setAdaptiveReviewLoading] = useState(false);
+  const [adaptiveReviewError, setAdaptiveReviewError] = useState("");
+  const [adaptiveReviewPendingRating, setAdaptiveReviewPendingRating] = useState("");
   const isJapaneseUi = preferredLanguage === "ja";
   const useEnglishToJapaneseDictionary = dictionaryPreference === "en_ja";
   const appLocale = isJapaneseUi ? "ja" : "en";
@@ -1944,6 +1951,136 @@ export default function App() {
 
     return true;
   }, [activeQuizIsMistakeReview, activeQuizMode, freeDailyUsage, isProPlan]);
+
+  const loadAdaptiveReviewQueue = useCallback(async (limit = 20) => {
+    if (!authToken || !isProPlan) {
+      setAdaptiveReviewItems([]);
+      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewError("");
+      setAdaptiveReviewPendingRating("");
+      return { ok: false, skipped: true };
+    }
+
+    setAdaptiveReviewLoading(true);
+    setAdaptiveReviewError("");
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", String(Math.max(1, Math.floor(Number(limit) || 20))));
+      const response = await fetch(`${REVIEW_API_PATH}/due?${params.toString()}`, {
+        credentials: "include",
+        headers: buildAuthHeaders(authToken),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const errorMessage =
+          typeof payload?.error === "string" && payload.error.trim()
+            ? payload.error.trim()
+            : "Unable to load adaptive review.";
+        throw new Error(errorMessage);
+      }
+
+      setAdaptiveReviewItems(Array.isArray(payload?.items) ? payload.items : []);
+      setAdaptiveReviewStats({
+        dueNow: Math.max(0, Math.floor(Number(payload?.stats?.dueNow) || 0)),
+        overdue: Math.max(0, Math.floor(Number(payload?.stats?.overdue) || 0)),
+      });
+      return { ok: true, payload };
+    } catch (error) {
+      setAdaptiveReviewItems([]);
+      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewError(error instanceof Error ? error.message : "Unable to load adaptive review.");
+      return { ok: false, error };
+    } finally {
+      setAdaptiveReviewLoading(false);
+    }
+  }, [authToken, isProPlan]);
+
+  const openAdaptiveReviewSession = useCallback(async () => {
+    if (!isProPlan) {
+      openNoticeModal(
+        "Adaptive Review is available on Vocalibry Pro. Upgrade to unlock spaced repetition.",
+        "Pro Feature"
+      );
+      return;
+    }
+
+    setScreen("adaptiveReview");
+    const result = await loadAdaptiveReviewQueue(20);
+    if (result?.ok) {
+      trackEvent("adaptive_review_started", {
+        due_now: Math.max(0, Math.floor(Number(result?.payload?.stats?.dueNow) || 0)),
+        overdue: Math.max(0, Math.floor(Number(result?.payload?.stats?.overdue) || 0)),
+      });
+    }
+  }, [isProPlan, loadAdaptiveReviewQueue]);
+
+  const rateAdaptiveReviewWord = useCallback(async (rating) => {
+    const currentItem = adaptiveReviewItems[0];
+    if (!currentItem || !authToken || adaptiveReviewPendingRating) return;
+
+    try {
+      setAdaptiveReviewPendingRating(rating);
+      setAdaptiveReviewLoading(true);
+      setAdaptiveReviewError("");
+      const response = await fetch(`${REVIEW_API_PATH}/rate`, {
+        method: "POST",
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          bookId: currentItem.bookId,
+          chapterId: currentItem.chapterId,
+          word: currentItem.word,
+          rating,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const errorMessage =
+          typeof payload?.error === "string" && payload.error.trim()
+            ? payload.error.trim()
+            : "Unable to update review progress.";
+        throw new Error(errorMessage);
+      }
+
+      trackEvent("adaptive_review_rated", {
+        rating,
+        remaining_count: Math.max(0, adaptiveReviewItems.length - 1),
+      });
+
+      setAdaptiveReviewItems((prev) => prev.slice(1));
+      setAdaptiveReviewStats((prev) => ({
+        dueNow: Math.max(0, (Number(prev?.dueNow) || 0) - 1),
+        overdue: Math.max(0, Number(prev?.overdue) || 0),
+      }));
+
+      if (adaptiveReviewItems.length <= 1) {
+        await loadAdaptiveReviewQueue(20);
+        trackEvent("adaptive_review_completed", {});
+      }
+    } catch (error) {
+      setAdaptiveReviewError(error instanceof Error ? error.message : "Unable to update review progress.");
+    } finally {
+      setAdaptiveReviewPendingRating("");
+      setAdaptiveReviewLoading(false);
+    }
+  }, [adaptiveReviewItems, adaptiveReviewPendingRating, authToken, loadAdaptiveReviewQueue]);
+
+  useEffect(() => {
+    if (!authToken || !isProPlan) {
+      setAdaptiveReviewItems([]);
+      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewLoading(false);
+      setAdaptiveReviewError("");
+      setAdaptiveReviewPendingRating("");
+      return;
+    }
+
+    loadAdaptiveReviewQueue(6);
+  }, [authToken, isProPlan, loadAdaptiveReviewQueue]);
 
   function renderWithSidebar(content) {
     const inDefinitions =
@@ -5401,6 +5538,27 @@ export default function App() {
         </div>
         </div>
         <div className="panelGrid dashboardPanelGrid">
+          {isProPlan ? (
+            <div
+              className="panelCard wide"
+              role="button"
+              tabIndex={0}
+              onClick={openAdaptiveReviewSession}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openAdaptiveReviewSession();
+                }
+              }}
+            >
+              <span>
+                {"\uD83E\uDDE0"} {tr("Adaptive Review", "é©å¿œåž‹å¾©ç¿’")}
+              </span>
+              <small className="settingsHint">
+                {tr("Due now", "ä»Šã™ãå¾©ç¿’")}: {adaptiveReviewStats.dueNow}
+              </small>
+            </div>
+          ) : null}
           <div
             className="panelCard wide"
             role="button"
@@ -7283,6 +7441,22 @@ export default function App() {
         </div>
         {renderModal()}
       </div>
+    );
+  }
+
+  // ---------- FLASHCARDS ----------
+  if (screen === "adaptiveReview") {
+    return renderWithSidebar(
+      <AdaptiveReviewSession
+        items={adaptiveReviewItems}
+        stats={adaptiveReviewStats}
+        loading={adaptiveReviewLoading}
+        error={adaptiveReviewError}
+        pendingRating={adaptiveReviewPendingRating}
+        goBack={() => setScreen("dashboard")}
+        onReload={() => loadAdaptiveReviewQueue(20)}
+        onRate={rateAdaptiveReviewWord}
+      />
     );
   }
 

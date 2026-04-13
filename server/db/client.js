@@ -237,6 +237,36 @@ export async function initDb() {
   `);
 
   await query(`
+    CREATE TABLE IF NOT EXISTS word_review_state (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      book_id TEXT NOT NULL,
+      chapter_id TEXT NOT NULL,
+      word TEXT NOT NULL,
+      next_review_at TEXT NOT NULL,
+      last_reviewed_at TEXT,
+      last_rating TEXT CHECK (last_rating IN ('again', 'hard', 'good', 'easy')),
+      success_streak INTEGER NOT NULL DEFAULT 0,
+      lapse_count INTEGER NOT NULL DEFAULT 0,
+      ease_factor NUMERIC NOT NULL DEFAULT 2.3,
+      interval_days INTEGER NOT NULL DEFAULT 0,
+      due_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, book_id, chapter_id, word)
+    );
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_word_review_state_user_due
+    ON word_review_state(user_id, next_review_at);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_word_review_state_user_updated
+    ON word_review_state(user_id, updated_at DESC);
+  `);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS school_access_codes (
       id SERIAL PRIMARY KEY,
       school_name TEXT NOT NULL,

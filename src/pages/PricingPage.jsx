@@ -1,5 +1,6 @@
 import { PREMIUM_UPGRADE_ENABLED } from "../config/premium";
 import { Check, X } from "lucide-react";
+import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const PLAN_PRICE = "A$6/month";
 
@@ -50,19 +51,7 @@ const FEATURES = [
 export function PricingPage() {
   return (
     <div className="publicPage pricingPage">
-      <header className="publicHeader">
-        <a className="publicLogo" href="/">
-          Vocalibry
-        </a>
-        <nav className="publicNav" aria-label="Public pages">
-          <a href="/terms">Terms</a>
-          <a href="/privacy">Privacy</a>
-          <a href="/disclaimer">Disclaimer</a>
-          <a className="publicHeaderCta" href="/login">
-            Log in
-          </a>
-        </nav>
-      </header>
+      <PublicSiteHeader />
 
       <main className="landingMain grid gap-4 py-6">
         <section className="rounded-2xl border border-border bg-card px-6 py-6 shadow-[0_4px_16px_rgba(15,23,42,0.08)]">

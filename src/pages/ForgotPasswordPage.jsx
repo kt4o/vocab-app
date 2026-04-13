@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
@@ -162,15 +163,7 @@ export function ForgotPasswordPage() {
 
   return (
     <div className="publicPage legalPage">
-      <header className="publicHeader">
-        <a className="publicLogo" href="/">
-          Vocalibry
-        </a>
-        <nav className="publicNav" aria-label="Public pages">
-          <a href="/login">Log in</a>
-          <a href="/register">Register</a>
-        </nav>
-      </header>
+      <PublicSiteHeader />
 
       <main className="landingMain">
         <section className="publicAuthCard">
