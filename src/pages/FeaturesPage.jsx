@@ -50,6 +50,9 @@ export function FeaturesPage() {
               <span className="text-lg font-semibold text-foreground">Vocalibry</span>
             </a>
             <nav className="hidden items-center gap-6 md:flex">
+              <a href="/how-to-expand-your-vocabulary" className="text-foreground no-underline transition-colors hover:text-primary">
+                Vocabulary Guide
+              </a>
               <a href="/features" className="text-foreground no-underline transition-colors hover:text-primary">
                 Features
               </a>

@@ -1898,6 +1898,53 @@ export default function App() {
     startMistakeReviewSession(source);
   }, [startMistakeReviewSession]);
 
+  const handleQuizTryAgain = useCallback(() => {
+    if (isProPlan) {
+      return true;
+    }
+
+    if (activeQuizMode === "typing") {
+      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
+      if (safeUsage.typingAttempts >= FREE_DAILY_TYPING_LIMIT) {
+        openNoticeModal(
+          `Free plan limit reached: ${FREE_DAILY_TYPING_LIMIT} typing quiz starts per day.`,
+          "Daily Limit"
+        );
+        return false;
+      }
+
+      setFreeDailyUsage((prev) => {
+        const current = ensureCurrentFreeDailyUsage(prev);
+        return {
+          ...current,
+          typingAttempts: current.typingAttempts + 1,
+        };
+      });
+      return true;
+    }
+
+    if (activeQuizIsMistakeReview || activeQuizMode === "mistake") {
+      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
+      if (safeUsage.mistakeReviewAttempts >= FREE_DAILY_MISTAKE_REVIEW_LIMIT) {
+        openNoticeModal(
+          `Free plan limit reached: ${FREE_DAILY_MISTAKE_REVIEW_LIMIT} mistake review starts per day.`,
+          "Daily Limit"
+        );
+        return false;
+      }
+
+      setFreeDailyUsage((prev) => {
+        const current = ensureCurrentFreeDailyUsage(prev);
+        return {
+          ...current,
+          mistakeReviewAttempts: current.mistakeReviewAttempts + 1,
+        };
+      });
+    }
+
+    return true;
+  }, [activeQuizIsMistakeReview, activeQuizMode, freeDailyUsage, isProPlan]);
+
   function renderWithSidebar(content) {
     const inDefinitions =
       screen === "definitions" || screen === "definitionsSelect" || screen === "chapters";
@@ -7274,6 +7321,7 @@ export default function App() {
         onResolveMistake={resolveMistakeForWord}
         onQuizComplete={handleQuizComplete}
         onStartMistakeReview={() => requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global")}
+        onTryAgain={handleQuizTryAgain}
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
         DEFAULT_CHAPTER_ID={DEFAULT_CHAPTER_ID}
@@ -7298,6 +7346,7 @@ export default function App() {
         onResolveMistake={resolveMistakeForWord}
         onQuizComplete={handleQuizComplete}
         onStartMistakeReview={() => requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global")}
+        onTryAgain={handleQuizTryAgain}
         buildQuizQuestions={buildQuizQuestions}
         isEquivalentTypingAnswer={isEquivalentTypingAnswer}
         DEFAULT_CHAPTER_ID={DEFAULT_CHAPTER_ID}

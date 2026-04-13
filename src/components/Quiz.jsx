@@ -135,6 +135,7 @@ export function Quiz({
   onResolveMistake,
   onQuizComplete,
   onStartMistakeReview,
+  onTryAgain,
   buildQuizQuestions,
   isEquivalentTypingAnswer,
   DEFAULT_CHAPTER_ID,
@@ -230,6 +231,14 @@ export function Quiz({
     setMotivationPrompt("");
     setIsMotivationPositive(false);
     setQuizCompletionReported(false);
+  }
+
+  function handleTryAgain() {
+    const shouldRestart = onTryAgain?.();
+    if (shouldRestart === false) {
+      return;
+    }
+    restartQuiz();
   }
 
   function handleAnswer(option) {
@@ -482,7 +491,7 @@ export function Quiz({
                 {copy.startMistakeReview}
               </button>
             ) : null}
-            <button className="primaryBtn" onClick={restartQuiz}>
+            <button className="primaryBtn" onClick={handleTryAgain}>
               {copy.tryAgain}
             </button>
             <button className="primaryBtn" onClick={goBack}>

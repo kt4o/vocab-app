@@ -11,6 +11,7 @@ import { DisclaimerPage } from "./pages/DisclaimerPage.jsx";
 import { ContactPage } from "./pages/ContactPage.jsx";
 import { PricingPage } from "./pages/PricingPage.jsx";
 import { FeaturesPage } from "./pages/FeaturesPage.jsx";
+import { VocabularyGuidePage } from "./pages/VocabularyGuidePage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import {
@@ -34,6 +35,11 @@ const SITE_URL = String(import.meta.env.VITE_SITE_URL || "https://www.vocalibry.
 const DEFAULT_OG_IMAGE_PATH = "/og-image.png";
 const FAQ_ENTRIES = [
   {
+    question: "How can I expand my vocabulary faster?",
+    answer:
+      "Use a repeatable loop: collect useful words, practice active recall daily, and review mistakes before forgetting. Vocalibry supports this with books, chapters, flashcards, and targeted quizzes.",
+  },
+  {
     question: "Is Vocalibry free to use?",
     answer:
       "Yes. You can start with the Free plan and access core features like word tracking, flashcards, and quiz practice.",
@@ -48,18 +54,13 @@ const FAQ_ENTRIES = [
     answer:
       "Yes. You can create books and chapters so your vocabulary lists match your school units, exam topics, or personal study plan.",
   },
-  {
-    question: "Does Vocalibry support Japanese learners of English?",
-    answer:
-      "Yes. You can switch dictionary behavior to English-to-Japanese and use Japanese UI options while studying English vocabulary.",
-  },
 ];
 
 const ROUTE_SEO = {
   landing: {
-    title: "Vocalibry | Never Forget a Word Again",
+    title: "How to Expand Your Vocabulary Faster | Vocalibry",
     description:
-      "Confidently speak, read, and write English by learning words tailored to your level with flashcards and quizzes.",
+      "Learn how to expand your vocabulary with a proven daily system: track words, study with flashcards, and improve recall using targeted quizzes.",
     indexable: true,
   },
   pricing: {
@@ -72,6 +73,12 @@ const ROUTE_SEO = {
     title: "Features | Vocalibry",
     description:
       "Explore Vocalibry features for vocabulary building, flashcards, quizzes, smart review, and progress tracking.",
+    indexable: true,
+  },
+  "vocabulary-guide": {
+    title: "How to Expand Your Vocabulary: Practical Daily System | Vocalibry",
+    description:
+      "Learn how to expand your vocabulary with a practical daily plan, active recall, spaced repetition, and focused mistake review.",
     indexable: true,
   },
   contact: {
@@ -171,6 +178,7 @@ function getRoute(pathname) {
   if (normalizedPath === "/disclaimer" || normalizedPath === "/legal-disclaimer") return "disclaimer";
   if (normalizedPath === "/pricing") return "pricing";
   if (normalizedPath === "/features") return "features";
+  if (normalizedPath === "/how-to-expand-your-vocabulary") return "vocabulary-guide";
   if (normalizedPath === "/contact") return "contact";
   return "landing";
 }
@@ -315,7 +323,7 @@ function RootPage() {
     upsertMetaTag("name", "twitter:description", seo.description);
     upsertMetaTag("name", "twitter:image", ogImageUrl);
 
-    const jsonLdId = "seo-jsonld-landing";
+    const jsonLdId = "seo-jsonld-route";
     if (route === "landing") {
       upsertJsonLd(jsonLdId, {
         "@context": "https://schema.org",
@@ -372,6 +380,31 @@ function RootPage() {
           },
         ],
       });
+    } else if (route === "vocabulary-guide") {
+      upsertJsonLd(jsonLdId, {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            headline: "How to expand your vocabulary: a practical daily system",
+            description:
+              "A practical guide to improve English vocabulary using active recall, spaced repetition, and mistake-focused review.",
+            author: {
+              "@type": "Organization",
+              name: "Vocalibry",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Vocalibry",
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}/favicon.png`,
+              },
+            },
+            mainEntityOfPage: `${SITE_URL}/how-to-expand-your-vocabulary`,
+          },
+        ],
+      });
     } else {
       removeHeadNodeById(jsonLdId);
     }
@@ -397,6 +430,7 @@ function RootPage() {
   if (route === "disclaimer") pageContent = <DisclaimerPage />;
   if (route === "pricing") pageContent = <PricingPage />;
   if (route === "features") pageContent = <FeaturesPage />;
+  if (route === "vocabulary-guide") pageContent = <VocabularyGuidePage />;
   if (route === "contact") pageContent = <ContactPage />;
 
   return (

@@ -74,6 +74,13 @@ const MAIN_FEATURES = [
 
 const FAQ_ITEMS = [
   {
+    question: "How can I expand my vocabulary faster?",
+    answer:
+      "Follow a simple daily loop: collect practical words, test yourself with active recall, and review mistakes before they fade. Vocalibry gives you that structure in one place.",
+    linkLabel: "See how it works",
+    linkHref: "#how-it-works",
+  },
+  {
     question: "Is Vocalibry free to use?",
     answer:
       "Yes. You can start with the Free plan and access core features like word tracking, flashcards, and quiz practice.",
@@ -92,13 +99,6 @@ const FAQ_ITEMS = [
     answer:
       "Yes. You can create books and chapters so your vocabulary lists match your school units, exam topics, or personal study plan.",
     linkLabel: "Create your account",
-    linkHref: "/register",
-  },
-  {
-    question: "Does Vocalibry support Japanese learners of English?",
-    answer:
-      "Yes. You can switch dictionary behavior to English-to-Japanese and use Japanese UI options while studying English vocabulary.",
-    linkLabel: "Start for free",
     linkHref: "/register",
   },
 ];
@@ -124,6 +124,24 @@ const HOW_IT_WORKS_STEPS = [
       "Review mistakes and revisit low-accuracy words in focused sessions so gaps are corrected before they become habits.",
     ctaLabel: "Start learning now",
     ctaHref: "/register",
+  },
+];
+
+const VOCAB_GROWTH_TIPS = [
+  {
+    title: "Use words in context, not isolated lists",
+    description:
+      "Save vocabulary from reading, class, and conversation so each word has meaningful context you can remember.",
+  },
+  {
+    title: "Practice active recall every day",
+    description:
+      "Short quizzes and flashcards force your brain to retrieve words, which builds stronger long-term memory than passive review.",
+  },
+  {
+    title: "Review weak words before you forget",
+    description:
+      "Track mistakes and revisit low-accuracy words first so the hardest vocabulary gets more focused repetition.",
   },
 ];
 
@@ -170,6 +188,9 @@ export function LandingPage() {
             </a>
 
             <nav className="hidden items-center gap-6 md:flex">
+              <a href="/how-to-expand-your-vocabulary" className="text-foreground no-underline transition-colors hover:text-primary">
+                Vocabulary Guide
+              </a>
               <a href="/features" className="text-foreground no-underline transition-colors hover:text-primary">
                 Features
               </a>
@@ -181,15 +202,6 @@ export function LandingPage() {
               </a>
               <a href="/contact" className="text-foreground no-underline transition-colors hover:text-primary">
                 Contact
-              </a>
-              <a href="/terms" className="text-foreground no-underline transition-colors hover:text-primary">
-                Terms
-              </a>
-              <a href="/privacy" className="text-foreground no-underline transition-colors hover:text-primary">
-                Privacy
-              </a>
-              <a href="/disclaimer" className="text-foreground no-underline transition-colors hover:text-primary">
-                Disclaimer
               </a>
             </nav>
 
@@ -214,10 +226,10 @@ export function LandingPage() {
             <div className="grid items-start gap-10 lg:grid-cols-2">
               <div className="max-w-xl">
                 <h1 className="mb-6 text-5xl font-bold text-foreground md:text-6xl">
-                  Never forget a word again.
+                  How to expand your vocabulary and remember it.
                 </h1>
                 <p className="mb-8 text-xl text-muted-foreground">
-                  Confidently speak, read, and write English by learning words tailored to your level.
+                  Build a stronger English vocabulary with daily active recall, smart review, flashcards, and quizzes tailored to your level.
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <a
@@ -293,6 +305,44 @@ export function LandingPage() {
                 </article>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="bg-secondary px-4 py-16" id="expand-vocabulary">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-10 text-center">
+              <h2 className="mb-3 text-3xl font-bold text-foreground">How to Expand Your Vocabulary</h2>
+              <p className="mx-auto max-w-3xl text-muted-foreground">
+                If you are asking how to improve English vocabulary, start with a system you can repeat every day:
+                collect useful words, test recall, and review mistakes until they stick.
+              </p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              {VOCAB_GROWTH_TIPS.map((tip) => (
+                <article
+                  key={tip.title}
+                  className="rounded-2xl border border-border bg-card p-6 shadow-[0_3px_12px_rgba(15,23,42,0.06)]"
+                >
+                  <h3 className="mb-3 text-xl font-semibold text-foreground">{tip.title}</h3>
+                  <p className="text-muted-foreground">{tip.description}</p>
+                </article>
+              ))}
+            </div>
+            <p className="mt-8 text-center text-muted-foreground">
+              Want a faster routine? Compare plans on{" "}
+              <a href="/pricing" className="font-medium text-primary no-underline hover:underline">
+                Pricing
+              </a>{" "}
+              or read the full{" "}
+              <a href="/how-to-expand-your-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                vocabulary guide
+              </a>{" "}
+              for a step-by-step system, then explore all study tools on{" "}
+              <a href="/features" className="font-medium text-primary no-underline hover:underline">
+                Features
+              </a>
+              .
+            </p>
           </div>
         </section>
 
@@ -403,8 +453,38 @@ export function LandingPage() {
       </main>
 
       <footer className="border-t border-border bg-secondary px-4 py-12">
-        <div className="mx-auto max-w-6xl text-center">
-          <p className="text-sm text-muted-foreground">© {YEAR} Vocabulary App. All rights reserved.</p>
+        <div className="mx-auto grid w-full max-w-6xl gap-10 md:grid-cols-3">
+          <div>
+            <a href="/" className="inline-flex items-center gap-2 no-underline">
+              <img src="/favicon.svg" alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
+              <span className="text-base font-semibold text-foreground">Vocalibry</span>
+            </a>
+            <p className="mt-3 max-w-xs text-sm text-muted-foreground">
+              Build vocabulary with daily recall loops, focused review, and practical study tools.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.06em] text-foreground">Product</h3>
+            <div className="flex flex-col gap-2 text-sm">
+              <a href="/features" className="text-muted-foreground no-underline transition-colors hover:text-primary">Features</a>
+              <a href="/pricing" className="text-muted-foreground no-underline transition-colors hover:text-primary">Pricing</a>
+              <a href="/how-to-expand-your-vocabulary" className="text-muted-foreground no-underline transition-colors hover:text-primary">Vocabulary Guide</a>
+              <a href="/contact" className="text-muted-foreground no-underline transition-colors hover:text-primary">Contact</a>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.06em] text-foreground">Legal</h3>
+            <div className="flex flex-col gap-2 text-sm">
+              <a href="/terms" className="text-muted-foreground no-underline transition-colors hover:text-primary">Terms</a>
+              <a href="/privacy" className="text-muted-foreground no-underline transition-colors hover:text-primary">Privacy</a>
+              <a href="/disclaimer" className="text-muted-foreground no-underline transition-colors hover:text-primary">Disclaimer</a>
+            </div>
+          </div>
+        </div>
+        <div className="mx-auto mt-10 w-full max-w-6xl border-t border-border pt-6">
+          <p className="text-sm text-muted-foreground">(c) {YEAR} Vocalibry. All rights reserved.</p>
         </div>
       </footer>
     </div>
