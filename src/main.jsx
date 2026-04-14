@@ -17,6 +17,7 @@ import { VocabularyInContextPage } from "./pages/VocabularyInContextPage.jsx";
 import { GuidesPage } from "./pages/GuidesPage.jsx";
 import { SpacedRepetitionVocabularyPage } from "./pages/SpacedRepetitionVocabularyPage.jsx";
 import { WordsPerDayPage } from "./pages/WordsPerDayPage.jsx";
+import { ForgetLookedUpWordsPage } from "./pages/ForgetLookedUpWordsPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import {
@@ -156,6 +157,24 @@ const WORDS_PER_DAY_FAQ_ENTRIES = [
   },
 ];
 
+const FORGET_LOOKED_UP_WORDS_FAQ_ENTRIES = [
+  {
+    question: "Why do I forget words I look up while reading?",
+    answer:
+      "Because a dictionary lookup usually helps you understand the sentence, but it does not automatically create long-term memory. Words tend to stick better when you revisit them with active recall and a little spacing.",
+  },
+  {
+    question: "Is reading alone enough to remember new vocabulary?",
+    answer:
+      "Reading is one of the best ways to meet useful words in context, but it often works better when you save important words and review them later. Exposure helps, while recall practice makes the memory more durable.",
+  },
+  {
+    question: "What is the best way to remember words from books?",
+    answer:
+      "Save useful words in context, review them with active recall, and revisit the ones you keep missing. A short follow-up routine usually works better than relying on the original lookup.",
+  },
+];
+
 const ROUTE_SEO = {
   landing: {
     title: "Vocalibry",
@@ -209,6 +228,12 @@ const ROUTE_SEO = {
     title: "How Many Words Should You Learn Per Day? | Vocalibry",
     description:
       "Find a realistic daily vocabulary target based on review time, retention, and the difficulty of the words you study.",
+    indexable: true,
+  },
+  "forget-looked-up-words": {
+    title: "Why You Forget Words You Look Up While Reading and How to Remember Them | Vocalibry",
+    description:
+      "Looking up a word helps you understand the sentence, but not always remember it later. Learn how to retain vocabulary from reading with context, recall, and review.",
     indexable: true,
   },
   contact: {
@@ -314,6 +339,7 @@ function getRoute(pathname) {
   if (normalizedPath === "/guides") return "guides";
   if (normalizedPath === "/spaced-repetition-for-vocabulary") return "spaced-repetition-vocabulary";
   if (normalizedPath === "/how-many-words-should-you-learn-per-day") return "words-per-day";
+  if (normalizedPath === "/why-you-forget-words-you-look-up-while-reading") return "forget-looked-up-words";
   if (normalizedPath === "/contact") return "contact";
   return "landing";
 }
@@ -754,6 +780,51 @@ function RootPage() {
           },
         ],
       });
+    } else if (route === "forget-looked-up-words") {
+      upsertJsonLd(jsonLdId, {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            headline: "Why you forget words you look up while reading and how to remember them",
+            description:
+              "A practical guide to retaining vocabulary from reading by combining context, active recall, and review timing.",
+            author: {
+              "@type": "Organization",
+              name: "Vocalibry",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Vocalibry",
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}/favicon.png`,
+              },
+            },
+            mainEntityOfPage: `${SITE_URL}/why-you-forget-words-you-look-up-while-reading`,
+            url: `${SITE_URL}/why-you-forget-words-you-look-up-while-reading`,
+            image: ogImageUrl,
+            inLanguage: "en",
+            keywords: [
+              "why do I forget words I look up while reading",
+              "remember words from reading",
+              "forget vocabulary from books",
+              "retain vocabulary from reading",
+            ],
+          },
+          {
+            "@type": "FAQPage",
+            mainEntity: FORGET_LOOKED_UP_WORDS_FAQ_ENTRIES.map((entry) => ({
+              "@type": "Question",
+              name: entry.question,
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: entry.answer,
+              },
+            })),
+          },
+        ],
+      });
     } else {
       removeHeadNodeById(jsonLdId);
     }
@@ -785,6 +856,7 @@ function RootPage() {
   if (route === "guides") pageContent = <GuidesPage />;
   if (route === "spaced-repetition-vocabulary") pageContent = <SpacedRepetitionVocabularyPage />;
   if (route === "words-per-day") pageContent = <WordsPerDayPage />;
+  if (route === "forget-looked-up-words") pageContent = <ForgetLookedUpWordsPage />;
   if (route === "contact") pageContent = <ContactPage />;
 
   return (

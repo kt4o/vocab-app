@@ -1,5 +1,11 @@
 const GUIDE_CARDS = [
   {
+    title: "Why you forget words you look up while reading",
+    description:
+      "Understand why looked-up words fade so quickly and how to remember useful vocabulary from books more reliably.",
+    href: "/why-you-forget-words-you-look-up-while-reading",
+  },
+  {
     title: "How to expand your vocabulary",
     description:
       "A research-backed overview of contextual learning, retrieval practice, spaced repetition, and active use.",
