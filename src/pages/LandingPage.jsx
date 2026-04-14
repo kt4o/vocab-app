@@ -262,7 +262,7 @@ export function LandingPage() {
                   Built for fluent readers
                 </p>
                 <h1 className="mb-6 text-5xl font-bold text-foreground md:text-6xl">
-                  Remember the words you look up while reading.
+                  Never forget a word you look up again.
                 </h1>
                 <p className="mb-8 text-xl text-muted-foreground">
                   Vocalibry helps strong English readers save unfamiliar words from books, review them with active recall,
