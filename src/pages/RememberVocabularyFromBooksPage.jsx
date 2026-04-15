@@ -1,3 +1,8 @@
+import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
+import { getBreadcrumbItems } from "../config/breadcrumbs.js";
+
+const BREADCRUMB_ITEMS = getBreadcrumbItems("remember-vocabulary-from-books");
+
 const BOOK_MEMORY_STEPS = [
   {
     title: "1. Save only the words that feel worth keeping",
@@ -108,6 +113,7 @@ export function RememberVocabularyFromBooksPage() {
       <main>
         <section className="px-4 py-16">
           <article className="mx-auto max-w-4xl">
+            <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
             <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Book Vocabulary Guide</p>
             <h1 className="mb-6 text-4xl font-bold text-foreground md:text-5xl">
               How to remember vocabulary from books

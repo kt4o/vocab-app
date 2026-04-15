@@ -1,3 +1,8 @@
+import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
+import { getBreadcrumbItems } from "../config/breadcrumbs.js";
+
+const BREADCRUMB_ITEMS = getBreadcrumbItems("spaced-repetition-vocabulary");
+
 const SPACING_STEPS = [
   {
     title: "1. Review early, then widen the gap",
@@ -99,6 +104,7 @@ export function SpacedRepetitionVocabularyPage() {
       <main>
         <section className="px-4 py-16">
           <article className="mx-auto max-w-4xl">
+            <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
             <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Review Strategy Guide</p>
             <h1 className="mb-6 text-4xl font-bold text-foreground md:text-5xl">Spaced repetition for vocabulary</h1>
             <p className="mb-8 text-lg text-muted-foreground">

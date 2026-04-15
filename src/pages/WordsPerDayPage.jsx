@@ -1,3 +1,8 @@
+import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
+import { getBreadcrumbItems } from "../config/breadcrumbs.js";
+
+const BREADCRUMB_ITEMS = getBreadcrumbItems("words-per-day");
+
 const DAILY_STEPS = [
   {
     title: "1. Choose a pace you can repeat",
@@ -103,6 +108,7 @@ export function WordsPerDayPage() {
       <main>
         <section className="px-4 py-16">
           <article className="mx-auto max-w-4xl">
+            <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
             <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Daily Study Guide</p>
             <h1 className="mb-6 text-4xl font-bold text-foreground md:text-5xl">How many words should you learn per day?</h1>
             <p className="mb-8 text-lg text-muted-foreground">

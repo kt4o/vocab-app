@@ -1,5 +1,5 @@
 import { StrictMode, useEffect, useState } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, hydrateRoot } from "react-dom/client";
 import "./index.css";
 import "./tailwind.css";
 import "./styles/style-variants.css";
@@ -28,6 +28,8 @@ import {
   setAnalyticsConsentStatus,
   trackPageView,
 } from "./lib/analytics.js";
+import { getBreadcrumbStructuredData } from "./config/breadcrumbs.js";
+import { ARTICLE_ROUTE_KEYS, ROUTE_SEO, getRoute } from "./config/siteSeo.js";
 
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
@@ -194,115 +196,6 @@ const REMEMBER_VOCABULARY_FROM_BOOKS_FAQ_ENTRIES = [
   },
 ];
 
-const ROUTE_SEO = {
-  landing: {
-    title: "Vocalibry",
-    description:
-      "Learn how to expand your vocabulary with a proven daily system: track words, study with flashcards, and improve recall using targeted quizzes.",
-    indexable: true,
-  },
-  pricing: {
-    title: "Pricing | Vocalibry",
-    description:
-      "Compare Free and Pro plans for Vocalibry and choose the vocabulary-learning experience that fits your goals.",
-    indexable: true,
-  },
-  features: {
-    title: "Features | Vocalibry",
-    description:
-      "Explore Vocalibry features for vocabulary building, flashcards, quizzes, smart review, and progress tracking.",
-    indexable: true,
-  },
-  "vocabulary-guide": {
-    title: "How to Expand Your Vocabulary: Research-Backed Ways to Learn More Words | Vocalibry",
-    description:
-      "Learn how to expand your vocabulary with research-backed strategies like contextual learning, retrieval practice, spaced repetition, and active use.",
-    indexable: true,
-  },
-  "memorize-vocabulary": {
-    title: "How to Memorize Vocabulary and Actually Remember It | Vocalibry",
-    description:
-      "Learn how to memorize vocabulary with active recall, spaced repetition, contextual examples, and better review habits.",
-    indexable: true,
-  },
-  "vocabulary-in-context": {
-    title: "How to Learn Vocabulary in Context | Vocalibry",
-    description:
-      "Learn how to study vocabulary in context so you remember meaning, tone, collocations, and real-world usage more effectively.",
-    indexable: true,
-  },
-  guides: {
-    title: "Vocabulary Guides and Study Strategies | Vocalibry",
-    description:
-      "Explore vocabulary learning guides on memorization, contextual learning, spaced repetition, and daily study habits.",
-    indexable: true,
-  },
-  "spaced-repetition-vocabulary": {
-    title: "Spaced Repetition for Vocabulary | Vocalibry",
-    description:
-      "Learn how spaced repetition helps vocabulary stick longer and how to combine review timing with active recall.",
-    indexable: true,
-  },
-  "words-per-day": {
-    title: "How Many Words Should You Learn Per Day? | Vocalibry",
-    description:
-      "Find a realistic daily vocabulary target based on review time, retention, and the difficulty of the words you study.",
-    indexable: true,
-  },
-  "forget-looked-up-words": {
-    title: "Why You Forget Words You Look Up While Reading and How to Remember Them | Vocalibry",
-    description:
-      "Looking up a word helps you understand the sentence, but not always remember it later. Learn how to retain vocabulary from reading with context, recall, and review.",
-    indexable: true,
-  },
-  "remember-vocabulary-from-books": {
-    title: "How to Remember Vocabulary From Books | Vocalibry",
-    description:
-      "Learn how to remember vocabulary from books by saving useful words in context, reviewing them with recall, and revisiting weak words before they fade.",
-    indexable: true,
-  },
-  contact: {
-    title: "Contact | Vocalibry",
-    description: "Get support for Vocalibry account, billing, and learning questions.",
-    indexable: true,
-  },
-  terms: {
-    title: "Terms & Conditions | Vocalibry",
-    description: "Read the Terms & Conditions for using Vocalibry.",
-    indexable: true,
-  },
-  privacy: {
-    title: "Privacy Policy | Vocalibry",
-    description: "Read how Vocalibry collects, uses, and protects your data.",
-    indexable: true,
-  },
-  disclaimer: {
-    title: "Disclaimer | Vocalibry",
-    description: "Read the Vocalibry disclaimer and usage limitations.",
-    indexable: true,
-  },
-  login: {
-    title: "Log In | Vocalibry",
-    description: "Log in to your Vocalibry account.",
-    indexable: false,
-  },
-  register: {
-    title: "Create Account | Vocalibry",
-    description: "Create your Vocalibry account and start learning vocabulary.",
-    indexable: false,
-  },
-  "forgot-password": {
-    title: "Reset Password | Vocalibry",
-    description: "Reset your Vocalibry account password.",
-    indexable: false,
-  },
-  app: {
-    title: "App | Vocalibry",
-    description: "Vocalibry learning app.",
-    indexable: false,
-  },
-};
-
 function upsertMetaTag(attributeName, attributeValue, content) {
   const selector = `meta[${attributeName}="${attributeValue}"]`;
   let el = document.head.querySelector(selector);
@@ -344,30 +237,6 @@ function removeHeadNodeById(nodeId) {
 
 function isBearerAuthToken(value) {
   return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
-}
-
-function getRoute(pathname) {
-  const normalizedPath = pathname.replace(/\/+$/, "") || "/";
-
-  if (normalizedPath === "/app") return "app";
-  if (normalizedPath === "/login") return "login";
-  if (normalizedPath === "/register") return "register";
-  if (normalizedPath === "/forgot-password") return "forgot-password";
-  if (normalizedPath === "/terms" || normalizedPath === "/terms-and-conditions") return "terms";
-  if (normalizedPath === "/privacy" || normalizedPath === "/privacy-policy") return "privacy";
-  if (normalizedPath === "/disclaimer" || normalizedPath === "/legal-disclaimer") return "disclaimer";
-  if (normalizedPath === "/pricing") return "pricing";
-  if (normalizedPath === "/features") return "features";
-  if (normalizedPath === "/how-to-expand-your-vocabulary") return "vocabulary-guide";
-  if (normalizedPath === "/how-to-memorize-vocabulary") return "memorize-vocabulary";
-  if (normalizedPath === "/how-to-learn-vocabulary-in-context") return "vocabulary-in-context";
-  if (normalizedPath === "/guides") return "guides";
-  if (normalizedPath === "/spaced-repetition-for-vocabulary") return "spaced-repetition-vocabulary";
-  if (normalizedPath === "/how-many-words-should-you-learn-per-day") return "words-per-day";
-  if (normalizedPath === "/why-you-forget-words-you-look-up-while-reading") return "forget-looked-up-words";
-  if (normalizedPath === "/how-to-remember-vocabulary-from-books") return "remember-vocabulary-from-books";
-  if (normalizedPath === "/contact") return "contact";
-  return "landing";
 }
 
 function navigateTo(path) {
@@ -492,6 +361,7 @@ function RootPage() {
     const pathname = window.location.pathname || "/";
     const canonicalUrl = `${SITE_URL}${pathname}`;
     const ogImageUrl = `${SITE_URL}${DEFAULT_OG_IMAGE_PATH}`;
+    const breadcrumbJsonLd = getBreadcrumbStructuredData(route, SITE_URL);
 
     document.title = seo.title;
     upsertMetaTag("name", "description", seo.description);
@@ -501,13 +371,7 @@ function RootPage() {
     upsertMetaTag(
       "property",
       "og:type",
-      route === "vocabulary-guide" ||
-        route === "memorize-vocabulary" ||
-        route === "vocabulary-in-context" ||
-        route === "spaced-repetition-vocabulary" ||
-        route === "words-per-day"
-        ? "article"
-        : "website",
+      ARTICLE_ROUTE_KEYS.has(route) ? "article" : "website",
     );
     upsertMetaTag("property", "og:site_name", "Vocalibry");
     upsertMetaTag("property", "og:title", seo.title);
@@ -575,6 +439,7 @@ function RootPage() {
               },
             })),
           },
+          ...(breadcrumbJsonLd ? [breadcrumbJsonLd] : []),
         ],
       });
     } else if (route === "vocabulary-guide") {
@@ -621,6 +486,7 @@ function RootPage() {
               },
             })),
           },
+          ...(breadcrumbJsonLd ? [breadcrumbJsonLd] : []),
         ],
       });
     } else if (route === "memorize-vocabulary") {
@@ -666,6 +532,7 @@ function RootPage() {
               },
             })),
           },
+          ...(breadcrumbJsonLd ? [breadcrumbJsonLd] : []),
         ],
       });
     } else if (route === "vocabulary-in-context") {
@@ -711,6 +578,7 @@ function RootPage() {
               },
             })),
           },
+          ...(breadcrumbJsonLd ? [breadcrumbJsonLd] : []),
         ],
       });
     } else if (route === "guides") {
@@ -724,6 +592,7 @@ function RootPage() {
             description:
               "A hub page for vocabulary learning guides on memorization, contextual learning, spaced repetition, and study habits.",
           },
+          ...(breadcrumbJsonLd ? [breadcrumbJsonLd] : []),
         ],
       });
     } else if (route === "spaced-repetition-vocabulary") {
@@ -764,6 +633,7 @@ function RootPage() {
               },
             })),
           },
+          ...(breadcrumbJsonLd ? [breadcrumbJsonLd] : []),
         ],
       });
     } else if (route === "words-per-day") {
@@ -804,6 +674,7 @@ function RootPage() {
               },
             })),
           },
+          ...(breadcrumbJsonLd ? [breadcrumbJsonLd] : []),
         ],
       });
     } else if (route === "forget-looked-up-words") {
@@ -849,6 +720,7 @@ function RootPage() {
               },
             })),
           },
+          ...(breadcrumbJsonLd ? [breadcrumbJsonLd] : []),
         ],
       });
     } else if (route === "remember-vocabulary-from-books") {
@@ -894,6 +766,7 @@ function RootPage() {
               },
             })),
           },
+          ...(breadcrumbJsonLd ? [breadcrumbJsonLd] : []),
         ],
       });
     } else {
@@ -962,8 +835,15 @@ function RootPage() {
   );
 }
 
-createRoot(document.getElementById("root")).render(
+const rootElement = document.getElementById("root");
+const appTree = (
   <StrictMode>
     <RootPage />
   </StrictMode>
 );
+
+if (rootElement?.hasChildNodes()) {
+  hydrateRoot(rootElement, appTree);
+} else if (rootElement) {
+  createRoot(rootElement).render(appTree);
+}

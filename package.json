@@ -8,7 +8,7 @@
     "dev:client": "vite",
     "dev:server": "node server/index.js",
     "dev:server:watch": "node --watch server/index.js",
-    "build": "vite build",
+    "build": "vite build && vite build --ssr src/entry-server.jsx --outDir dist-ssr && node scripts/prerender.mjs",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",

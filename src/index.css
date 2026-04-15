@@ -901,6 +901,47 @@ body.theme-dark .accountLauncherAction {
   font-size: 13px;
 }
 
+.guideBreadcrumbs {
+  margin-bottom: 18px;
+}
+
+.guideBreadcrumbList {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.guideBreadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guideBreadcrumbItem:not(:last-child)::after {
+  content: "/";
+  color: color-mix(in srgb, var(--muted) 80%, var(--border) 20%);
+}
+
+.guideBreadcrumbLink {
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
+.guideBreadcrumbLink:hover {
+  text-decoration: underline;
+}
+
+.guideBreadcrumbCurrent {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .accountFoundingBadgeWrap {
   margin-bottom: 10px;
 }

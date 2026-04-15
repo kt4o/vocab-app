@@ -1,3 +1,8 @@
+import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
+import { getBreadcrumbItems } from "../config/breadcrumbs.js";
+
+const BREADCRUMB_ITEMS = getBreadcrumbItems("guides");
+
 const GUIDE_CARDS = [
   {
     title: "How to remember vocabulary from books",
@@ -86,6 +91,7 @@ export function GuidesPage() {
         <section className="px-4 py-16">
           <div className="mx-auto max-w-6xl">
             <div className="mb-10 text-center">
+              <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
               <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Learning Guides</p>
               <h1 className="mb-4 text-4xl font-bold text-foreground md:text-5xl">Vocabulary guides and study strategies</h1>
               <p className="mx-auto max-w-3xl text-lg text-muted-foreground">
