@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Check, X, BookOpen, Brain, Trophy, Zap, ArrowRight } from "lucide-react";
+import { FOUNDING_MEMBER_DEADLINE_LABEL } from "../config/launchOffer.js";
 
 const appScreenshot = "/landing/book-page.png";
 
@@ -268,12 +269,18 @@ export function LandingPage() {
                   Vocalibry helps strong English readers save unfamiliar words from books, review them with active recall,
                   and stop forgetting them a day later.
                 </p>
+                <div className="mb-8 rounded-2xl border border-[#d9e6ff] bg-[#eef4ff] p-4">
+                  <p className="text-sm font-semibold uppercase tracking-[0.08em] text-primary">Founding Member offer</p>
+                  <p className="mt-2 text-sm text-foreground">
+                    Create your account by {FOUNDING_MEMBER_DEADLINE_LABEL} and you will unlock Pro for life at no extra cost.
+                  </p>
+                </div>
                 <div className="flex flex-wrap gap-4">
                   <a
                     href="/register"
                     className="flex items-center gap-2 rounded-lg bg-primary px-8 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.25)] transition-colors hover:bg-[#5d81d6]"
                   >
-                    Start free
+                    Claim lifetime Pro
                     <ArrowRight className="h-5 w-5" />
                   </a>
                   <a
@@ -284,7 +291,7 @@ export function LandingPage() {
                   </a>
                 </div>
                 <p className="mt-5 text-sm text-muted-foreground">
-                  Save words from real reading, organize them by book, and review weak vocabulary before it fades.
+                  Save words from real reading, organize them by book, review weak vocabulary before it fades, and keep Pro permanently if you join during launch.
                 </p>
               </div>
               <div className="relative">
@@ -466,17 +473,20 @@ export function LandingPage() {
                 <div className="mb-8">
                   <h2 className="mb-2 text-2xl font-semibold text-foreground">Pro</h2>
                   <div className="mb-3">
-                    <span className="text-5xl font-bold text-foreground">A$6</span>
-                    <span className="text-xl text-muted-foreground">/month</span>
+                    <span className="text-5xl font-bold text-foreground">A$0</span>
                   </div>
-                  <p className="text-primary">For readers who want deeper review tools.</p>
+                  <p className="mb-2 text-sm font-medium text-primary">Founding Members only until {FOUNDING_MEMBER_DEADLINE_LABEL}</p>
+                  <div className="mb-3 text-sm text-muted-foreground line-through">
+                    A$6/month after the launch window
+                  </div>
+                  <p className="text-primary">Create your account during launch and keep Pro for life.</p>
                 </div>
 
                 <a
-                  href="/pricing"
+                  href="/register"
                   className="mb-8 inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.25)] transition-colors hover:bg-[#5d81d6]"
                 >
-                  Go Pro
+                  Become a Founding Member
                 </a>
 
                 <div className="space-y-4">

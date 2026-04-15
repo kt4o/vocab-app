@@ -18,6 +18,7 @@ import { GuidesPage } from "./pages/GuidesPage.jsx";
 import { SpacedRepetitionVocabularyPage } from "./pages/SpacedRepetitionVocabularyPage.jsx";
 import { WordsPerDayPage } from "./pages/WordsPerDayPage.jsx";
 import { ForgetLookedUpWordsPage } from "./pages/ForgetLookedUpWordsPage.jsx";
+import { RememberVocabularyFromBooksPage } from "./pages/RememberVocabularyFromBooksPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import {
@@ -175,6 +176,24 @@ const FORGET_LOOKED_UP_WORDS_FAQ_ENTRIES = [
   },
 ];
 
+const REMEMBER_VOCABULARY_FROM_BOOKS_FAQ_ENTRIES = [
+  {
+    question: "What is the best way to remember vocabulary from books?",
+    answer:
+      "The best way is to save useful words in context, review them with active recall, and revisit the ones you keep forgetting. A short follow-up routine usually works better than relying on the original lookup alone.",
+  },
+  {
+    question: "Should I save every unfamiliar word I see in a book?",
+    answer:
+      "Usually no. It is better to save the words that feel useful, repeated, expressive, or likely to appear again. Selectivity makes review easier and improves retention.",
+  },
+  {
+    question: "Why do words from novels disappear so quickly?",
+    answer:
+      "Because seeing a word once, even in good context, often creates recognition more than lasting recall. The word usually needs retrieval practice and a second encounter before it sticks.",
+  },
+];
+
 const ROUTE_SEO = {
   landing: {
     title: "Vocalibry",
@@ -234,6 +253,12 @@ const ROUTE_SEO = {
     title: "Why You Forget Words You Look Up While Reading and How to Remember Them | Vocalibry",
     description:
       "Looking up a word helps you understand the sentence, but not always remember it later. Learn how to retain vocabulary from reading with context, recall, and review.",
+    indexable: true,
+  },
+  "remember-vocabulary-from-books": {
+    title: "How to Remember Vocabulary From Books | Vocalibry",
+    description:
+      "Learn how to remember vocabulary from books by saving useful words in context, reviewing them with recall, and revisiting weak words before they fade.",
     indexable: true,
   },
   contact: {
@@ -340,6 +365,7 @@ function getRoute(pathname) {
   if (normalizedPath === "/spaced-repetition-for-vocabulary") return "spaced-repetition-vocabulary";
   if (normalizedPath === "/how-many-words-should-you-learn-per-day") return "words-per-day";
   if (normalizedPath === "/why-you-forget-words-you-look-up-while-reading") return "forget-looked-up-words";
+  if (normalizedPath === "/how-to-remember-vocabulary-from-books") return "remember-vocabulary-from-books";
   if (normalizedPath === "/contact") return "contact";
   return "landing";
 }
@@ -825,6 +851,51 @@ function RootPage() {
           },
         ],
       });
+    } else if (route === "remember-vocabulary-from-books") {
+      upsertJsonLd(jsonLdId, {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            headline: "How to remember vocabulary from books",
+            description:
+              "A practical guide to remembering words from books through context, active recall, and focused review.",
+            author: {
+              "@type": "Organization",
+              name: "Vocalibry",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Vocalibry",
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}/favicon.png`,
+              },
+            },
+            mainEntityOfPage: `${SITE_URL}/how-to-remember-vocabulary-from-books`,
+            url: `${SITE_URL}/how-to-remember-vocabulary-from-books`,
+            image: ogImageUrl,
+            inLanguage: "en",
+            keywords: [
+              "how to remember vocabulary from books",
+              "remember words from books",
+              "how to remember words from novels",
+              "vocabulary from reading books",
+            ],
+          },
+          {
+            "@type": "FAQPage",
+            mainEntity: REMEMBER_VOCABULARY_FROM_BOOKS_FAQ_ENTRIES.map((entry) => ({
+              "@type": "Question",
+              name: entry.question,
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: entry.answer,
+              },
+            })),
+          },
+        ],
+      });
     } else {
       removeHeadNodeById(jsonLdId);
     }
@@ -857,6 +928,7 @@ function RootPage() {
   if (route === "spaced-repetition-vocabulary") pageContent = <SpacedRepetitionVocabularyPage />;
   if (route === "words-per-day") pageContent = <WordsPerDayPage />;
   if (route === "forget-looked-up-words") pageContent = <ForgetLookedUpWordsPage />;
+  if (route === "remember-vocabulary-from-books") pageContent = <RememberVocabularyFromBooksPage />;
   if (route === "contact") pageContent = <ContactPage />;
 
   return (

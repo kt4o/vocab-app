@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FOUNDING_MEMBER_DEADLINE_LABEL } from "../config/launchOffer.js";
 import { identifyAnalyticsUser, trackEvent } from "../lib/analytics.js";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
@@ -359,10 +360,15 @@ export function LoginPage({ initialMode = "login" }) {
           <p className="heroCopy">
             {mode === "register"
               ? registerStep === "email"
-                ? "Start by connecting your email."
-                : "Now choose your username and password."
+                ? `Start by connecting your email. Accounts created by ${FOUNDING_MEMBER_DEADLINE_LABEL} get Pro for life.`
+                : `Finish creating your account to lock in lifetime Pro before ${FOUNDING_MEMBER_DEADLINE_LABEL}.`
               : "Enter your account details to continue to the app."}
           </p>
+          {mode === "register" ? (
+            <div className="mb-4 rounded-2xl border border-[#d9e6ff] bg-[#eef4ff] px-4 py-3 text-sm text-foreground">
+              Founding Member launch: register by {FOUNDING_MEMBER_DEADLINE_LABEL} and your account will be upgraded to lifetime Pro automatically.
+            </div>
+          ) : null}
 
           <div className="publicAuthModeSwitch" role="tablist" aria-label="Account mode">
             <button

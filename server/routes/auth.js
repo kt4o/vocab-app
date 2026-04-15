@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { Router } from "express";
 import { pool, query } from "../db/client.js";
+import { isFoundingMemberOfferActive } from "../config/launchOffer.js";
 import { sendPasswordResetCodeEmail, sendVerificationCodeEmail } from "../lib/email.js";
 import { getAuthTokenFromRequest, requireAuth } from "../middleware/auth.js";
 
@@ -666,6 +667,7 @@ authRouter.post("/register", async (req, res) => {
   const now = new Date().toISOString();
   const passwordHash = createPasswordHash(password);
   const token = issueToken();
+  const grantFoundingMemberLifetimePro = isFoundingMemberOfferActive(now);
 
   const client = await pool.connect();
   try {
@@ -719,14 +721,31 @@ authRouter.post("/register", async (req, res) => {
           marketing_opt_in,
           marketing_opt_in_updated_at,
           legal_accepted_at,
-          legal_version
+          legal_version,
+          lifetime_pro,
+          plan
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING id, plan, lifetime_pro
       `,
-      [username, email, passwordHash, now, token, now, marketingOptIn, now, now, legalVersion]
+      [
+        username,
+        email,
+        passwordHash,
+        now,
+        token,
+        now,
+        marketingOptIn,
+        now,
+        now,
+        legalVersion,
+        grantFoundingMemberLifetimePro,
+        grantFoundingMemberLifetimePro ? "pro" : "free",
+      ]
     );
     const userId = Number(userInsert.rows[0].id);
+    const isLifetimePro = Boolean(userInsert.rows[0]?.lifetime_pro);
+    const plan = isLifetimePro ? "pro" : "free";
 
     await client.query(
       `
@@ -748,7 +767,7 @@ authRouter.post("/register", async (req, res) => {
     await trackRetentionEvent(userId, "register", { source: "auth/register" });
     await trackRetentionEvent(userId, "session_start", { source: "auth/register" });
     setSessionCookie(req, res, token);
-    res.status(201).json({ userId, username, role: "student", authToken: token });
+    res.status(201).json({ userId, username, role: "student", authToken: token, plan, isLifetimePro });
   } catch (error) {
     await client.query("ROLLBACK");
     if (error?.code === "23505") {

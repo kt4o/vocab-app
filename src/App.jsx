@@ -4420,6 +4420,11 @@ export default function App() {
             {accountPanelModal === "preferences" ? (
               <>
                 <h3 id="account-panel-title">{tr("Preferences", "\u30D7\u30EC\u30D5\u30A1\u30EC\u30F3\u30B9")}</h3>
+                {isLifetimePro ? (
+                  <div className="accountFoundingBadgeWrap">
+                    <span className="accountFoundingBadge">{tr("Founding Member", "ファウンディングメンバー")}</span>
+                  </div>
+                ) : null}
                 <p className="settingsHint">
                   {tr(
                     "These update your account experience and sync with your cloud state.",
@@ -4458,6 +4463,13 @@ export default function App() {
                     </option>
                   </select>
                 </div>
+                {isLifetimePro ? (
+                  <div className="accountFoundingBadgeWrap">
+                    <span className="accountFoundingBadge accountFoundingBadgeInline">
+                      {tr("Founding Member", "ファウンディングメンバー")}
+                    </span>
+                  </div>
+                ) : null}
                 <p className="settingsHint">
                   {tr(
                     "Changes are saved automatically.",

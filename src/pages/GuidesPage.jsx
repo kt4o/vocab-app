@@ -1,5 +1,11 @@
 const GUIDE_CARDS = [
   {
+    title: "How to remember vocabulary from books",
+    description:
+      "Learn how to keep useful words from books by saving them in context, reviewing them with recall, and revisiting weak words.",
+    href: "/how-to-remember-vocabulary-from-books",
+  },
+  {
     title: "Why you forget words you look up while reading",
     description:
       "Understand why looked-up words fade so quickly and how to remember useful vocabulary from books more reliably.",
