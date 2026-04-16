@@ -1,134 +1,62 @@
-import { useState } from "react";
 import { Check, X, BookOpen, Brain, Trophy, Zap, ArrowRight } from "lucide-react";
 import { FOUNDING_MEMBER_DEADLINE_LABEL } from "../config/launchOffer.js";
+import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const appScreenshot = "/landing/book-page.png";
-
 const YEAR = new Date().getFullYear();
 
-const FEATURES = [
-  {
-    name: "Word tracking, chapters, and definitions",
-    free: true,
-    pro: true,
-  },
-  {
-    name: "Flashcards and quiz practice",
-    free: true,
-    pro: true,
-  },
-  {
-    name: "Unlimited word adding",
-    free: true,
-    freeNote: "Included",
-    pro: true,
-    proNote: "Included",
-  },
-  {
-    name: "Smart Review queue",
-    free: false,
-    pro: true,
-  },
-  {
-    name: "Weak-Words Lab + CSV export",
-    free: false,
-    pro: true,
-  },
-  {
-    name: "Socials (friends + leaderboards)",
-    free: true,
-    freeNote: "Free League",
-    pro: true,
-    proNote: "Pro League",
-  },
-  {
-    name: "Ads",
-    free: false,
-    freeNote: "May be introduced later",
-    pro: true,
-    proNote: "Ad-free",
-  },
-];
-
-const MAIN_FEATURES = [
+const FEATURE_CARDS = [
   {
     icon: BookOpen,
     title: "Save Words From Real Reading",
-    description: "Capture unfamiliar words from books, essays, and articles, then organize them by book and chapter.",
+    description:
+      "Capture unfamiliar words from books, essays, and articles, then organize them by book and chapter.",
   },
   {
-    icon: Brain,
+    icon: Zap,
     title: "Review Before They Fade",
-    description: "Use active recall and smart review to bring back looked-up words before they slip out of memory.",
+    description:
+      "Use active recall and smart review to bring back looked-up words before they slip out of memory.",
   },
   {
     icon: Trophy,
     title: "Track Real Progress",
-    description: "See your streak, quiz activity, and vocabulary growth so reading turns into measurable improvement.",
+    description:
+      "See your streak, quiz activity, and vocabulary growth so reading turns into measurable improvement.",
   },
   {
-    icon: Zap,
+    icon: Brain,
     title: "Turn Recognition Into Recall",
-    description: "Practice with flashcards, typing, and quizzes until words feel familiar enough to use, not just recognize.",
+    description:
+      "Practice with flashcards, typing, and quizzes until words feel familiar enough to use, not just recognize.",
   },
 ];
 
-const FAQ_ITEMS = [
-  {
-    question: "Who is Vocalibry for?",
-    answer:
-      "Vocalibry is for people who already understand English well, read regularly, and keep looking up useful words they later forget. It gives those words a repeatable review system.",
-    linkLabel: "See how it works",
-    linkHref: "#how-it-works",
-  },
-  {
-    question: "Why do looked-up words disappear so quickly?",
-    answer:
-      "Because understanding a word once is not the same as remembering it later. Words stick better when you revisit them with active recall instead of relying on the original dictionary lookup.",
-    linkLabel: "Read the guide",
-    linkHref: "/how-to-expand-your-vocabulary",
-  },
-  {
-    question: "Is Vocalibry free to use?",
-    answer:
-      "Yes. You can start with the Free plan and access core features like word tracking, flashcards, and quiz practice.",
-    linkLabel: "See pricing",
-    linkHref: "/pricing",
-  },
-  {
-    question: "How does Vocalibry help me remember book vocabulary long-term?",
-    answer:
-      "Vocalibry helps you save useful words from reading, review them with flashcards and quizzes, and revisit weak words in focused sessions so they are less likely to fade.",
-    linkLabel: "Explore features",
-    linkHref: "/features",
-  },
-];
-
-const HOW_IT_WORKS_STEPS = [
+const HOW_IT_WORKS = [
   {
     title: "1. Save Words You Meet While Reading",
     description:
       "Add unfamiliar but useful words from novels, nonfiction, essays, or articles and keep them grouped by book and chapter.",
-    ctaLabel: "Create your free account",
-    ctaHref: "/register",
+    href: "/register",
+    label: "Create your free account",
   },
   {
     title: "2. Review With Active Recall",
     description:
       "Use flashcards and quiz modes to pull the meaning back from memory so the word becomes easier to recognize and reuse.",
-    ctaLabel: "Explore features",
-    ctaHref: "/features",
+    href: "/features",
+    label: "Explore features",
   },
   {
     title: "3. Revisit The Words You Keep Losing",
     description:
       "Focus on mistakes and weak words first so the vocabulary you almost remember gets the extra repetition it needs.",
-    ctaLabel: "Start learning now",
-    ctaHref: "/register",
+    href: "/register",
+    label: "Start learning now",
   },
 ];
 
-const VOCAB_GROWTH_TIPS = [
+const FORGETTING_REASONS = [
   {
     title: "Do not trust the dictionary moment",
     description:
@@ -146,7 +74,7 @@ const VOCAB_GROWTH_TIPS = [
   },
 ];
 
-const GUIDE_LINKS = [
+const GUIDES = [
   {
     title: "How to expand your vocabulary",
     description:
@@ -179,179 +107,155 @@ const GUIDE_LINKS = [
   },
 ];
 
+const FREE_PLAN = [
+  { type: "check", text: "Word tracking, chapters, and definitions" },
+  { type: "check", text: "Flashcards and quiz practice" },
+  { type: "check", text: "Unlimited word adding" },
+  { type: "check", text: "Unlimited word testing", note: "Included", muted: true },
+  { type: "x", text: "Smart Review queue", muted: true },
+  { type: "x", text: "Weak-Words Lab + CSV export", muted: true },
+  { type: "check", text: "Socials (friends + leaderboards)", note: "Free League" },
+  { type: "x", text: "Ads", note: "May be introduced later", muted: true },
+];
+
+const PRO_PLAN = [
+  { type: "check", text: "Word tracking, chapters, and definitions" },
+  { type: "check", text: "Flashcards and quiz practice" },
+  { type: "check", text: "Unlimited word adding", note: "Included" },
+  { type: "check", text: "Smart Review queue" },
+  { type: "check", text: "Weak-Words Lab + CSV export" },
+  { type: "check", text: "Socials (friends + leaderboards)", note: "Pro League" },
+  { type: "check", text: "Ads", note: "Ad-free" },
+];
+
+const FAQ = [
+  {
+    question: "Who is Vocalibry for?",
+    answer:
+      "Vocalibry is for people who already understand English well, read regularly, and keep looking up useful words they later forget. It gives those words a repeatable review system.",
+    href: "#how-it-works",
+    label: "See how it works",
+  },
+  {
+    question: "Why do looked-up words disappear so quickly?",
+    answer:
+      "Because understanding a word once is not the same as remembering it later. Words stick better when you revisit them with active recall instead of relying on the original dictionary lookup.",
+    href: "/how-to-expand-your-vocabulary",
+    label: "Read the guide",
+  },
+  {
+    question: "Is Vocalibry free to use?",
+    answer:
+      "Yes. You can start with the Free plan and access core features like word tracking, flashcards, and quiz practice.",
+    href: "#pricing",
+    label: "See pricing",
+  },
+  {
+    question: "How does Vocalibry help me remember book vocabulary long-term?",
+    answer:
+      "Vocalibry helps you save useful words from reading, review them with flashcards and quizzes, and revisit weak words in focused sessions so they are less likely to fade.",
+    href: "/features",
+    label: "Explore features",
+  },
+];
+
 export function LandingPage() {
-  const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
-
   return (
-    <div className="min-h-screen bg-background">
-      {isAnnouncementVisible ? (
-        <div className="border-b border-[#d9e6ff] bg-[#eef4ff] px-4 py-2">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="rounded-full bg-[#7e9cf0] px-2.5 py-0.5 text-xs font-medium text-white">New</span>
-              <p className="text-[13px] text-foreground">
-                Chapter Planner is live: organize words from the books you read into clean chapter-based lists.
-                <a href="/register" className="ml-2 text-primary no-underline hover:underline">
-                  Try Chapter Planner →
-                </a>
-              </p>
-            </div>
-            <button
-              type="button"
-              className="inline-flex h-7 w-7 appearance-none items-center justify-center border-0 bg-transparent p-0 text-[#5f7196] shadow-none outline-none transition-colors hover:text-[#2e3f64]"
-              aria-label="Dismiss announcement"
-              onClick={() => setIsAnnouncementVisible(false)}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      ) : null}
+    <div className="min-h-screen bg-[#f5f7fb]">
+      <PublicSiteHeader showPromo={false} />
 
-      <header className="sticky top-0 z-50 bg-background">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="flex h-16 items-center justify-between">
-            <a href="/" className="flex items-center gap-2 no-underline">
-              <img
-                src="/favicon.svg"
-                alt=""
-                aria-hidden="true"
-                className="h-8 w-8 object-contain"
-              />
-              <span className="text-lg font-semibold text-foreground">Vocalibry</span>
-            </a>
-
-            <nav className="hidden items-center gap-6 md:flex">
-              <a href="/guides" className="text-foreground no-underline transition-colors hover:text-primary">
-                Guides
-              </a>
-              <a href="/features" className="text-foreground no-underline transition-colors hover:text-primary">
-                Features
-              </a>
-              <a href="/register" className="text-foreground no-underline transition-colors hover:text-primary">
-                Get Started
-              </a>
-              <a href="/pricing" className="text-foreground no-underline transition-colors hover:text-primary">
-                Pricing
-              </a>
-              <a href="/contact" className="text-foreground no-underline transition-colors hover:text-primary">
-                Contact
-              </a>
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <a href="/login" className="font-medium text-foreground no-underline transition-colors hover:text-primary">
-                Log in
-              </a>
-              <a
-                href="/register"
-                className="rounded-lg bg-accent px-5 py-2 font-medium text-white no-underline shadow-[0_2px_8px_rgba(29,79,143,0.2)] transition-colors hover:bg-primary"
-              >
-                Start for free
-              </a>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main>
-        <section className="px-4 py-20">
-          <div className="mx-auto max-w-6xl">
-            <div className="grid items-start gap-10 lg:grid-cols-2">
-              <div className="max-w-xl">
-                <p className="mb-4 text-sm font-semibold uppercase tracking-[0.08em] text-primary">
-                  Built for fluent readers
-                </p>
-                <h1 className="mb-6 text-5xl font-bold text-foreground md:text-6xl">
+      <main className="bg-[#f5f7fb]">
+        <section className="bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
+          <div className="mx-auto w-full max-w-[1280px]">
+            <div className="grid items-center gap-12 lg:grid-cols-2">
+              <div className="max-w-[620px]">
+                <p className="mb-4 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Built for Fluent Readers</p>
+                <h1 className="mb-5 text-[36px] font-bold leading-[1.08] text-foreground sm:text-[44px] md:text-[56px]">
                   Never forget a word you look up again.
                 </h1>
-                <p className="mb-8 text-xl text-muted-foreground">
-                  Vocalibry helps strong English readers save unfamiliar words from books, review them with active recall,
-                  and stop forgetting them a day later.
+                <p className="mb-7 text-[17px] leading-relaxed text-muted-foreground sm:text-[18px]">
+                  Vocalibry helps strong English readers save unfamiliar words from books, review them with active recall, and stop forgetting them a day later.
                 </p>
-                <div className="mb-8 rounded-2xl border border-[#d9e6ff] bg-[#eef4ff] p-4">
-                  <p className="text-sm font-semibold uppercase tracking-[0.08em] text-primary">Founding Member offer</p>
-                  <p className="mt-2 text-sm text-foreground">
+
+                <div className="mb-7 rounded-lg border border-[#ced9f0] bg-[#edf2ff] p-5">
+                  <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Founding Member Offer</p>
+                  <p className="text-[15px] text-foreground">
                     Create your account by {FOUNDING_MEMBER_DEADLINE_LABEL} and you will unlock Pro for life at no extra cost.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-4">
+
+                <div className="flex flex-wrap gap-3">
                   <a
                     href="/register"
-                    className="flex items-center gap-2 rounded-lg bg-primary px-8 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.25)] transition-colors hover:bg-[#5d81d6]"
+                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#8FB0FF] px-6 text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]"
                   >
                     Claim lifetime Pro
-                    <ArrowRight className="h-5 w-5" />
+                    <ArrowRight className="h-4 w-4" />
                   </a>
                   <a
                     href="#how-it-works"
-                    className="rounded-lg border border-border bg-secondary px-8 py-3 font-medium text-foreground no-underline transition-colors hover:bg-muted"
+                    className="inline-flex h-11 items-center rounded-lg border border-border bg-white px-6 text-[15px] font-medium text-foreground no-underline transition-colors hover:bg-[#F6F9FF]"
                   >
                     See how it works
                   </a>
                 </div>
-                <p className="mt-5 text-sm text-muted-foreground">
-                  Save words from real reading, organize them by book, review weak vocabulary before it fades, and keep Pro permanently if you join during launch.
-                </p>
               </div>
+
               <div className="relative">
                 <img
                   src={appScreenshot}
-                  alt="Vocalibry app interface showing book-based vocabulary organization and review tools"
-                  className="h-auto max-h-[560px] w-full rounded-2xl border border-border object-cover object-top shadow-[0_8px_32px_rgba(15,23,42,0.12)]"
-                  width="1896"
-                  height="1078"
+                  alt="Vocalibry App Interface"
+                  className="w-full rounded-lg border border-border/50"
                   loading="eager"
-                  decoding="async"
-                  fetchPriority="high"
                 />
               </div>
             </div>
           </div>
         </section>
 
-        <section className="bg-secondary px-4 py-16">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="mb-4 text-center text-3xl font-bold text-foreground">Built for readers, not random word lists</h2>
-            <p className="mx-auto mb-12 max-w-3xl text-center text-muted-foreground">
-              If you already understand English but want stronger recall and more precise expression, your reading habit
-              can become your vocabulary system.
+        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-10 sm:px-6 sm:py-12">
+          <div className="mx-auto max-w-[900px] text-center">
+            <p className="text-[16px] leading-relaxed text-muted-foreground">
+              Save words from real reading, organize them by book, review weak vocabulary before it fades, and keep Pro permanently if you join during launch.
             </p>
+          </div>
+        </section>
+
+        <section className="bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="features">
+          <div className="mx-auto w-full max-w-[1280px]">
+            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Built for readers, not random word lists</h2>
+            <p className="mx-auto mb-12 max-w-3xl text-center text-[16px] text-muted-foreground sm:mb-16 sm:text-[17px]">
+              If you already understand English but want stronger recall and more precise expression, your reading habit can become your vocabulary system.
+            </p>
+
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-              {MAIN_FEATURES.map((feature) => (
-                <div key={feature.title} className="text-center">
-                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-white">
-                    <feature.icon className="h-8 w-8 text-primary" />
+              {FEATURE_CARDS.map((card) => (
+                <article key={card.title} className="text-center">
+                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8eefc]">
+                    <card.icon className="h-8 w-8 text-[#6F92E8]" />
                   </div>
-                  <h3 className="mb-2 font-semibold text-foreground">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
-                </div>
+                  <h3 className="mb-2 text-[17px] font-semibold text-foreground">{card.title}</h3>
+                  <p className="text-[15px] leading-relaxed text-muted-foreground">{card.description}</p>
+                </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="px-4 py-16" id="how-it-works">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-10 text-center">
-              <h2 className="mb-3 text-3xl font-bold text-foreground">How It Works</h2>
-              <p className="text-muted-foreground">
-                A simple loop for turning looked-up words into vocabulary you actually remember.
-              </p>
-            </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {HOW_IT_WORKS_STEPS.map((step) => (
-                <article
-                  key={step.title}
-                  className="rounded-2xl border border-border bg-card p-6 shadow-[0_4px_14px_rgba(15,23,42,0.06)]"
-                >
-                  <h3 className="mb-3 text-xl font-semibold text-foreground">{step.title}</h3>
-                  <p className="mb-4 text-muted-foreground">{step.description}</p>
-                  <a
-                    href={step.ctaHref}
-                    className="font-medium text-primary no-underline transition-colors hover:text-[#5d81d6]"
-                  >
-                    {step.ctaLabel}
+        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="how-it-works">
+          <div className="mx-auto w-full max-w-[1280px]">
+            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">How It Works</h2>
+            <p className="mb-12 text-center text-[16px] text-muted-foreground">
+              A simple loop for turning looked-up words into vocabulary you actually remember.
+            </p>
+
+            <div className="grid gap-8 md:grid-cols-3">
+              {HOW_IT_WORKS.map((step) => (
+                <article key={step.title} className="rounded-lg border border-border/40 bg-[#f8fafe] p-8">
+                  <h3 className="mb-3 text-[18px] font-semibold text-foreground">{step.title}</h3>
+                  <p className="mb-4 text-[15px] leading-relaxed text-muted-foreground">{step.description}</p>
+                  <a href={step.href} className="text-[15px] font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
+                    {step.label}
                   </a>
                 </article>
               ))}
@@ -359,37 +263,33 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="bg-secondary px-4 py-16" id="expand-vocabulary">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-10 text-center">
-              <h2 className="mb-3 text-3xl font-bold text-foreground">Why readers forget useful words</h2>
-              <p className="mx-auto max-w-3xl text-muted-foreground">
-                Reading exposes you to strong vocabulary, but exposure alone is not enough. The best way to retain words
-                from books is to save them in context, test recall later, and revisit the ones that still feel shaky.
-              </p>
-            </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {VOCAB_GROWTH_TIPS.map((tip) => (
-                <article
-                  key={tip.title}
-                  className="rounded-2xl border border-border bg-card p-6 shadow-[0_3px_12px_rgba(15,23,42,0.06)]"
-                >
-                  <h3 className="mb-3 text-xl font-semibold text-foreground">{tip.title}</h3>
-                  <p className="text-muted-foreground">{tip.description}</p>
+        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
+          <div className="mx-auto w-full max-w-[1280px]">
+            <h2 className="mb-10 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:mb-12 md:text-[40px]">Why readers forget useful words</h2>
+            <p className="mx-auto mb-12 max-w-4xl text-center text-[16px] text-muted-foreground">
+              Reading exposes you to strong vocabulary, but exposure alone is not enough. The best way to retain words from books is to save them in context, test recall later, and revisit the ones that still feel shaky.
+            </p>
+
+            <div className="mb-12 grid gap-8 md:grid-cols-3">
+              {FORGETTING_REASONS.map((item) => (
+                <article key={item.title} className="rounded-lg border border-border/30 bg-[#f8fafe] p-8">
+                  <h3 className="mb-3 text-[18px] font-semibold text-foreground">{item.title}</h3>
+                  <p className="text-[15px] leading-relaxed text-muted-foreground">{item.description}</p>
                 </article>
               ))}
             </div>
-            <p className="mt-8 text-center text-muted-foreground">
+
+            <p className="text-center text-[15px] text-muted-foreground">
               Want the full method? Compare plans on{" "}
-              <a href="/pricing" className="font-medium text-primary no-underline hover:underline">
+              <a href="#pricing" className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
                 Pricing
               </a>{" "}
               or read the full{" "}
-              <a href="/how-to-expand-your-vocabulary" className="font-medium text-primary no-underline hover:underline">
+              <a href="/how-to-expand-your-vocabulary" className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
                 vocabulary guide
               </a>{" "}
               for a step-by-step system for readers, then explore all study tools on{" "}
-              <a href="/features" className="font-medium text-primary no-underline hover:underline">
+              <a href="/features" className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
                 Features
               </a>
               .
@@ -397,27 +297,19 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="px-4 py-16" id="guides">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-10 text-center">
-              <h2 className="mb-3 text-3xl font-bold text-foreground">Guides for building vocabulary from reading</h2>
-              <p className="mx-auto max-w-3xl text-muted-foreground">
-                Explore practical guides on remembering words you look up, learning vocabulary in context, and turning
-                book reading into lasting vocabulary growth.
-              </p>
-            </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {GUIDE_LINKS.map((guide) => (
-                <article
-                  key={guide.href}
-                  className="rounded-2xl border border-border bg-card p-6 shadow-[0_4px_14px_rgba(15,23,42,0.06)]"
-                >
-                  <h3 className="mb-3 text-xl font-semibold text-foreground">{guide.title}</h3>
-                  <p className="mb-4 text-muted-foreground">{guide.description}</p>
-                  <a
-                    href={guide.href}
-                    className="font-medium text-primary no-underline transition-colors hover:text-[#5d81d6]"
-                  >
+        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="guides">
+          <div className="mx-auto w-full max-w-[1280px]">
+            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Guides for building vocabulary from reading</h2>
+            <p className="mb-12 text-center text-[16px] text-muted-foreground">
+              Explore practical guides on remembering words you look up, learning vocabulary in context, and turning book reading into lasting vocabulary growth.
+            </p>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {GUIDES.map((guide) => (
+                <article key={guide.title} className="rounded-lg border border-border/40 bg-[#f8fafe] p-8">
+                  <h3 className="mb-3 text-[17px] font-semibold text-foreground">{guide.title}</h3>
+                  <p className="mb-4 text-[15px] leading-relaxed text-muted-foreground">{guide.description}</p>
+                  <a href={guide.href} className="text-[15px] font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
                     Read guide
                   </a>
                 </article>
@@ -426,107 +318,87 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="px-4 py-16" id="pricing">
-          <div className="mx-auto max-w-6xl">
+        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="pricing">
+          <div className="mx-auto w-full max-w-[1100px]">
             <div className="mb-12 text-center">
-              <h2 className="mb-4 text-3xl font-bold text-foreground">Choose Your Plan</h2>
-              <p className="text-muted-foreground">Start free and build a reading-driven vocabulary habit that lasts.</p>
+              <h2 className="mb-3 text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Choose Your Plan</h2>
+              <p className="text-[16px] text-muted-foreground">Start free and build a reading-driven vocabulary habit that lasts.</p>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-2">
-              <div className="rounded-2xl border border-border bg-card p-8 shadow-[0_4px_16px_rgba(15,23,42,0.08)]">
+            <div className="grid gap-6 md:grid-cols-2">
+              <article className="rounded-xl border border-[#cfd9ec] bg-[#f5f7fb] p-8 sm:p-10">
                 <div className="mb-8">
-                  <h2 className="mb-2 text-2xl font-semibold text-foreground">Free</h2>
-                  <div className="mb-3">
-                    <span className="text-5xl font-bold text-foreground">A$0</span>
-                  </div>
-                  <p className="text-primary">Good for starting your reading vocabulary system.</p>
+                  <h3 className="mb-4 text-[22px] font-semibold text-foreground">Free</h3>
+                  <div className="mb-3 text-[56px] font-bold leading-none text-foreground">A$0</div>
+                  <p className="text-[15px] font-medium text-[#6F92E8]">Good for starting your reading vocabulary system.</p>
                 </div>
-
                 <a
                   href="/register"
-                  className="mb-8 inline-flex w-full items-center justify-center rounded-lg bg-accent px-4 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.2)] transition-colors hover:bg-primary"
+                  className="mb-8 block w-full rounded-lg bg-[#8FB0FF] py-3.5 text-center text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]"
                 >
                   Start Free
                 </a>
-
-                <div className="space-y-4">
-                  {FEATURES.map((feature) => (
-                    <div key={feature.name} className="flex items-start gap-3">
-                      {feature.free ? (
-                        <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600" />
+                <div className="space-y-3.5">
+                  {FREE_PLAN.map((item) => (
+                    <div key={item.text} className="flex items-start gap-3">
+                      {item.type === "check" ? (
+                        <Check className={`mt-0.5 h-5 w-5 flex-shrink-0 ${item.muted ? "text-muted-foreground/35" : "text-green-600"}`} />
                       ) : (
-                        <X className="mt-0.5 h-5 w-5 flex-shrink-0 text-border" />
+                        <X className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground/35" />
                       )}
-                      <div className="flex-1">
-                        <p className={`text-sm ${feature.free ? "text-foreground" : "text-muted-foreground/50"}`}>
-                          {feature.name}
-                        </p>
-                        {feature.freeNote ? <p className="mt-0.5 text-xs text-muted-foreground">{feature.freeNote}</p> : null}
+                      <div>
+                        <span className={`text-[15px] ${item.muted ? "text-foreground/55" : "text-foreground"}`}>{item.text}</span>
+                        {item.note ? <p className="mt-0.5 text-[13px] text-muted-foreground">{item.note}</p> : null}
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </article>
 
-              <div className="relative rounded-2xl border border-border bg-gradient-to-br from-card to-muted p-8 shadow-[0_4px_16px_rgba(15,23,42,0.08)]">
+              <article className="rounded-xl border border-[#cfd9ec] bg-[#f5f7fb] p-8 sm:p-10">
                 <div className="mb-8">
-                  <h2 className="mb-2 text-2xl font-semibold text-foreground">Pro</h2>
-                  <div className="mb-3">
-                    <span className="text-5xl font-bold text-foreground">A$0</span>
-                  </div>
-                  <p className="mb-2 text-sm font-medium text-primary">Founding Members only until {FOUNDING_MEMBER_DEADLINE_LABEL}</p>
-                  <div className="mb-3 text-sm text-muted-foreground line-through">
-                    A$6/month after the launch window
-                  </div>
-                  <p className="text-primary">Create your account during launch and keep Pro for life.</p>
+                  <h3 className="mb-4 text-[22px] font-semibold text-foreground">Pro</h3>
+                  <div className="mb-3 text-[56px] font-bold leading-none text-foreground">A$0</div>
+                  <p className="mb-2 text-[15px] font-medium text-[#6F92E8]">Founding Members only until {FOUNDING_MEMBER_DEADLINE_LABEL}</p>
+                  <p className="text-[14px] text-muted-foreground line-through">A$6/month after the launch window</p>
+                  <p className="mt-2 text-[14px] text-[#6F92E8]">Create your account during launch and keep Pro for life.</p>
                 </div>
-
                 <a
                   href="/register"
-                  className="mb-8 inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.25)] transition-colors hover:bg-[#5d81d6]"
+                  className="mb-8 block w-full rounded-lg bg-[#6F92E8] py-3.5 text-center text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#5d81d6]"
                 >
                   Become a Founding Member
                 </a>
-
-                <div className="space-y-4">
-                  {FEATURES.map((feature) => (
-                    <div key={feature.name} className="flex items-start gap-3">
+                <div className="space-y-3.5">
+                  {PRO_PLAN.map((item) => (
+                    <div key={item.text} className="flex items-start gap-3">
                       <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600" />
-                      <div className="flex-1">
-                        <p className="text-sm text-foreground">{feature.name}</p>
-                        {feature.proNote ? <p className="mt-0.5 text-xs text-muted-foreground">{feature.proNote}</p> : null}
+                      <div>
+                        <span className="text-[15px] text-foreground">{item.text}</span>
+                        {item.note ? <p className="mt-0.5 text-[13px] text-muted-foreground">{item.note}</p> : null}
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </article>
             </div>
           </div>
         </section>
 
-        <section className="bg-secondary px-4 py-16" id="faq">
-          <div className="mx-auto max-w-4xl">
-            <div className="mb-10 text-center">
-              <h2 className="mb-3 text-3xl font-bold text-foreground">Frequently Asked Questions</h2>
-              <p className="text-muted-foreground">
-                Quick answers for readers who want to stop forgetting useful words.
-              </p>
-            </div>
-            <div className="space-y-4">
-              {FAQ_ITEMS.map((item) => (
-                <article
-                  key={item.question}
-                  className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]"
-                >
-                  <h3 className="mb-2 text-lg font-semibold text-foreground">{item.question}</h3>
-                  <p className="text-muted-foreground">
+        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
+          <div className="mx-auto max-w-[900px]">
+            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Frequently Asked Questions</h2>
+            <p className="mb-12 text-center text-[16px] text-muted-foreground">Quick answers for readers who want to stop forgetting useful words.</p>
+
+            <div className="space-y-8">
+              {FAQ.map((item) => (
+                <article key={item.question}>
+                  <h3 className="mb-3 text-[18px] font-semibold text-foreground">{item.question}</h3>
+                  <p className="text-[15px] leading-relaxed text-muted-foreground">
                     {item.answer}{" "}
-                    {item.linkHref ? (
-                      <a href={item.linkHref} className="font-medium text-primary no-underline hover:underline">
-                        {item.linkLabel}
-                      </a>
-                    ) : null}
+                    <a href={item.href} className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
+                      {item.label}
+                    </a>
                   </p>
                 </article>
               ))}
@@ -535,43 +407,46 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-border bg-secondary px-4 py-12">
-        <div className="mx-auto grid w-full max-w-6xl gap-10 md:grid-cols-3">
-          <div>
-            <a href="/" className="inline-flex items-center gap-2 no-underline">
-              <img src="/favicon.svg" alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
-              <span className="text-base font-semibold text-foreground">Vocalibry</span>
-            </a>
-            <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              Turn looked-up words from books into vocabulary you actually remember and use.
-            </p>
-          </div>
+      <footer className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="contact">
+        <div className="mx-auto w-full max-w-[1280px]">
+          <div className="mb-12 grid gap-12 md:grid-cols-3">
+            <div>
+              <div className="mb-4 flex items-center gap-2">
+                <div className="h-7 w-7 rounded-[6px] bg-gradient-to-br from-[#8FB0FF] to-[#6F92E8]" />
+                <span className="text-[17px] font-semibold text-foreground">Vocalibry</span>
+              </div>
+              <p className="text-[14px] leading-relaxed text-muted-foreground">
+                Turn looked-up words from books into vocabulary you actually remember and use.
+              </p>
+            </div>
 
-          <div>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.06em] text-foreground">Product</h3>
-            <div className="flex flex-col gap-2 text-sm">
-              <a href="/features" className="text-muted-foreground no-underline transition-colors hover:text-primary">Features</a>
-              <a href="/pricing" className="text-muted-foreground no-underline transition-colors hover:text-primary">Pricing</a>
-              <a href="/guides" className="text-muted-foreground no-underline transition-colors hover:text-primary">All Guides</a>
-              <a href="/how-to-memorize-vocabulary" className="text-muted-foreground no-underline transition-colors hover:text-primary">Memorize Vocabulary</a>
-              <a href="/how-to-learn-vocabulary-in-context" className="text-muted-foreground no-underline transition-colors hover:text-primary">Vocabulary in Context</a>
-              <a href="/spaced-repetition-for-vocabulary" className="text-muted-foreground no-underline transition-colors hover:text-primary">Spaced Repetition</a>
-              <a href="/how-many-words-should-you-learn-per-day" className="text-muted-foreground no-underline transition-colors hover:text-primary">Words Per Day</a>
-              <a href="/contact" className="text-muted-foreground no-underline transition-colors hover:text-primary">Contact</a>
+            <div>
+              <h4 className="mb-4 text-[14px] font-semibold uppercase tracking-[0.08em] text-foreground">Product</h4>
+              <div className="space-y-3">
+                <a href="/features" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Features</a>
+                <a href="/pricing" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Pricing</a>
+                <a href="/guides" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">All Guides</a>
+                <a href="/how-to-memorize-vocabulary" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Memorize Vocabulary</a>
+                <a href="/how-to-learn-vocabulary-in-context" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Vocabulary in Context</a>
+                <a href="/spaced-repetition-for-vocabulary" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Spaced Repetition</a>
+                <a href="/how-many-words-should-you-learn-per-day" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Words Per Day</a>
+                <a href="/contact" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Contact</a>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="mb-4 text-[14px] font-semibold uppercase tracking-[0.08em] text-foreground">Legal</h4>
+              <div className="space-y-3">
+                <a href="/terms" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Terms</a>
+                <a href="/privacy" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Privacy</a>
+                <a href="/disclaimer" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Disclaimer</a>
+              </div>
             </div>
           </div>
 
-          <div>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.06em] text-foreground">Legal</h3>
-            <div className="flex flex-col gap-2 text-sm">
-              <a href="/terms" className="text-muted-foreground no-underline transition-colors hover:text-primary">Terms</a>
-              <a href="/privacy" className="text-muted-foreground no-underline transition-colors hover:text-primary">Privacy</a>
-              <a href="/disclaimer" className="text-muted-foreground no-underline transition-colors hover:text-primary">Disclaimer</a>
-            </div>
+          <div className="border-t border-border/30 pt-8">
+            <p className="text-center text-[13px] text-muted-foreground">(c) {YEAR} Vocalibry. All rights reserved.</p>
           </div>
-        </div>
-        <div className="mx-auto mt-10 w-full max-w-6xl border-t border-border pt-6">
-          <p className="text-sm text-muted-foreground">(c) {YEAR} Vocalibry. All rights reserved.</p>
         </div>
       </footer>
     </div>

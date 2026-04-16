@@ -44,6 +44,7 @@ const ACCOUNT_DATA_STORAGE_KEYS = [
   "vocab_weekly_stats",
   "vocab_activity_history",
   "vocab_pro_daily_goal_questions",
+  "vocab_feature_daily_goals_enabled",
   "vocab_free_daily_usage",
   "vocab_last_quiz_mistakes",
   "vocab_last_quiz_mistakes_by_book",
@@ -1273,7 +1274,7 @@ function areStringArraysEqual(left, right) {
 }
 
 function normalizeQuizMode(value, fallback = "normal") {
-  const allowed = new Set(["normal", "typing", "mistake", "smart"]);
+  const allowed = new Set(["normal", "typing", "mistake"]);
   const normalized = String(value || "").trim().toLowerCase();
   return allowed.has(normalized) ? normalized : fallback;
 }
@@ -1523,6 +1524,9 @@ export default function App() {
   const [proDailyGoalQuestions, setProDailyGoalQuestions] = useState(() =>
     parseDailyGoalTarget(localStorage.getItem("vocab_pro_daily_goal_questions"))
   );
+  const [isDailyGoalsEnabled, setIsDailyGoalsEnabled] = useState(() =>
+    parseStoredBoolean(localStorage.getItem("vocab_feature_daily_goals_enabled"), true)
+  );
   const [authToken, setAuthToken] = useState(() => {
     const savedAuthToken = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
     return isBearerAuthToken(savedAuthToken) ? savedAuthToken : "";
@@ -1713,10 +1717,6 @@ export default function App() {
 
   function startQuizSession() {
     const selectedMode = normalizeQuizMode(quizMode, "normal");
-    if (selectedMode === "smart") {
-      startSmartReviewSession();
-      return;
-    }
     if (!isProPlan && selectedMode === "typing") {
       const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
       if (safeUsage.typingAttempts >= FREE_DAILY_TYPING_LIMIT) {
@@ -1761,31 +1761,11 @@ export default function App() {
     setScreen("quiz");
   }
 
-  function openSmartReviewSetup() {
+  function openQuizSetup() {
     setQuizBackScreen("quizSelect");
     initializeQuizSetupSelection();
-    setQuizMode("smart");
+    setQuizMode("normal");
     setScreen("quizSelect");
-  }
-
-  function startSmartReviewSession() {
-    if (!isProPlan) {
-      return;
-    }
-    if (smartReviewWords.length < 2) {
-      openNoticeModal("Add more words and quiz activity to generate a Smart Review queue.", "Not Enough Data");
-      return;
-    }
-
-    setQuizBackScreen("dashboard");
-    setActiveQuizWords(smartReviewWords);
-    setActiveQuizTitle("Smart Review");
-    setActiveQuizMode("normal");
-    setActiveQuizIsMistakeReview(false);
-    trackEvent("smart_review_started", {
-      word_count: smartReviewWords.length,
-    });
-    setScreen("quiz");
   }
 
   function exportWeakWordsCsv() {
@@ -2295,6 +2275,7 @@ export default function App() {
       vocab_weekly_stats: JSON.stringify(weeklyStats),
       vocab_activity_history: JSON.stringify(activityHistory),
       vocab_pro_daily_goal_questions: JSON.stringify(proDailyGoalQuestions),
+      vocab_feature_daily_goals_enabled: JSON.stringify(isDailyGoalsEnabled),
       vocab_free_daily_usage: JSON.stringify(freeDailyUsage),
       vocab_last_quiz_mistakes: JSON.stringify(lastQuizMistakeKeys),
       vocab_last_quiz_mistakes_by_book: JSON.stringify(lastQuizMistakeKeysByBook),
@@ -2323,6 +2304,7 @@ export default function App() {
     weeklyStats,
     activityHistory,
     proDailyGoalQuestions,
+    isDailyGoalsEnabled,
     freeDailyUsage,
     lastQuizMistakeKeys,
     lastQuizMistakeKeysByBook,
@@ -3339,6 +3321,9 @@ export default function App() {
               dictionaryPreference,
               weeklyStats,
               activityHistory,
+              freeDailyUsage,
+              proDailyGoalQuestions,
+              isDailyGoalsEnabled,
               lastQuizMistakeKeys,
               lastQuizMistakeKeysByBook,
               lastQuizMistakeMode,
@@ -3365,6 +3350,9 @@ export default function App() {
     dictionaryPreference,
     weeklyStats,
     activityHistory,
+    freeDailyUsage,
+    proDailyGoalQuestions,
+    isDailyGoalsEnabled,
     lastQuizMistakeKeys,
     lastQuizMistakeKeysByBook,
     lastQuizMistakeMode,
@@ -3863,6 +3851,10 @@ export default function App() {
       rawData?.proDailyGoalQuestions === undefined
         ? proDailyGoalQuestions
         : parseDailyGoalTarget(rawData?.proDailyGoalQuestions);
+    const importedIsDailyGoalsEnabled = parseStoredBoolean(
+      rawData?.isDailyGoalsEnabled,
+      isDailyGoalsEnabled
+    );
     const legacyJapaneseMode = parseStoredBoolean(rawData?.isJapaneseLearnerMode, false);
     const importedPreferredLanguage = parseStoredUiLanguage(
       rawData?.preferredLanguage,
@@ -3910,6 +3902,7 @@ export default function App() {
     setActivityHistory(importedActivityHistory);
     setFreeDailyUsage(importedFreeDailyUsage);
     setProDailyGoalQuestions(importedProDailyGoalQuestions);
+    setIsDailyGoalsEnabled(importedIsDailyGoalsEnabled);
     setPreferredLanguage(importedPreferredLanguage);
     setDictionaryPreference(importedDictionaryPreference);
     setLastQuizMistakeKeys(importedLastQuizMistakeKeys);
@@ -3926,6 +3919,7 @@ export default function App() {
       theme,
       isSidebarHidden,
       proDailyGoalQuestions,
+      isDailyGoalsEnabled,
       preferredLanguage,
       dictionaryPreference,
     });
@@ -3944,6 +3938,7 @@ export default function App() {
         activityHistory,
         freeDailyUsage,
         proDailyGoalQuestions,
+        isDailyGoalsEnabled,
         preferredLanguage,
         dictionaryPreference,
         lastQuizMistakeKeys,
@@ -4544,7 +4539,7 @@ export default function App() {
       );
     }
 
-    if (isDailyGoalModalOpen) {
+    if (isDailyGoalModalOpen && isDailyGoalsEnabled) {
       return (
         <div className="modalOverlay" onClick={() => setIsDailyGoalModalOpen(false)}>
           <div
@@ -4603,7 +4598,7 @@ export default function App() {
                   className="modalBtn primary"
                   onClick={() => {
                     setIsDailyGoalModalOpen(false);
-                    openSmartReviewSetup();
+                    openQuizSetup();
                   }}
                 >
                   {tr("Open Quiz Setup", "クイズ設定を開く")}
@@ -5495,7 +5490,7 @@ export default function App() {
               <strong className="weeklyOverviewValue">{currentWeekStats.wordsAdded}</strong>
             </div>
           </div>
-          {isProPlan ? (
+          {isProPlan && isDailyGoalsEnabled ? (
             <>
               <div className="weeklyDailyDivider" aria-hidden="true" />
               <button
@@ -5555,6 +5550,7 @@ export default function App() {
               className="panelCard wide"
               role="button"
               tabIndex={0}
+              style={{ gridColumn: "1", gridRow: "2" }}
               onClick={openAdaptiveReviewSession}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -5724,6 +5720,30 @@ export default function App() {
                   <span className="themeSwitchIcon" aria-hidden="true">
                     {theme === "dark" ? "\uD83C\uDF19" : "\u2600"}
                   </span>
+                </button>
+              </div>
+            </div>
+            <div className="analyticsCard settingsCard">
+              <h3>{tr("Features", "機能")}</h3>
+              <p className="settingsHint">
+                {tr("Choose which dashboard features are visible.", "ダッシュボードで表示する機能を選択します。")}
+              </p>
+              <div className="settingsRow">
+                <span>{tr("Daily Goals", "デイリー目標")}</span>
+                <button
+                  type="button"
+                  className={`themeSwitch dailyGoalsSwitch ${isDailyGoalsEnabled ? "isDark" : ""}`}
+                  onClick={() => {
+                    const nextEnabled = !isDailyGoalsEnabled;
+                    setIsDailyGoalsEnabled(nextEnabled);
+                    if (!nextEnabled) setIsDailyGoalModalOpen(false);
+                  }}
+                  aria-label={tr(
+                    isDailyGoalsEnabled ? "Turn off Daily Goals" : "Turn on Daily Goals",
+                    isDailyGoalsEnabled ? "デイリー目標をオフにする" : "デイリー目標をオンにする"
+                  )}
+                >
+                  <span className="themeSwitchIcon" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -6624,7 +6644,7 @@ export default function App() {
                 ) : null}
               </div>
               <div className="premiumActionRow">
-                <button type="button" className="primaryBtn" onClick={openSmartReviewSetup}>
+                <button type="button" className="primaryBtn" onClick={openQuizSetup}>
                   {tr("Open Quiz Setup", "クイズ設定を開く")}
                 </button>
                 <button type="button" className="primaryBtn" onClick={exportWeakWordsCsv}>
@@ -7228,21 +7248,6 @@ export default function App() {
                 <strong>{tr("Mistake Review", "ミス復習")}</strong>
                 <small>{tr("Practice only words you previously got wrong.", "以前間違えた単語だけを練習します。")}</small>
               </button>
-              <button
-                type="button"
-                className={`quizModeCard ${quizMode === "smart" ? "isActive" : ""}`}
-                onClick={() => setQuizMode("smart")}
-                disabled={!isProPlan}
-              >
-                {!isProPlan ? (
-                  <span className="quizLimitBadge">Pro</span>
-                ) : null}
-                <span className="quizModeCardIcon" aria-hidden="true">{"\uD83E\uDDE0"}</span>
-                <strong>{tr("Smart Review", "スマート復習")}</strong>
-                <small>
-                  {tr("Auto-build a focused quiz from weak words based on your recent accuracy.", "最近の正答率から弱点単語で自動構成します。")}
-                </small>
-              </button>
             </div>
           </div>
         )}
@@ -7380,7 +7385,7 @@ export default function App() {
           <div className="quizSetupReviewCard">
             <h3>{tr("Review & Start", "確認して開始")}</h3>
             <div className="quizSetupSummary">
-              <span>{tr("Mode", "モード")}: {quizMode === "typing" ? tr("Typing", "タイピング") : quizMode === "mistake" ? tr("Mistake Review", "ミス復習") : quizMode === "smart" ? tr("Smart Review", "スマート復習") : tr("Multiple Choice", "選択式")}</span>
+              <span>{tr("Mode", "モード")}: {quizMode === "typing" ? tr("Typing", "タイピング") : quizMode === "mistake" ? tr("Mistake Review", "ミス復習") : tr("Multiple Choice", "選択式")}</span>
               <span>{tr("Books", "ブック")}: {selectedBookCount}</span>
               <span>{tr("Chapters", "章")}: {selectedChapterCount}</span>
               <span>{tr("Matching words", "対象単語")}: {quizSetupWords.length}</span>
@@ -7415,7 +7420,7 @@ export default function App() {
                 disabled={!canStartQuiz}
                 onClick={startQuizSession}
               >
-                {tr("Start", "開始")} {quizMode === "typing" ? tr("Typing Quiz", "タイピングクイズ") : quizMode === "mistake" ? tr("Mistake Review", "ミス復習") : quizMode === "smart" ? tr("Smart Review", "スマート復習") : tr("Quiz", "クイズ")}
+                {tr("Start", "開始")} {quizMode === "typing" ? tr("Typing Quiz", "タイピングクイズ") : quizMode === "mistake" ? tr("Mistake Review", "ミス復習") : tr("Quiz", "クイズ")}
               </button>
             ) : (
               <button
@@ -7425,10 +7430,6 @@ export default function App() {
                 onClick={() => {
                   if (isAtTypeStep && quizMode === "mistake") {
                     requestMistakeReview(quizBackScreen === "bookMenu" ? "book" : "global");
-                    return;
-                  }
-                  if (isAtTypeStep && quizMode === "smart") {
-                    startSmartReviewSession();
                     return;
                   }
                   if (isAtTypeStep && isQuickQuizSetupArmed) {

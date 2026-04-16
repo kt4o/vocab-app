@@ -351,7 +351,7 @@ export function LoginPage({ initialMode = "login" }) {
 
   return (
     <div className="publicPage loginPage">
-      <PublicSiteHeader />
+      <PublicSiteHeader showPromo={false} />
 
       <main className="landingMain">
         <section className="publicAuthCard">

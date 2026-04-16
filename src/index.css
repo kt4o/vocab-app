@@ -4264,6 +4264,18 @@ body.theme-dark .recentSquare {
   transform: translateX(22px);
 }
 
+.dailyGoalsSwitch {
+  background: color-mix(in srgb, var(--border) 45%, var(--surface-alt) 55%);
+}
+
+.dailyGoalsSwitch.isDark {
+  background: color-mix(in srgb, var(--accent) 68%, #ffffff 32%);
+}
+
+.dailyGoalsSwitch .themeSwitchIcon {
+  background: #ffffff;
+}
+
 .recentTitle {
   margin-bottom: 10px;
 }
