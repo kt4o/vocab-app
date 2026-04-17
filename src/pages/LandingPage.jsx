@@ -165,50 +165,48 @@ export function LandingPage() {
       <PublicSiteHeader showPromo={false} />
 
       <main className="bg-[#f5f7fb]">
-        <section className="bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
+        <section className="bg-[#f5f7fb] px-4 pb-0 pt-14 sm:px-6 sm:pt-16">
           <div className="mx-auto w-full max-w-[1280px]">
-            <div className="grid items-center gap-12 lg:grid-cols-2">
-              <div className="max-w-[620px]">
-                <p className="mb-4 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Built for Fluent Readers</p>
-                <h1 className="mb-5 text-[36px] font-bold leading-[1.08] text-foreground sm:text-[44px] md:text-[56px]">
-                  Never forget a word you look up again.
-                </h1>
-                <p className="mb-7 text-[17px] leading-relaxed text-muted-foreground sm:text-[18px]">
-                  Vocalibry helps strong English readers save unfamiliar words from books, review them with active recall, and stop forgetting them a day later.
+            <div className="mx-auto max-w-[920px] text-center">
+              <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Built for Fluent Readers</p>
+              <h1 className="mb-4 text-[36px] font-bold leading-[1.08] text-foreground sm:text-[44px] md:text-[56px]">
+                Never forget a word you look up again.
+              </h1>
+              <p className="mx-auto mb-5 max-w-[800px] text-[17px] leading-relaxed text-muted-foreground sm:text-[18px]">
+                Vocalibry helps strong English readers save unfamiliar words from books, review them with active recall, and stop forgetting them a day later.
+              </p>
+
+              <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
+                <a
+                  href="/register"
+                  className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#8FB0FF] px-6 text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]"
+                >
+                  Claim lifetime Pro
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+                <a
+                  href="#how-it-works"
+                  className="inline-flex h-11 items-center rounded-lg border border-border bg-white px-6 text-[15px] font-medium text-foreground no-underline transition-colors hover:bg-[#F6F9FF]"
+                >
+                  See how it works
+                </a>
+              </div>
+
+              <div className="mx-auto mt-4 max-w-[860px] rounded-lg border border-[#ced9f0] bg-[#edf2ff] px-5 py-3 text-left">
+                <p className="text-[13px] text-foreground">
+                  <span className="mr-2 font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Founding Member Offer</span>
+                  Create your account by {FOUNDING_MEMBER_DEADLINE_LABEL} and you will unlock Pro for life at no extra cost.
                 </p>
-
-                <div className="mb-7 rounded-lg border border-[#ced9f0] bg-[#edf2ff] p-5">
-                  <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Founding Member Offer</p>
-                  <p className="text-[15px] text-foreground">
-                    Create your account by {FOUNDING_MEMBER_DEADLINE_LABEL} and you will unlock Pro for life at no extra cost.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <a
-                    href="/register"
-                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#8FB0FF] px-6 text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]"
-                  >
-                    Claim lifetime Pro
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                  <a
-                    href="#how-it-works"
-                    className="inline-flex h-11 items-center rounded-lg border border-border bg-white px-6 text-[15px] font-medium text-foreground no-underline transition-colors hover:bg-[#F6F9FF]"
-                  >
-                    See how it works
-                  </a>
-                </div>
               </div>
+            </div>
 
-              <div className="relative">
-                <img
-                  src={appScreenshot}
-                  alt="Vocalibry App Interface"
-                  className="w-full rounded-lg border border-border/50"
-                  loading="eager"
-                />
-              </div>
+            <div className="mx-auto mt-8 w-full max-w-[1100px] overflow-hidden rounded-t-lg border border-border/50 bg-white shadow-sm md:mt-2">
+              <img
+                src={appScreenshot}
+                alt="Vocalibry App Interface"
+                className="block w-full"
+                loading="eager"
+              />
             </div>
           </div>
         </section>
