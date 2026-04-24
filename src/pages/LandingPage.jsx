@@ -1,5 +1,4 @@
 import { Check, X, BookOpen, Brain, Trophy, Zap, ArrowRight } from "lucide-react";
-import { FOUNDING_MEMBER_DEADLINE_LABEL } from "../config/launchOffer.js";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const appScreenshot = "/landing/book-page.png";
@@ -162,15 +161,15 @@ const FAQ = [
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-[#f5f7fb]">
-      <PublicSiteHeader showPromo={false} />
+      <PublicSiteHeader />
 
       <main className="bg-[#f5f7fb]">
         <section className="bg-[#f5f7fb] px-4 pb-0 pt-14 sm:px-6 sm:pt-16">
           <div className="mx-auto w-full max-w-[1280px]">
             <div className="mx-auto max-w-[920px] text-center">
               <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Built for Fluent Readers</p>
-              <h1 className="mb-4 text-[36px] font-bold leading-[1.08] text-foreground sm:text-[44px] md:text-[56px]">
-                Never forget a word you look up again.
+              <h1 className="mb-4 text-[42px] font-bold leading-[1.05] text-foreground sm:text-[52px] md:text-[68px]">
+                Never forget a word again.
               </h1>
               <p className="mx-auto mb-5 max-w-[800px] text-[17px] leading-relaxed text-muted-foreground sm:text-[18px]">
                 Vocalibry helps strong English readers save unfamiliar words from books, review them with active recall, and stop forgetting them a day later.
@@ -181,7 +180,7 @@ export function LandingPage() {
                   href="/register"
                   className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#8FB0FF] px-6 text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]"
                 >
-                  Claim lifetime Pro
+                  Get started free
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a
@@ -192,15 +191,9 @@ export function LandingPage() {
                 </a>
               </div>
 
-              <div className="mx-auto mt-4 max-w-[860px] rounded-lg border border-[#ced9f0] bg-[#edf2ff] px-5 py-3 text-left">
-                <p className="text-[13px] text-foreground">
-                  <span className="mr-2 font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Founding Member Offer</span>
-                  Create your account by {FOUNDING_MEMBER_DEADLINE_LABEL} and you will unlock Pro for life at no extra cost.
-                </p>
-              </div>
             </div>
 
-            <div className="mx-auto mt-8 w-full max-w-[1100px] overflow-hidden rounded-t-lg border border-border/50 bg-white shadow-sm md:mt-2">
+            <div className="mx-auto mt-10 w-full max-w-[1100px] overflow-hidden rounded-t-lg border border-border/50 bg-white shadow-[0_28px_60px_rgba(16,24,40,0.22),0_10px_24px_rgba(16,24,40,0.12)] md:mt-6">
               <img
                 src={appScreenshot}
                 alt="Vocalibry App Interface"
@@ -214,7 +207,7 @@ export function LandingPage() {
         <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-10 sm:px-6 sm:py-12">
           <div className="mx-auto max-w-[900px] text-center">
             <p className="text-[16px] leading-relaxed text-muted-foreground">
-              Save words from real reading, organize them by book, review weak vocabulary before it fades, and keep Pro permanently if you join during launch.
+              Save words from real reading, organize them by book, and review weak vocabulary before it fades.
             </p>
           </div>
         </section>
@@ -356,16 +349,15 @@ export function LandingPage() {
               <article className="rounded-xl border border-[#cfd9ec] bg-[#f5f7fb] p-8 sm:p-10">
                 <div className="mb-8">
                   <h3 className="mb-4 text-[22px] font-semibold text-foreground">Pro</h3>
-                  <div className="mb-3 text-[56px] font-bold leading-none text-foreground">A$0</div>
-                  <p className="mb-2 text-[15px] font-medium text-[#6F92E8]">Founding Members only until {FOUNDING_MEMBER_DEADLINE_LABEL}</p>
-                  <p className="text-[14px] text-muted-foreground line-through">A$6/month after the launch window</p>
-                  <p className="mt-2 text-[14px] text-[#6F92E8]">Create your account during launch and keep Pro for life.</p>
+                  <div className="mb-3 text-[56px] font-bold leading-none text-foreground">A$6</div>
+                  <p className="mb-2 text-[15px] font-medium text-[#6F92E8]">per month</p>
+                  <p className="text-[14px] text-muted-foreground">Advanced review tools for faster vocabulary retention.</p>
                 </div>
                 <a
                   href="/register"
                   className="mb-8 block w-full rounded-lg bg-[#6F92E8] py-3.5 text-center text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#5d81d6]"
                 >
-                  Become a Founding Member
+                  Start Pro
                 </a>
                 <div className="space-y-3.5">
                   {PRO_PLAN.map((item) => (
@@ -410,7 +402,7 @@ export function LandingPage() {
           <div className="mb-12 grid gap-12 md:grid-cols-3">
             <div>
               <div className="mb-4 flex items-center gap-2">
-                <div className="h-7 w-7 rounded-[6px] bg-gradient-to-br from-[#8FB0FF] to-[#6F92E8]" />
+                <img src="/favicon.svg" alt="" aria-hidden="true" className="h-7 w-7 rounded-[6px] object-contain" />
                 <span className="text-[17px] font-semibold text-foreground">Vocalibry</span>
               </div>
               <p className="text-[14px] leading-relaxed text-muted-foreground">

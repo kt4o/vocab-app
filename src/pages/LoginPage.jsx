@@ -351,7 +351,7 @@ export function LoginPage({ initialMode = "login" }) {
 
   return (
     <div className="publicPage loginPage">
-      <PublicSiteHeader showPromo={false} />
+      <PublicSiteHeader />
 
       <main className="landingMain">
         <section className="publicAuthCard">
@@ -364,12 +364,6 @@ export function LoginPage({ initialMode = "login" }) {
                 : `Finish creating your account to lock in lifetime Pro before ${FOUNDING_MEMBER_DEADLINE_LABEL}.`
               : "Enter your account details to continue to the app."}
           </p>
-          {mode === "register" ? (
-            <div className="mb-4 rounded-2xl border border-[#d9e6ff] bg-[#eef4ff] px-4 py-3 text-sm text-foreground">
-              Founding Member launch: register by {FOUNDING_MEMBER_DEADLINE_LABEL} and your account will be upgraded to lifetime Pro automatically.
-            </div>
-          ) : null}
-
           <div className="publicAuthModeSwitch" role="tablist" aria-label="Account mode">
             <button
               type="button"
