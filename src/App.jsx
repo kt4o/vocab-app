@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { CEFR_WORDLIST } from "./data/cefrWordlist";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
@@ -1427,6 +1427,7 @@ export default function App() {
   const [currentBookId, setCurrentBookId] = useState(null);
   const [inputWord, setInputWord] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lastAddedWord, setLastAddedWord] = useState("");
   const [streak, setStreak] = useState(() => {
     const saved = localStorage.getItem("vocab_streak");
     return parseStoredStreak(saved);
@@ -1694,15 +1695,17 @@ export default function App() {
   }));
   const maxMasteryWordCount = Math.max(1, ...masteryLevelCounts.map((item) => item.count));
   const quizSetupBooks = books.filter((book) => quizSetupSelection.bookIds.includes(String(book.id)));
-  const quizSetupChapterKeySet = new Set(quizSetupSelection.chapterKeys);
   const lastQuizMistakeKeySet = new Set(lastQuizMistakeKeys);
-  const quizSetupWords = quizSetupBooks.flatMap((book) =>
-    (book.words || [])
+  function getQuizWordsForSetup(selection, mode) {
+    const selectedBookIds = new Set((selection?.bookIds || []).map(String));
+    const selectedChapterKeys = new Set(selection?.chapterKeys || []);
+    return books.filter((book) => selectedBookIds.has(String(book.id))).flatMap((book) =>
+      (book.words || [])
       .filter((wordEntry) => {
         const chapterKey = `${book.id}:${wordEntry.chapterId}`;
-        if (!quizSetupChapterKeySet.has(chapterKey)) return false;
+        if (!selectedChapterKeys.has(chapterKey)) return false;
 
-        if (quizMode === "mistake") {
+        if (mode === "mistake") {
           const mistakeKey = getWordSessionKey(book.id, wordEntry.chapterId, wordEntry.word);
           return lastQuizMistakeKeySet.has(mistakeKey);
         }
@@ -1713,10 +1716,33 @@ export default function App() {
         ...wordEntry,
         sourceBookId: book.id,
       }))
-  );
+    );
+  }
 
-  function startQuizSession() {
-    const selectedMode = normalizeQuizMode(quizMode, "normal");
+  const quizSetupWords = getQuizWordsForSetup(quizSetupSelection, quizMode);
+
+  function buildAllBooksQuizSelection(bookCandidates = books) {
+    const eligibleBooks = bookCandidates.filter((book) => (book.words || []).length > 0);
+    return {
+      bookIds: eligibleBooks.map((book) => String(book.id)),
+      chapterKeys: eligibleBooks.flatMap((book) =>
+        getBookChapterList(book).map((chapter) => `${book.id}:${chapter.id}`)
+      ),
+      difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
+    };
+  }
+
+  function startQuizSessionWithSetup(selection, modeOverride = quizMode) {
+    const selectedMode = normalizeQuizMode(modeOverride, "normal");
+    const nextWords = getQuizWordsForSetup(selection, selectedMode);
+    if ((selection?.bookIds || []).length === 0 || (selection?.chapterKeys || []).length === 0 || nextWords.length < 2) {
+      openNoticeModal(
+        tr("Add at least 2 words before starting a quiz.", "Add at least 2 words before starting a quiz."),
+        tr("Quiz Not Ready", "Quiz Not Ready")
+      );
+      return;
+    }
+
     if (!isProPlan && selectedMode === "typing") {
       const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
       if (safeUsage.typingAttempts >= FREE_DAILY_TYPING_LIMIT) {
@@ -1736,29 +1762,41 @@ export default function App() {
     }
 
     const nextTitle =
-      quizSetupSelection.bookIds.length === 1
-        ? books.find((book) => String(book.id) === quizSetupSelection.bookIds[0])?.name || "Quiz"
+      selection.bookIds.length === 1
+        ? books.find((book) => String(book.id) === selection.bookIds[0])?.name || "Quiz"
         : "Multi-Book Quiz";
     const setupSnapshot = {
       mode: selectedMode,
-      bookIds: [...quizSetupSelection.bookIds],
-      chapterKeys: [...quizSetupSelection.chapterKeys],
+      bookIds: [...selection.bookIds],
+      chapterKeys: [...selection.chapterKeys],
       difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
     };
+    setQuizMode(selectedMode);
+    setQuizSetupSelection(setupSnapshot);
     setLastQuizSetup(setupSnapshot);
     setIsQuickQuizSetupArmed(false);
-    setActiveQuizWords(quizSetupWords);
+    setActiveQuizWords(nextWords);
     setActiveQuizTitle(nextTitle);
     setActiveQuizMode(selectedMode);
     setActiveQuizIsMistakeReview(false);
     trackEvent("quiz_started", {
       quiz_mode: selectedMode,
-      word_count: quizSetupWords.length,
-      book_count: quizSetupSelection.bookIds.length,
-      chapter_count: quizSetupSelection.chapterKeys.length,
+      word_count: nextWords.length,
+      book_count: selection.bookIds.length,
+      chapter_count: selection.chapterKeys.length,
       difficulty_count: 0,
     });
     setScreen("quiz");
+  }
+
+  function startQuizSession() {
+    startQuizSessionWithSetup(quizSetupSelection, quizMode);
+  }
+
+  function startSmartQuiz() {
+    const recentBookWithWords = sortedBooksByRecent.find((book) => (book.words || []).length >= 2);
+    const selection = buildAllBooksQuizSelection(recentBookWithWords ? [recentBookWithWords] : sortedBooksByRecent);
+    startQuizSessionWithSetup(selection, "normal");
   }
 
   function openQuizSetup() {
@@ -4855,33 +4893,8 @@ export default function App() {
           setScreen("bookMenu");
         }}
       >
-        <button
-          className="deleteBtn bookDeleteBtn"
-          aria-label={`Delete ${book.name}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            askDeleteBook(book);
-          }}
-        >
-          x
-        </button>
-        <button
-          type="button"
-          className={`pinBtn ${book.pinned ? "isPinned" : ""}`}
-          aria-label={book.pinned ? `Unpin ${book.name}` : `Pin ${book.name}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            togglePinBook(book.id);
-          }}
-        >
-          <PinIcon pinned={book.pinned} />
-        </button>
         <div className="selectBookCardTop">
-          <div className="selectBookTitleRow">
-            <h3 className="selectBookTitle">
-              {book.name}
-            </h3>
-            {isFullyMasteredBook && <span className="selectBookMasteredBadge">Mastered</span>}
+          <div className="bookCardActions">
             <button
               type="button"
               className="bookRenameBtn"
@@ -4893,6 +4906,33 @@ export default function App() {
             >
               {"\u270E"}
             </button>
+            <button
+              className="deleteBtn bookDeleteBtn"
+              aria-label={`Delete ${book.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                askDeleteBook(book);
+              }}
+            >
+              x
+            </button>
+          </div>
+          <div className="selectBookTitleRow">
+            <button
+              type="button"
+              className={`pinBtn ${book.pinned ? "isPinned" : ""}`}
+              aria-label={book.pinned ? `Unpin ${book.name}` : `Pin ${book.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePinBook(book.id);
+              }}
+            >
+              <PinIcon pinned={book.pinned} />
+            </button>
+            <h3 className="selectBookTitle">
+              {book.name}
+            </h3>
+            {isFullyMasteredBook && <span className="selectBookMasteredBadge">Mastered</span>}
           </div>
           <p className="selectBookLastOpened">Last opened: {lastOpenedText}</p>
         </div>
@@ -4917,6 +4957,36 @@ export default function App() {
               {masteredCount}
             </strong>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderEmptyActionState({
+    icon = "\u2728",
+    title,
+    body,
+    primaryLabel,
+    onPrimary,
+    secondaryLabel,
+    onSecondary,
+  }) {
+    return (
+      <div className="emptyActionState">
+        <div className="emptyActionIcon" aria-hidden="true">{icon}</div>
+        <h2>{title}</h2>
+        <p>{body}</p>
+        <div className="emptyActionButtons">
+          {primaryLabel && onPrimary ? (
+            <button type="button" className="primaryBtn" onClick={onPrimary}>
+              {primaryLabel}
+            </button>
+          ) : null}
+          {secondaryLabel && onSecondary ? (
+            <button type="button" className="secondaryBtn" onClick={onSecondary}>
+              {secondaryLabel}
+            </button>
+          ) : null}
         </div>
       </div>
     );
@@ -4988,6 +5058,7 @@ export default function App() {
     if (!inputWord.trim() || !currentBook) return;
 
     const cleanWord = inputWord.trim();
+    setLastAddedWord("");
     const normalizedInput = cleanWord.toLowerCase();
     const duplicateWord = currentBook.words.some(
       (w) =>
@@ -5097,6 +5168,7 @@ export default function App() {
       );
       updateStreak();
       setInputWord("");
+      setLastAddedWord(cleanWord);
     } catch {
       openNoticeModal(
         useEnglishToJapaneseDictionary ? uiText.translationNetworkError : uiText.dictionaryNetworkError,
@@ -5546,18 +5618,11 @@ export default function App() {
         </div>
         <div className="panelGrid dashboardPanelGrid">
           {isProPlan ? (
-            <div
+            <button
+              type="button"
               className="panelCard wide"
-              role="button"
-              tabIndex={0}
               style={{ gridColumn: "1", gridRow: "2" }}
               onClick={openAdaptiveReviewSession}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  openAdaptiveReviewSession();
-                }
-              }}
             >
               <span>
                 {"\uD83E\uDDE0"} {tr("Adaptive Review", "é©å¿œåž‹å¾©ç¿’")}
@@ -5565,131 +5630,72 @@ export default function App() {
               <small className="settingsHint">
                 {tr("Due now", "ä»Šã™ãå¾©ç¿’")}: {adaptiveReviewStats.dueNow}
               </small>
-            </div>
+            </button>
           ) : null}
-          <div
+          <button
+            type="button"
             className="panelCard wide"
-            role="button"
-            tabIndex={0}
             onClick={() => setScreen("definitionsSelect")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setScreen("definitionsSelect");
-              }
-            }}
           >
             <span>{"\uD83D\uDCD8"} {tr("Definitions", "単語追加")}</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             className="panelCard wide"
-            role="button"
-            tabIndex={0}
             onClick={() => setScreen("flashcardsSelect")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setScreen("flashcardsSelect");
-              }
-            }}
           >
             <span>{"\u26A1"} {tr("Flashcards", "フラッシュカード")}</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             className="panelCard wide"
-            role="button"
-            tabIndex={0}
             onClick={() => {
-      setQuizBackScreen("quizSelect");
+              setQuizBackScreen("quizSelect");
               setQuizMode("normal");
               initializeQuizSetupSelection();
               setScreen("quizSelect");
             }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setQuizBackScreen("quizSelect");
-                setQuizMode("normal");
-                initializeQuizSetupSelection();
-                setScreen("quizSelect");
-              }
-            }}
           >
             <span>{"\u2705"} {tr("Quiz", "クイズ")}</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             className="panelCard wide"
-            role="button"
-            tabIndex={0}
             onClick={() => setScreen("books")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setScreen("books");
-              }
-            }}
           >
             <span>{"\uD83D\uDCDA"} {tr("My Books", "マイブック")}</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             className="panelCard wide"
-            role="button"
-            tabIndex={0}
             onClick={() => setScreen("data")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setScreen("data");
-              }
-            }}
           >
             <span>{"\uD83D\uDCCA"} {tr("Data", "データ")}</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             className="panelCard wide"
-            role="button"
-            tabIndex={0}
             onClick={() => setScreen("socialLeaderboard")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setScreen("socialLeaderboard");
-              }
-            }}
           >
             <span>{"\uD83D\uDC65"} {tr("Socials", "ソーシャル")}</span>
-          </div>
+          </button>
           {isMobileViewport ? (
-            <div
+            <button
+              type="button"
               className="panelCard wide"
-              role="button"
-              tabIndex={0}
               onClick={() => setScreen("settings")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  setScreen("settings");
-                }
-              }}
             >
               <span>{"\u2699\uFE0F"} {tr("Settings", "設定")}</span>
-            </div>
+            </button>
           ) : null}
           {isMobileViewport ? (
-            <div
+            <button
+              type="button"
               className="panelCard wide"
-              role="button"
-              tabIndex={0}
               onClick={() => setScreen("account")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  setScreen("account");
-                }
-              }}
             >
               <span>{"\uD83D\uDC64"} {tr("My Account", "アカウント")}</span>
-            </div>
+            </button>
           ) : null}
         </div>
         {renderModal()}
@@ -5757,12 +5763,12 @@ export default function App() {
   // ---------- ACCOUNT ----------
   if (screen === "account") {
     return renderWithSidebar(
-      <div className="page">
+      <div className={`page ${authToken ? "" : "accountAuthPage"}`}>
         <div className="pageHeader">
           <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
           <h1>{tr("My Account", "アカウント")}</h1>
         </div>
-        <div className="analyticsSection accountSection">
+        <div className={`analyticsSection accountSection ${authToken ? "" : "accountAuthSection"}`}>
           {authToken ? (
             <div className="accountLauncherGrid">
               <button
@@ -5834,8 +5840,17 @@ export default function App() {
             </div>
           ) : (
             <div className="accountAuthWrap">
-              <div className="analyticsCard settingsCard accountCard">
+              <div className="analyticsCard settingsCard accountCard accountAuthCard">
                 <h3>{tr("Account", "アカウント")}</h3>
+                <div className="accountAuthHeader">
+                  <span className="accountAuthIcon" aria-hidden="true">{"\uD83D\uDD10"}</span>
+                  <div>
+                    <h3>{authMode === "login" ? tr("Welcome back", "Welcome back") : tr("Create your account", "Create your account")}</h3>
+                    <p className="settingsHint accountAuthIntro">
+                      {tr("Sync your books, progress, and learning settings across devices.", "Sync your books, progress, and learning settings across devices.")}
+                    </p>
+                  </div>
+                </div>
                 <>
                   <p className="settingsHint">{tr("Create an account or sign in to sync with backend.", "アカウント作成またはログインして同期")}</p>
                   <div className="settingsAuthModeRow" role="group" aria-label="Choose account action">
@@ -6693,10 +6708,25 @@ export default function App() {
           <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
           <h1>{tr("My Books", "マイブック")}</h1>
         </div>
-        <button className="primaryBtn" onClick={openAddBookModal}>+ {tr("Add Book", "ブック追加")}</button>
-        <div className="bookGrid selectBookGrid">
-          {sortedBooksByRecent.map((book) => renderMyBookCard(book))}
-        </div>
+        {sortedBooksByRecent.length === 0 ? (
+          renderEmptyActionState({
+            icon: "\uD83D\uDCDA",
+            title: tr("Create your first vocabulary book", "Create your first vocabulary book"),
+            body: tr(
+              "Books keep words grouped by class, novel, exam, or topic so review stays focused.",
+              "Books keep words grouped by class, novel, exam, or topic so review stays focused."
+            ),
+            primaryLabel: tr("Add Book", "Add Book"),
+            onPrimary: openAddBookModal,
+          })
+        ) : (
+          <>
+            <button className="primaryBtn" onClick={openAddBookModal}>+ {tr("Add Book", "ブック追加")}</button>
+            <div className="bookGrid selectBookGrid">
+              {sortedBooksByRecent.map((book) => renderMyBookCard(book))}
+            </div>
+          </>
+        )}
         {renderModal()}
       </div>
     );
@@ -6711,63 +6741,39 @@ export default function App() {
           <h1>{currentBook?.name}</h1>
         </div>
         <div className="panelGrid bookModeGrid">
-          <div
+          <button
+            type="button"
             className="panelCard bookModeCard"
-            role="button"
-            tabIndex={0}
             onClick={() => setScreen("definitions")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setScreen("definitions");
-              }
-            }}
           >
             <span className="bookModeIcon" aria-hidden="true">{"\uD83D\uDCD8"}</span>
             <strong>{tr("Definitions", "単語追加")}</strong>
             <p>{tr("Add and manage words, meanings, and chapter placement.", "単語・意味・章を追加/管理します。")}</p>
-          </div>
+          </button>
 
-          <div
+          <button
+            type="button"
             className="panelCard bookModeCard"
-            role="button"
-            tabIndex={0}
             onClick={() => setScreen("flashcards")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setScreen("flashcards");
-              }
-            }}
           >
             <span className="bookModeIcon" aria-hidden="true">{"\u26A1"}</span>
             <strong>{tr("Flashcards", "フラッシュカード")}</strong>
             <p>{tr("Drill recall quickly with focused review sessions.", "集中復習で素早く記憶を強化します。")}</p>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             className="panelCard bookModeCard"
-            role="button"
-            tabIndex={0}
             onClick={() => {
               setQuizBackScreen("bookMenu");
               setQuizMode("normal");
               initializeQuizSetupSelection();
               setScreen("quizSelect");
             }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setQuizBackScreen("bookMenu");
-                setQuizMode("normal");
-                initializeQuizSetupSelection();
-                setScreen("quizSelect");
-              }
-            }}
           >
             <span className="bookModeIcon" aria-hidden="true">{"\u2705"}</span>
             <strong>{tr("Quiz", "クイズ")}</strong>
             <p>{tr("Test active recall with normal, typing, or mistake mode.", "通常・タイピング・ミス復習で能動想起を鍛えます。")}</p>
-          </div>
+          </button>
         </div>
         {renderModal()}
       </div>
@@ -6783,7 +6789,15 @@ export default function App() {
           <h1>{uiText.selectBook}</h1>
         </div>
         {sortedBooksByRecent.length === 0 ? (
-          <p className="quizSetupHint">{uiText.noBooksFound}</p>
+          renderEmptyActionState({
+            icon: "\uD83D\uDCD8",
+            title: tr("Add a book before adding words", "Add a book before adding words"),
+            body: uiText.noBooksFound,
+            primaryLabel: tr("Create Book", "Create Book"),
+            onPrimary: openAddBookModal,
+            secondaryLabel: tr("Back to Dashboard", "Back to Dashboard"),
+            onSecondary: () => setScreen("dashboard"),
+          })
         ) : (
           <div className="bookGrid selectBookGrid">
             {sortedBooksByRecent.map((book) =>
@@ -6807,17 +6821,31 @@ export default function App() {
           <h1>{currentBook?.name}</h1>
         </div>
         <div className="inputRow">
-          <input
-            value={inputWord}
-            onChange={(e) => setInputWord(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              if (e.nativeEvent?.isComposing) return;
-              addWord();
-            }}
-            placeholder={uiText.addWordPlaceholder}
-          />
-          <button type="button" className="addWordBtn" onClick={addWord}>+</button>
+          <div className="addWordFieldGroup">
+            <input
+              value={inputWord}
+              onChange={(e) => {
+                setInputWord(e.target.value);
+                setLastAddedWord("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                if (e.nativeEvent?.isComposing) return;
+                addWord();
+              }}
+              placeholder={uiText.addWordPlaceholder}
+              disabled={loading}
+            />
+          </div>
+          <button
+            type="button"
+            className="addWordBtn"
+            onClick={addWord}
+            disabled={loading || !inputWord.trim()}
+            aria-label={tr("Add word", "Add word")}
+          >
+            {loading ? "..." : "+"}
+          </button>
         </div>
         <p className="definitionAttributionNote">
           {useEnglishToJapaneseDictionary
@@ -6845,6 +6873,18 @@ export default function App() {
           </button>
         </div>
         {loading && <div className="spinner"></div>}
+        {!loading && (currentBook?.words || []).length === 0 ? (
+          renderEmptyActionState({
+            icon: "\uD83D\uDCD8",
+            title: tr("Start this book with one useful word", "Start this book with one useful word"),
+            body: tr(
+              "Add a word above and Vocalibry will fetch the definition, place it in this chapter, and make it available for flashcards and quizzes.",
+              "Add a word above and Vocalibry will fetch the definition, place it in this chapter, and make it available for flashcards and quizzes."
+            ),
+            primaryLabel: tr("Focus word field", "Focus word field"),
+            onPrimary: () => document.querySelector(".addWordFieldGroup input")?.focus(),
+          })
+        ) : null}
         <div className="wordList">
           {currentBook?.words.map((w, i) => {
             const definitionVariants = getWordDefinitions(w);
@@ -7087,7 +7127,15 @@ export default function App() {
           <h1>{uiText.selectBook}</h1>
         </div>
         {sortedBooksByRecent.length === 0 ? (
-          <p className="quizSetupHint">{uiText.noBooksFound}</p>
+          renderEmptyActionState({
+            icon: "\u26A1",
+            title: tr("Flashcards need a book first", "Flashcards need a book first"),
+            body: uiText.noBooksFound,
+            primaryLabel: tr("Create Book", "Create Book"),
+            onPrimary: openAddBookModal,
+            secondaryLabel: tr("Back to Dashboard", "Back to Dashboard"),
+            onSecondary: () => setScreen("dashboard"),
+          })
         ) : (
           <div className="bookGrid selectBookGrid">
             {sortedBooksByRecent.map((book) =>
@@ -7130,6 +7178,9 @@ export default function App() {
       group.chapters.map((chapter) => chapter.key)
     );
     const hasPreviousQuizMistakes = lastQuizMistakeKeys.length > 0;
+    const smartQuizSelection = buildAllBooksQuizSelection(sortedBooksByRecent);
+    const smartQuizWordCount = getQuizWordsForSetup(smartQuizSelection, "normal").length;
+    const hasBooksForQuiz = sortedBooksByRecent.length > 0;
     const canStartQuiz =
       quizSetupSelection.bookIds.length > 0 &&
       quizSetupSelection.chapterKeys.length > 0 &&
@@ -7172,7 +7223,58 @@ export default function App() {
         <p className="quizSetupIntro">
           {tr("Build your quiz in simple steps.", "ステップに沿ってクイズを作成します。")}
         </p>
-        <div className="quizSetupStepRow" aria-label="Quiz setup steps">
+        {!hasBooksForQuiz ? (
+          renderEmptyActionState({
+            icon: "\u2705",
+            title: tr("Quizzes start after your first book", "Quizzes start after your first book"),
+            body: uiText.noBooksFound,
+            primaryLabel: tr("Create Book", "Create Book"),
+            onPrimary: openAddBookModal,
+            secondaryLabel: tr("Back to Dashboard", "Back to Dashboard"),
+            onSecondary: () => setScreen("dashboard"),
+          })
+        ) : (
+          <div className="quizFastStartCard">
+            <div>
+              <h2>{tr("Fast start", "Fast start")}</h2>
+              <p>
+                {smartQuizWordCount >= 2
+                  ? tr(`${smartQuizWordCount} words are ready for a smart quiz.`, `${smartQuizWordCount} words are ready for a smart quiz.`)
+                  : tr("Add at least 2 words to unlock one-click quiz starts.", "Add at least 2 words to unlock one-click quiz starts.")}
+              </p>
+            </div>
+            <div className="quizFastStartActions">
+              <button
+                type="button"
+                className="primaryBtn"
+                onClick={startSmartQuiz}
+                disabled={smartQuizWordCount < 2}
+              >
+                {tr("Start Smart Quiz", "Start Smart Quiz")}
+              </button>
+              <button
+                type="button"
+                className="secondaryBtn"
+                onClick={() => {
+                  applyQuickQuizSetup();
+                  if (!lastQuizSetup) return;
+                  const selection = {
+                    bookIds: [...(lastQuizSetup.bookIds || [])],
+                    chapterKeys: [...(lastQuizSetup.chapterKeys || [])],
+                    difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
+                  };
+                  if (getQuizWordsForSetup(selection, normalizeQuizMode(lastQuizSetup.mode, "normal")).length >= 2) {
+                    startQuizSessionWithSetup(selection, normalizeQuizMode(lastQuizSetup.mode, "normal"));
+                  }
+                }}
+                disabled={!lastQuizSetup}
+              >
+                {tr("Repeat Last Quiz", "Repeat Last Quiz")}
+              </button>
+            </div>
+          </div>
+        )}
+        {hasBooksForQuiz && <div className="quizSetupStepRow" aria-label="Quiz setup steps">
           {stepTitles.map((label, index) => {
             const isActive = index === quizSetupStep;
             const isComplete = index < quizSetupStep;
@@ -7188,8 +7290,8 @@ export default function App() {
               </button>
             );
           })}
-        </div>
-        {isAtTypeStep && (
+        </div>}
+        {hasBooksForQuiz && isAtTypeStep && (
           <div className="chapterControlField quizChapterField">
             <div className="quizSetupFieldHeader">
             <span>{tr("Step 1. Quiz Type", "ステップ1. クイズ種類")}</span>
@@ -7251,7 +7353,7 @@ export default function App() {
             </div>
           </div>
         )}
-        {isAtBooksStep && (
+        {hasBooksForQuiz && isAtBooksStep && (
         <div className="chapterControlField quizChapterField">
           <div className="quizSetupFieldHeader">
             <span>{includesTypeStep ? tr("Step 2. Books", "ステップ2. ブック") : tr("Step 1. Books", "ステップ1. ブック")}</span>
@@ -7305,7 +7407,7 @@ export default function App() {
           )}
         </div>
         )}
-        {isAtChaptersStep && (
+        {hasBooksForQuiz && isAtChaptersStep && (
         <div className="chapterControlField quizChapterField">
           <div className="quizSetupFieldHeader">
             <span>{includesTypeStep ? tr("Step 3. Chapters", "ステップ3. 章") : tr("Step 2. Chapters", "ステップ2. 章")}</span>
@@ -7381,7 +7483,7 @@ export default function App() {
           )}
         </div>
         )}
-        {isAtReviewStep && (
+        {hasBooksForQuiz && isAtReviewStep && (
           <div className="quizSetupReviewCard">
             <h3>{tr("Review & Start", "確認して開始")}</h3>
             <div className="quizSetupSummary">
@@ -7392,18 +7494,18 @@ export default function App() {
             </div>
           </div>
         )}
-        {quizMode === "mistake" && !hasPreviousQuizMistakes && (
+        {hasBooksForQuiz && quizMode === "mistake" && !hasPreviousQuizMistakes && (
           <p className="quizSetupHint">
             {tr("No previous quiz mistakes found yet. Complete a regular quiz first.", "前回までのミスがありません。先に通常クイズを完了してください。")}
           </p>
         )}
-        {!canStartQuiz && isAtReviewStep && (
+        {hasBooksForQuiz && !canStartQuiz && isAtReviewStep && (
           <p className="quizSetupHint">
             {tr("Select at least one book and chapter with at least 2 matching words.", "2語以上含むブックと章を選択してください。")}
           </p>
         )}
-        {nextStepHint ? <p className="quizSetupHint">{nextStepHint}</p> : null}
-        <div className="quizFooter quizSetupFooter">
+        {hasBooksForQuiz && nextStepHint ? <p className="quizSetupHint">{nextStepHint}</p> : null}
+        {hasBooksForQuiz && <div className="quizFooter quizSetupFooter">
           <div className="quizSetupPager">
             <button
               type="button"
@@ -7451,7 +7553,7 @@ export default function App() {
               </button>
             )}
           </div>
-        </div>
+        </div>}
         {renderModal()}
       </div>
     );
