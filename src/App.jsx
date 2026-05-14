@@ -369,6 +369,125 @@ function getWordMasteryBlocks(wordEntry) {
   return `${"█".repeat(filled)}${"░".repeat(empty)}`;
 }
 
+function extractDictionaryApiDefinitions(payload) {
+  const rows = Array.isArray(payload) ? payload : [];
+  const seen = new Set();
+  const definitions = [];
+
+  rows.forEach((entry) => {
+    const meanings = Array.isArray(entry?.meanings) ? entry.meanings : [];
+    meanings.forEach((meaning) => {
+      const items = Array.isArray(meaning?.definitions) ? meaning.definitions : [];
+      items.forEach((item) => {
+        const text = String(item?.definition || "").trim();
+        const key = text.toLowerCase();
+        if (!text || seen.has(key)) return;
+        seen.add(key);
+        definitions.push(text);
+      });
+    });
+  });
+
+  return definitions.slice(0, 12);
+}
+
+function extractDictionaryApiPronunciation(payload) {
+  const firstEntry = Array.isArray(payload) ? payload[0] : null;
+  const direct = String(firstEntry?.phonetic || "").trim();
+  if (direct) return direct;
+
+  const phonetics = Array.isArray(firstEntry?.phonetics) ? firstEntry.phonetics : [];
+  for (const option of phonetics) {
+    const text = String(option?.text || "").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function extractDatamuseDefinitions(payload) {
+  const rows = Array.isArray(payload) ? payload : [];
+  const seen = new Set();
+  const definitions = [];
+
+  rows.forEach((item) => {
+    const rows = Array.isArray(item?.defs) ? item.defs : [];
+    rows.forEach((definitionRow) => {
+      const raw = String(definitionRow || "").trim();
+      const text = raw.includes("\t") ? raw.split("\t").slice(1).join("\t").trim() : raw;
+      const key = text.toLowerCase();
+      if (!text || seen.has(key)) return;
+      seen.add(key);
+      definitions.push(text);
+    });
+  });
+
+  return definitions.slice(0, 12);
+}
+
+async function fetchEnglishDefinitionsDirect(word) {
+  let sawDictionaryNotFound = false;
+
+  try {
+    const dictionaryResponse = await fetchWithRetry(
+      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
+      {
+        headers: { Accept: "application/json" },
+        timeoutMs: 9000,
+        retryDelays: [500],
+      }
+    );
+    if (dictionaryResponse.ok) {
+      const payload = await dictionaryResponse.json().catch(() => null);
+      const definitions = extractDictionaryApiDefinitions(payload);
+      if (definitions.length) {
+        return {
+          definitions,
+          pronunciation: extractDictionaryApiPronunciation(payload),
+          provider: "dictionaryapi-direct",
+          error: "",
+        };
+      }
+    }
+    if (dictionaryResponse.status === 404) {
+      sawDictionaryNotFound = true;
+    }
+  } catch {
+    // Try Datamuse below before surfacing a provider failure.
+  }
+
+  try {
+    const datamuseResponse = await fetchWithRetry(
+      `https://api.datamuse.com/words?sp=${encodeURIComponent(word)}&md=d&max=6`,
+      {
+        headers: { Accept: "application/json" },
+        timeoutMs: 9000,
+        retryDelays: [500],
+      }
+    );
+    if (datamuseResponse.ok) {
+      const payload = await datamuseResponse.json().catch(() => null);
+      const definitions = extractDatamuseDefinitions(payload);
+      if (definitions.length) {
+        return {
+          definitions,
+          pronunciation: "",
+          provider: "datamuse-direct",
+          error: "",
+        };
+      }
+    }
+  } catch {
+    // Fall through to the network error response below.
+  }
+
+  return {
+    definitions: [],
+    pronunciation: "",
+    provider: "direct",
+    error: sawDictionaryNotFound ? "definition-not-found" : "definition-provider-failed",
+  };
+}
+
 async function fetchEnglishDefinitions(word) {
   const input = String(word || "").trim();
   if (!input) {
@@ -438,11 +557,15 @@ async function fetchEnglishDefinitions(word) {
     }
   }
 
+  const directResult = await fetchEnglishDefinitionsDirect(input);
+  if (directResult.definitions.length > 0) return directResult;
+  if (directResult.error === "definition-not-found") return directResult;
+
   return {
     definitions: [],
     pronunciation: "",
-    provider: "backend",
-    error: lastErrorCode || "definition-request-failed",
+    provider: directResult.provider || "backend",
+    error: lastErrorCode || directResult.error || "definition-request-failed",
   };
 }
 
