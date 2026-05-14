@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export function AdaptiveReviewSession({
   items,
@@ -11,6 +11,8 @@ export function AdaptiveReviewSession({
   onRate,
 }) {
   const [showAnswer, setShowAnswer] = useState(false);
+  const reviewCardRef = useRef(null);
+  const reviewFooterRef = useRef(null);
   const currentItem = items[0] || null;
   const isSubmittingRating = Boolean(pendingRating);
   const dueNowCount = Math.max(0, Math.floor(Number(stats?.dueNow) || 0));
@@ -22,7 +24,18 @@ export function AdaptiveReviewSession({
 
   useEffect(() => {
     setShowAnswer(false);
+    window.requestAnimationFrame(() => {
+      reviewCardRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
   }, [currentItem?.word, currentItem?.bookId, currentItem?.chapterId]);
+
+  useEffect(() => {
+    if (!showAnswer) return;
+
+    window.requestAnimationFrame(() => {
+      reviewFooterRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  }, [showAnswer]);
 
   return (
     <div className="page">
@@ -89,8 +102,8 @@ export function AdaptiveReviewSession({
           </div>
         ) : null}
 
-        {!loading && !error && currentItem ? (
-          <div className="analyticsCard adaptiveReviewCard">
+        {!loading && currentItem ? (
+          <div className="analyticsCard adaptiveReviewCard" ref={reviewCardRef}>
             <div className="adaptiveReviewCardTop">
               <div>
                 <p className="adaptiveReviewMetaLine">
@@ -135,7 +148,7 @@ export function AdaptiveReviewSession({
               </div>
             </div>
 
-            <div className="adaptiveReviewFooter">
+            <div className="adaptiveReviewFooter" ref={reviewFooterRef}>
               {!showAnswer ? (
                 <div className="modalActions adaptiveReviewActions">
                   <button

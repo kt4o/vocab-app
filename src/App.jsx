@@ -33,12 +33,21 @@ const REVIEW_API_PATH = `${API_BASE_URL}/api/review`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
+const ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY = "vocab_onboarding_tutorial_pending";
+const ONBOARDING_TUTORIAL_SEEN_PREFIX = "vocab_onboarding_tutorial_seen";
 const JAPANESE_LEARNER_MODE_STORAGE_KEY = "vocab_japanese_learner_mode";
 const UI_LANGUAGE_STORAGE_KEY = "vocab_ui_language";
 const DICTIONARY_PREFERENCE_STORAGE_KEY = "vocab_dictionary_preference";
 const COOKIE_SESSION_AUTH_MARKER = "__cookie_session__";
 const LEGAL_VERSION = "2026-04-08";
 const RETENTION_PING_DAY_KEY_STORAGE = "vocab_retention_ping_day";
+const API_FETCH_TIMEOUT_MS = 12000;
+const API_FETCH_RETRY_DELAYS_MS = [400, 1000];
+
+function getAdaptiveReviewItemKey(item) {
+  return [item?.bookId || "", item?.chapterId || "", item?.word || ""].join("\u001f");
+}
+
 const ACCOUNT_DATA_STORAGE_KEYS = [
   "vocab_books",
   "vocab_weekly_stats",
@@ -205,18 +214,69 @@ function buildAuthHeaders(authToken, baseHeaders = {}) {
   return headers;
 }
 
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function isTransientHttpStatus(status) {
+  return status === 408 || status === 425 || status === 429 || (status >= 500 && status <= 599);
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || API_FETCH_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const fetchOptions = { ...options };
+  const signal = fetchOptions.signal;
+  delete fetchOptions.timeoutMs;
+  delete fetchOptions.signal;
+
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+
+  try {
+    return await fetch(url, {
+      ...fetchOptions,
+      signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function fetchWithRetry(url, options = {}) {
+  const retryDelays = Array.isArray(options.retryDelays) ? options.retryDelays : API_FETCH_RETRY_DELAYS_MS;
+  const fetchOptions = { ...options };
+  delete fetchOptions.retryDelays;
+  let lastError;
+
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    try {
+      const response = await fetchWithTimeout(url, fetchOptions);
+      if (!isTransientHttpStatus(response.status) || attempt >= retryDelays.length) {
+        return response;
+      }
+    } catch (error) {
+      lastError = error;
+      if (attempt >= retryDelays.length) {
+        throw error;
+      }
+    }
+
+    await wait(retryDelays[attempt]);
+  }
+
+  throw lastError || new Error("Network request failed.");
+}
+
 function navigateTo(path) {
   const nextPath = String(path || "/").trim() || "/";
   window.history.replaceState(null, "", nextPath);
   window.dispatchEvent(new PopStateEvent("popstate"));
-}
-
-function formatCountdown(ms) {
-  const safeMs = Math.max(0, Math.floor(Number(ms) || 0));
-  const totalSeconds = Math.ceil(safeMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function normalizeSubscriptionStatus(value) {
@@ -337,7 +397,7 @@ async function fetchEnglishDefinitions(word) {
     triedEndpoints.add(normalizedEndpoint);
 
     try {
-      const res = await fetch(normalizedEndpoint, {
+      const res = await fetchWithRetry(normalizedEndpoint, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -407,12 +467,14 @@ async function fetchJapaneseTranslations(word) {
     }
 
     try {
-      const res = await fetch(
+      const res = await fetchWithRetry(
         `https://jisho.org/api/v1/search/words?keyword=${encodeURIComponent(input)}`,
         {
           headers: {
             Accept: "application/json",
           },
+          timeoutMs: 9000,
+          retryDelays: [500],
         }
       );
       if (!res.ok) {
@@ -463,7 +525,7 @@ async function fetchJapaneseTranslations(word) {
     triedEndpoints.add(normalizedEndpoint);
 
     try {
-      const res = await fetch(normalizedEndpoint, {
+      const res = await fetchWithRetry(normalizedEndpoint, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1399,6 +1461,48 @@ const QUIZ_MISS_PROMPTS_JA = [
   "よく挑戦しました。復習すれば次は正解できます。",
 ];
 
+const ONBOARDING_TUTORIAL_SLIDES = [
+  {
+    title: "Welcome to Vocalibry",
+    body: "Here is the quick path: create a book, add words, review them, then track what is improving.",
+    type: "welcome",
+    highlights: ["📚 Create books", "📝 Add words", "⚡ Practice recall", "📊 Track progress"],
+  },
+  {
+    title: "Create your first book",
+    body: "Start by making a vocabulary book for a class, novel, exam, or topic.",
+    image: "/landing/tutorial-1-create-book.png",
+    alt: "My Books screen showing the create your first vocabulary book prompt",
+  },
+  {
+    title: "Add words and chapters",
+    body: "Save new words, then use chapters to keep each unit or section organized.",
+    image: "/landing/tutorial-2-add-words.png",
+    alt: "Book definitions screen showing a word list and chapter controls",
+  },
+  {
+    title: "Review with practice modes",
+    body: "Use flashcards, quizzes, typing practice, and smart review to build recall.",
+    image: "/landing/tutorial-3-review.png",
+    alt: "Quiz screen showing vocabulary review choices",
+  },
+  {
+    title: "Analyze your learning",
+    body: "Check your data to see words added, questions completed, time studied, and mastery progress.",
+    image: "/landing/tutorial-4-data.png",
+    alt: "Data screen showing learning progress charts and summary stats",
+  },
+];
+
+function getOnboardingSeenStorageKey(username) {
+  const safeUsername = String(username || "account").trim().toLowerCase() || "account";
+  return `${ONBOARDING_TUTORIAL_SEEN_PREFIX}_${safeUsername}`;
+}
+
+function isDevTutorialAccount(username) {
+  return String(username || "").trim().toLowerCase() === "dev";
+}
+
 export default function App() {
   const [screen, setScreen] = useState("dashboard");
   const [theme, setTheme] = useState(() => {
@@ -1427,7 +1531,7 @@ export default function App() {
   const [currentBookId, setCurrentBookId] = useState(null);
   const [inputWord, setInputWord] = useState("");
   const [loading, setLoading] = useState(false);
-  const [lastAddedWord, setLastAddedWord] = useState("");
+  const [, setLastAddedWord] = useState("");
   const [streak, setStreak] = useState(() => {
     const saved = localStorage.getItem("vocab_streak");
     return parseStoredStreak(saved);
@@ -1441,6 +1545,9 @@ export default function App() {
   const [wordPendingDelete, setWordPendingDelete] = useState(null);
   const [friendPendingRemove, setFriendPendingRemove] = useState(null);
   const [noticeModal, setNoticeModal] = useState(null);
+  const [isOnboardingTutorialOpen, setIsOnboardingTutorialOpen] = useState(false);
+  const [isOnboardingCloseConfirmOpen, setIsOnboardingCloseConfirmOpen] = useState(false);
+  const [onboardingTutorialStep, setOnboardingTutorialStep] = useState(0);
   const [quizBackScreen, setQuizBackScreen] = useState("dashboard");
   const [quizMode, setQuizMode] = useState("normal");
   const [quizSetupStep, setQuizSetupStep] = useState(0);
@@ -1605,6 +1712,7 @@ export default function App() {
   const sidebarRef = useRef(null);
   const backupFileInputRef = useRef(null);
   const pronunciationFetchInFlightRef = useRef(new Set());
+  const adaptiveReviewRatingInFlightRef = useRef(new Set());
   const sessionStartedAtRef = useRef(Date.now());
   const lastUserActivityAtRef = useRef(Date.now());
   const pendingMistakeReviewSourceRef = useRef(null);
@@ -1970,7 +2078,9 @@ export default function App() {
     return true;
   }, [activeQuizIsMistakeReview, activeQuizMode, freeDailyUsage, isProPlan]);
 
-  const loadAdaptiveReviewQueue = useCallback(async (limit = 20) => {
+  const loadAdaptiveReviewQueue = useCallback(async (limit = 20, options = {}) => {
+    const showLoading = !options?.silent;
+
     if (!authToken || !isProPlan) {
       setAdaptiveReviewItems([]);
       setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
@@ -1979,12 +2089,14 @@ export default function App() {
       return { ok: false, skipped: true };
     }
 
-    setAdaptiveReviewLoading(true);
+    if (showLoading) {
+      setAdaptiveReviewLoading(true);
+    }
     setAdaptiveReviewError("");
     try {
       const params = new URLSearchParams();
       params.set("limit", String(Math.max(1, Math.floor(Number(limit) || 20))));
-      const response = await fetch(`${REVIEW_API_PATH}/due?${params.toString()}`, {
+      const response = await fetchWithRetry(`${REVIEW_API_PATH}/due?${params.toString()}`, {
         credentials: "include",
         headers: buildAuthHeaders(authToken),
       });
@@ -1998,7 +2110,10 @@ export default function App() {
         throw new Error(errorMessage);
       }
 
-      setAdaptiveReviewItems(Array.isArray(payload?.items) ? payload.items : []);
+      const items = Array.isArray(payload?.items) ? payload.items : [];
+      setAdaptiveReviewItems(
+        items.filter((item) => !adaptiveReviewRatingInFlightRef.current.has(getAdaptiveReviewItemKey(item)))
+      );
       setAdaptiveReviewStats({
         dueNow: Math.max(0, Math.floor(Number(payload?.stats?.dueNow) || 0)),
         overdue: Math.max(0, Math.floor(Number(payload?.stats?.overdue) || 0)),
@@ -2010,7 +2125,9 @@ export default function App() {
       setAdaptiveReviewError(error instanceof Error ? error.message : "Unable to load adaptive review.");
       return { ok: false, error };
     } finally {
-      setAdaptiveReviewLoading(false);
+      if (showLoading) {
+        setAdaptiveReviewLoading(false);
+      }
     }
   }, [authToken, isProPlan]);
 
@@ -2035,12 +2152,24 @@ export default function App() {
 
   const rateAdaptiveReviewWord = useCallback(async (rating) => {
     const currentItem = adaptiveReviewItems[0];
-    if (!currentItem || !authToken || adaptiveReviewPendingRating) return;
+    const itemKey = getAdaptiveReviewItemKey(currentItem);
+    if (!currentItem || !authToken || adaptiveReviewRatingInFlightRef.current.has(itemKey)) return;
+
+    adaptiveReviewRatingInFlightRef.current.add(itemKey);
+    const remainingCount = Math.max(0, adaptiveReviewItems.length - 1);
+    const shouldReloadQueueAfterSave = adaptiveReviewItems.length <= 1;
+
+    setAdaptiveReviewError("");
+    setAdaptiveReviewItems((prev) => {
+      const firstItem = prev[0];
+      return firstItem && getAdaptiveReviewItemKey(firstItem) === itemKey ? prev.slice(1) : prev;
+    });
+    setAdaptiveReviewStats((prev) => ({
+      dueNow: Math.max(0, (Number(prev?.dueNow) || 0) - 1),
+      overdue: Math.max(0, Number(prev?.overdue) || 0),
+    }));
 
     try {
-      setAdaptiveReviewPendingRating(rating);
-      setAdaptiveReviewLoading(true);
-      setAdaptiveReviewError("");
       const response = await fetch(`${REVIEW_API_PATH}/rate`, {
         method: "POST",
         credentials: "include",
@@ -2066,26 +2195,20 @@ export default function App() {
 
       trackEvent("adaptive_review_rated", {
         rating,
-        remaining_count: Math.max(0, adaptiveReviewItems.length - 1),
+        remaining_count: remainingCount,
       });
 
-      setAdaptiveReviewItems((prev) => prev.slice(1));
-      setAdaptiveReviewStats((prev) => ({
-        dueNow: Math.max(0, (Number(prev?.dueNow) || 0) - 1),
-        overdue: Math.max(0, Number(prev?.overdue) || 0),
-      }));
-
-      if (adaptiveReviewItems.length <= 1) {
-        await loadAdaptiveReviewQueue(20);
+      if (shouldReloadQueueAfterSave) {
+        await loadAdaptiveReviewQueue(20, { silent: true });
         trackEvent("adaptive_review_completed", {});
       }
     } catch (error) {
       setAdaptiveReviewError(error instanceof Error ? error.message : "Unable to update review progress.");
     } finally {
+      adaptiveReviewRatingInFlightRef.current.delete(itemKey);
       setAdaptiveReviewPendingRating("");
-      setAdaptiveReviewLoading(false);
     }
-  }, [adaptiveReviewItems, adaptiveReviewPendingRating, authToken, loadAdaptiveReviewQueue]);
+  }, [adaptiveReviewItems, authToken, loadAdaptiveReviewQueue]);
 
   useEffect(() => {
     if (!authToken || !isProPlan) {
@@ -2460,6 +2583,9 @@ export default function App() {
       if (mode === "register") {
         setPreferredLanguage(registerPreferredLanguage);
         setDictionaryPreference(registerDictionaryPreference);
+        localStorage.setItem(ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY, nextUsername || "1");
+        setOnboardingTutorialStep(0);
+        setIsOnboardingTutorialOpen(true);
       }
       setAuthForm({
         email: "",
@@ -2471,7 +2597,9 @@ export default function App() {
         acceptedLegal: false,
         marketingOptIn: false,
       });
-      openNoticeModal(`Signed in as ${nextUsername}.`, "Account Ready");
+      if (mode !== "register") {
+        openNoticeModal(`Signed in as ${nextUsername}.`, "Account Ready");
+      }
     } catch {
       setAuthError("Could not reach auth service. Check backend and try again.");
     } finally {
@@ -2548,7 +2676,7 @@ export default function App() {
     let cancelled = false;
     async function restoreCookieSession() {
       try {
-        const response = await fetch(`${AUTH_API_PATH}/account`, {
+        const response = await fetchWithRetry(`${AUTH_API_PATH}/account`, {
           credentials: "include",
         });
         if (!response.ok || cancelled) return;
@@ -2593,7 +2721,7 @@ export default function App() {
     if (!authToken) return;
     setIsAccountProfileLoading(true);
     try {
-      const response = await fetch(`${AUTH_API_PATH}/account`, {
+      const response = await fetchWithRetry(`${AUTH_API_PATH}/account`, {
         credentials: "include",
         headers: buildAuthHeaders(authToken),
       });
@@ -2649,7 +2777,7 @@ export default function App() {
     if (!authToken) return;
     setIsBillingStatusLoading(true);
     try {
-      const response = await fetch(`${BILLING_API_PATH}/status`, {
+      const response = await fetchWithRetry(`${BILLING_API_PATH}/status`, {
         credentials: "include",
         headers: buildAuthHeaders(authToken),
       });
@@ -3018,8 +3146,11 @@ export default function App() {
   const requestSocial = useCallback(async (path, options = {}) => {
     if (!authToken) return { ok: false, status: 401, payload: { error: "missing-auth-token" } };
     try {
-      const response = await fetch(`${SOCIAL_API_PATH}${path}`, {
+      const method = String(options.method || "GET").trim().toUpperCase();
+      const request = method === "GET" ? fetchWithRetry : fetchWithTimeout;
+      const response = await request(`${SOCIAL_API_PATH}${path}`, {
         ...options,
+        method,
         credentials: "include",
         headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
@@ -3232,7 +3363,7 @@ export default function App() {
     let cancelled = false;
     const pingRetention = async () => {
       try {
-        const response = await fetch(`${ANALYTICS_API_PATH}/retention/ping`, {
+        const response = await fetchWithRetry(`${ANALYTICS_API_PATH}/retention/ping`, {
           method: "POST",
           credentials: "include",
           headers: buildAuthHeaders(authToken, {
@@ -3290,7 +3421,7 @@ export default function App() {
       setIsCloudStateHydrated(false);
 
       try {
-        const response = await fetch(STATE_API_PATH, {
+        const response = await fetchWithRetry(STATE_API_PATH, {
           credentials: "include",
           headers: buildAuthHeaders(authToken),
         });
@@ -3340,7 +3471,7 @@ export default function App() {
     if (!authToken || !isCloudStateHydrated) return undefined;
 
     const timeoutId = window.setTimeout(() => {
-      fetch(STATE_API_PATH, {
+      fetchWithRetry(STATE_API_PATH, {
         method: "PUT",
         credentials: "include",
         headers: buildAuthHeaders(authToken, {
@@ -4032,8 +4163,45 @@ export default function App() {
     }
   }
 
+  const completeOnboardingTutorial = useCallback(() => {
+    if (authUsername && !isDevTutorialAccount(authUsername)) {
+      localStorage.setItem(getOnboardingSeenStorageKey(authUsername), "1");
+    }
+    localStorage.removeItem(ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY);
+    setIsOnboardingTutorialOpen(false);
+    setIsOnboardingCloseConfirmOpen(false);
+    setOnboardingTutorialStep(0);
+  }, [authUsername]);
+
+  useEffect(() => {
+    if (!authToken || !authUsername) return;
+    if (isDevTutorialAccount(authUsername)) {
+      setOnboardingTutorialStep(0);
+      setIsOnboardingTutorialOpen(true);
+      return;
+    }
+    const pendingTutorialFor = String(
+      localStorage.getItem(ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY) || ""
+    ).trim();
+    if (!pendingTutorialFor) return;
+    const seenKey = getOnboardingSeenStorageKey(authUsername);
+    if (localStorage.getItem(seenKey) === "1") {
+      localStorage.removeItem(ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY);
+      return;
+    }
+    const shouldOpen =
+      pendingTutorialFor === "1" ||
+      pendingTutorialFor === "true" ||
+      pendingTutorialFor.toLowerCase() === authUsername.toLowerCase();
+    if (!shouldOpen) return;
+    setOnboardingTutorialStep(0);
+    setIsOnboardingTutorialOpen(true);
+    setIsOnboardingCloseConfirmOpen(false);
+  }, [authToken, authUsername]);
+
   useEffect(() => {
     const isModalOpen =
+      isOnboardingTutorialOpen ||
       isAddBookModalOpen ||
       isChangePasswordModalOpen ||
       Boolean(accountPanelModal) ||
@@ -4047,6 +4215,8 @@ export default function App() {
     if (!isModalOpen) return;
 
     const closeModal = () => {
+      if (isOnboardingCloseConfirmOpen) setIsOnboardingCloseConfirmOpen(false);
+      else if (isOnboardingTutorialOpen) setIsOnboardingCloseConfirmOpen(true);
       if (isAddBookModalOpen) setIsAddBookModalOpen(false);
       if (isChangePasswordModalOpen) setIsChangePasswordModalOpen(false);
       if (accountPanelModal) setAccountPanelModal("");
@@ -4089,6 +4259,8 @@ export default function App() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [
+    isOnboardingTutorialOpen,
+    isOnboardingCloseConfirmOpen,
     isAddBookModalOpen,
     isChangePasswordModalOpen,
     accountPanelModal,
@@ -4100,9 +4272,138 @@ export default function App() {
     friendPendingRemove,
     isDeleteAccountConfirmOpen,
     noticeModal,
+    completeOnboardingTutorial,
   ]);
 
   function renderModal() {
+    if (isOnboardingTutorialOpen) {
+      const slideCount = ONBOARDING_TUTORIAL_SLIDES.length;
+      const currentSlideIndex = Math.min(onboardingTutorialStep, slideCount - 1);
+      const currentSlide = ONBOARDING_TUTORIAL_SLIDES[currentSlideIndex];
+      const isLastSlide = currentSlideIndex === slideCount - 1;
+      const requestCloseOnboardingTutorial = () => setIsOnboardingCloseConfirmOpen(true);
+
+      if (isOnboardingCloseConfirmOpen) {
+        return (
+          <div className="modalOverlay" onClick={() => setIsOnboardingCloseConfirmOpen(false)}>
+            <div
+              className="modalCard"
+              ref={modalRef}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="tutorial-close-confirm-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="tutorial-close-confirm-title">{tr("Close tutorial?", "チュートリアルを閉じますか？")}</h3>
+              <p>{tr("Are you sure? You can keep going to finish the quick tour.", "本当に閉じますか？続けるとクイックツアーを完了できます。")}</p>
+              <div className="modalActions">
+                <button
+                  type="button"
+                  className="modalBtn ghost"
+                  onClick={() => setIsOnboardingCloseConfirmOpen(false)}
+                >
+                  {tr("Keep going", "続ける")}
+                </button>
+                <button type="button" className="modalBtn primary" onClick={completeOnboardingTutorial}>
+                  {tr("Close tutorial", "閉じる")}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="modalOverlay tutorialOverlay" onClick={requestCloseOnboardingTutorial}>
+          <div
+            className="modalCard tutorialModalCard"
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="onboarding-tutorial-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="tutorialModalHeader">
+              <span className="tutorialEyebrow">
+                {tr(`Step ${currentSlideIndex + 1} of ${slideCount}`, `ステップ ${currentSlideIndex + 1} / ${slideCount}`)}
+              </span>
+              <button
+                type="button"
+                className="tutorialCloseBtn"
+                aria-label={tr("Skip tutorial", "チュートリアルを閉じる")}
+                onClick={requestCloseOnboardingTutorial}
+              >
+                &times;
+              </button>
+            </div>
+            {currentSlide.type === "welcome" ? (
+                <div className="tutorialWelcomeSlide">
+                  <div className="tutorialWelcomeIcon" aria-hidden="true">✨</div>
+                  <div className="tutorialCopy tutorialWelcomeCopy">
+                    <h3 id="onboarding-tutorial-title">{currentSlide.title}</h3>
+                    <p>{currentSlide.body}</p>
+                  </div>
+                  <div className="tutorialWelcomeHighlights" aria-label={tr("Tutorial overview", "チュートリアル概要")}>
+                    {currentSlide.highlights.map((item) => (
+                      <span key={item}>{item}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="tutorialImageFrame">
+                    <img src={currentSlide.image} alt={currentSlide.alt} />
+                  </div>
+                  <div className="tutorialCopy">
+                    <h3 id="onboarding-tutorial-title">{currentSlide.title}</h3>
+                    <p>{currentSlide.body}</p>
+                  </div>
+                </>
+            )}
+            <div className="tutorialDots" aria-label={tr("Tutorial progress", "チュートリアル進行状況")}>
+              {ONBOARDING_TUTORIAL_SLIDES.map((slide, index) => (
+                <button
+                  type="button"
+                  key={slide.title}
+                  className={`tutorialDot ${index === currentSlideIndex ? "isActive" : ""}`}
+                  aria-label={tr(`Go to step ${index + 1}`, `ステップ ${index + 1} へ`)}
+                  aria-current={index === currentSlideIndex ? "step" : undefined}
+                  onClick={() => {
+                    setOnboardingTutorialStep(index);
+                  }}
+                />
+              ))}
+            </div>
+            <div className="modalActions tutorialActions">
+              <button
+                type="button"
+                className="modalBtn ghost"
+                onClick={() => {
+                  setOnboardingTutorialStep((step) => Math.max(0, step - 1));
+                }}
+                disabled={currentSlideIndex === 0}
+              >
+                {tr("Back", "戻る")}
+              </button>
+              <button
+                type="button"
+                className="modalBtn primary"
+                onClick={() => {
+                  if (isLastSlide) {
+                    completeOnboardingTutorial();
+                    return;
+                  }
+                  setOnboardingTutorialStep((step) => Math.min(slideCount - 1, step + 1));
+                }}
+              >
+                {isLastSlide ? tr("Start learning", "学習を始める") : tr("Next", "次へ")}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (isAddBookModalOpen) {
       return (
         <div className="modalOverlay" onClick={() => setIsAddBookModalOpen(false)}>

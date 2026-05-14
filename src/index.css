@@ -1893,7 +1893,7 @@ body.theme-dark .accountFoundingBadge {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 20px;
+  padding: 14px 18px;
 }
 
 .adaptiveReviewHeroCopy {
@@ -1902,9 +1902,9 @@ body.theme-dark .accountFoundingBadge {
 
 .adaptiveReviewHeroCard h3,
 .adaptiveReviewStateCard h3 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: var(--text);
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.2;
 }
 
@@ -1916,9 +1916,9 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewStatPill {
-  min-width: 96px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  min-width: 88px;
+  padding: 8px 10px;
+  border-radius: 8px;
   background: var(--surface-alt);
   border: 1px solid var(--border);
   box-shadow: none;
@@ -1934,7 +1934,7 @@ body.theme-dark .accountFoundingBadge {
 
 .adaptiveReviewStatPill strong {
   display: block;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
   color: var(--text);
 }
@@ -1948,7 +1948,8 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewCard {
-  padding: 18px 20px;
+  padding: 14px 16px 16px;
+  scroll-margin-top: 12px;
 }
 
 .adaptiveReviewCardTop {
@@ -1956,11 +1957,11 @@ body.theme-dark .accountFoundingBadge {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .adaptiveReviewMetaLine {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: var(--muted);
   font-size: 13px;
 }
@@ -1984,12 +1985,12 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewFlashcardWrap {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .adaptiveReviewFlashcard {
-  min-height: 280px;
-  border-radius: 16px;
+  min-height: clamp(190px, 34svh, 280px);
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: none;
@@ -2006,8 +2007,8 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewFlashcardInner {
-  min-height: 280px;
-  padding: 24px;
+  min-height: clamp(190px, 34svh, 280px);
+  padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2016,9 +2017,9 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewWord {
-  font-size: clamp(30px, 4.8vw, 42px);
+  font-size: clamp(28px, 4.2vw, 40px);
   line-height: 1.1;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   color: var(--text);
 }
 
@@ -2032,10 +2033,10 @@ body.theme-dark .accountFoundingBadge {
 .adaptiveReviewDefinition {
   max-width: 560px;
   margin: 0;
-  font-size: clamp(22px, 3.2vw, 28px);
+  font-size: clamp(20px, 3vw, 27px);
   line-height: 1.3;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--text);
 }
 
@@ -2051,16 +2052,17 @@ body.theme-dark .accountFoundingBadge {
 .adaptiveReviewRatingsGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 
 .adaptiveReviewRatingBtn {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--text);
-  padding: 12px;
+  min-height: 64px;
+  padding: 10px;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.16s ease, background-color 0.16s ease;
@@ -2742,6 +2744,218 @@ body.theme-dark .modalBtn.primary {
 .modalBtn.danger {
   background: #e5484d;
   color: #fff;
+}
+
+.tutorialOverlay {
+  padding: 18px;
+}
+
+.tutorialModalCard {
+  width: min(720px, 100%);
+  height: min(610px, calc(100vh - 36px));
+  max-height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  overflow: auto;
+}
+
+.tutorialModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tutorialEyebrow {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tutorialCloseBtn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tutorialImageFrame {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  overflow: hidden;
+  aspect-ratio: 16 / 7.8;
+  box-shadow: var(--shadow-soft);
+  flex: 0 0 auto;
+}
+
+.tutorialImageFrame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+  display: block;
+}
+
+.tutorialCopy {
+  min-height: 82px;
+}
+
+.tutorialWelcomeSlide {
+  min-height: 390px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.tutorialWelcomeIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-alt) 86%);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border) 72%);
+  font-size: 34px;
+  box-shadow: var(--shadow-soft);
+}
+
+.tutorialWelcomeCopy {
+  min-height: 0;
+  max-width: 520px;
+}
+
+.tutorialWelcomeCopy h3 {
+  font-size: 30px;
+}
+
+.tutorialWelcomeCopy p {
+  margin: 8px auto 0;
+}
+
+.tutorialWelcomeHighlights {
+  width: min(520px, 100%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tutorialWelcomeHighlights span {
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tutorialModalCard h3 {
+  margin: 2px 0 0;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.tutorialModalCard p {
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.tutorialDots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tutorialDot {
+  width: 10px;
+  height: 10px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 28%, transparent 72%);
+  cursor: pointer;
+}
+
+.tutorialDot.isActive {
+  width: 24px;
+  background: var(--accent);
+}
+
+.tutorialActions {
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 700px) {
+  .tutorialOverlay {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .tutorialModalCard {
+    height: min(590px, calc(100vh - 20px));
+    max-height: calc(100vh - 20px);
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .tutorialImageFrame {
+    aspect-ratio: 4 / 3;
+  }
+
+  .tutorialWelcomeSlide {
+    min-height: 360px;
+    gap: 14px;
+  }
+
+  .tutorialWelcomeIcon {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+    font-size: 28px;
+  }
+
+  .tutorialWelcomeCopy h3 {
+    font-size: 24px;
+  }
+
+  .tutorialWelcomeHighlights {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .tutorialModalCard h3 {
+    font-size: 21px;
+  }
+
+  .tutorialModalCard p {
+    font-size: 14px;
+  }
 }
 
 .inputRow {
@@ -8416,7 +8630,7 @@ body.theme-dark .recentSquare {
 
   .adaptiveReviewFlashcard,
   .adaptiveReviewFlashcardInner {
-    min-height: 240px;
+    min-height: clamp(170px, 32svh, 220px);
   }
 
   .adaptiveReviewRatingsGrid {

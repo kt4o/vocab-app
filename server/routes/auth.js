@@ -1118,7 +1118,7 @@ authRouter.post("/account/redeem-school-code", requireAuth, async (req, res) => 
       res.status(404).json({ error: "school-code-not-found" });
       return;
     }
-    if (!Boolean(codeRow.is_active)) {
+    if (!codeRow.is_active) {
       await client.query("ROLLBACK");
       res.status(409).json({ error: "school-code-inactive" });
       return;
@@ -1161,7 +1161,7 @@ authRouter.post("/account/redeem-school-code", requireAuth, async (req, res) => 
 
     let plan = "free";
     let isLifetimePro = false;
-    if (Boolean(codeRow.grants_lifetime_pro)) {
+    if (codeRow.grants_lifetime_pro) {
       const userUpdate = await client.query(
         `
           UPDATE users

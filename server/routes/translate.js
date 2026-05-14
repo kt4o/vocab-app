@@ -8,6 +8,8 @@ const TRANSLATION_CACHE_TTL_MS = (() => {
   if (!Number.isFinite(parsed) || parsed <= 0) return 7 * 24 * 60 * 60 * 1000;
   return parsed;
 })();
+const UPSTREAM_FETCH_TIMEOUT_MS = 8000;
+const UPSTREAM_FETCH_RETRY_DELAYS_MS = [350, 900];
 
 function normalizeWordInput(value) {
   return String(value || "")
@@ -34,6 +36,60 @@ function normalizeProvider(value, fallback = "unknown") {
   return normalized || fallback;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isTransientHttpStatus(status) {
+  return status === 408 || status === 425 || status === 429 || (status >= 500 && status <= 599);
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || UPSTREAM_FETCH_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const fetchOptions = { ...options };
+  delete fetchOptions.timeoutMs;
+
+  try {
+    return await fetch(url, {
+      ...fetchOptions,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function fetchWithRetry(url, options = {}) {
+  const retryDelays = Array.isArray(options.retryDelays)
+    ? options.retryDelays
+    : UPSTREAM_FETCH_RETRY_DELAYS_MS;
+  const fetchOptions = { ...options };
+  delete fetchOptions.retryDelays;
+  let lastError;
+
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    try {
+      const response = await fetchWithTimeout(url, fetchOptions);
+      if (!isTransientHttpStatus(response.status) || attempt >= retryDelays.length) {
+        return response;
+      }
+    } catch (error) {
+      lastError = error;
+      if (attempt >= retryDelays.length) {
+        throw error;
+      }
+    }
+
+    await sleep(retryDelays[attempt]);
+  }
+
+  throw lastError || new Error("Upstream request failed");
+}
+
 function decodeHtmlEntities(value) {
   return String(value || "")
     .replace(/&quot;/g, "\"")
@@ -50,7 +106,7 @@ function hasJapaneseCharacters(value) {
 function normalizeCandidateTranslation(value) {
   return decodeHtmlEntities(value)
     .replace(/\s+/g, " ")
-    .replace(/^[\s"'`“”‘’(){}\[\]<>]+|[\s"'`“”‘’(){}\[\]<>]+$/g, "")
+    .replace(/^[\s"'`“”‘’(){}[\]<>]+|[\s"'`“”‘’(){}[\]<>]+$/g, "")
     .trim();
 }
 
@@ -115,7 +171,7 @@ function extractJishoTranslations(payload, inputText) {
 
 async function fetchJishoTranslations(inputText) {
   if (!isSimpleEnglishWord(inputText)) return [];
-  const response = await fetch(
+  const response = await fetchWithRetry(
     `https://jisho.org/api/v1/search/words?keyword=${encodeURIComponent(inputText)}`,
     {
       headers: {

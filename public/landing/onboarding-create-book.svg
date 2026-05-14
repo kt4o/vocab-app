@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 1080" role="img" aria-labelledby="title desc">
+  <title id="title">My Books create your first vocabulary book screen</title>
+  <desc id="desc">Vocalibry My Books screen with an empty state card prompting the user to create their first vocabulary book.</desc>
+  <rect width="2048" height="1080" fill="#f2f6fb"/>
+  <rect width="398" height="1080" fill="#fff"/>
+  <path d="M398 0v1080" stroke="#d2ddea" stroke-width="1"/>
+  <text x="30" y="82" fill="#152234" font-family="Inter, Arial, sans-serif" font-size="38" font-weight="760">Vocalibry</text>
+  <path d="M305 54h31l-18 35h-30z" fill="#0b61d8"/>
+  <path d="M335 54h31l-18 35h-30z" fill="#139bf2"/>
+  <path d="M318 89h30l17-35h-30z" fill="#1636a1"/>
+
+  <g font-family="Inter, Arial, sans-serif" font-size="24" fill="#132237">
+    <text x="50" y="171">Dashboard</text><text x="322" y="171">🏠</text>
+    <rect x="30" y="210" width="340" height="70" rx="14" fill="#edf3fa" stroke="#d2ddea"/>
+    <text x="50" y="253" font-weight="700">My Books</text><text x="322" y="253">📚</text>
+    <text x="50" y="337">Data</text><text x="322" y="337">📊</text>
+    <text x="50" y="420">Definitions</text><text x="324" y="420">📘</text>
+    <text x="50" y="503">Flashcards</text><text x="326" y="503">⚡</text>
+    <text x="50" y="586">Quiz</text><text x="322" y="586">✅</text>
+    <text x="50" y="669">Socials</text><text x="322" y="669">👥</text>
+  </g>
+  <text x="30" y="748" fill="#68768a" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="760" letter-spacing="2">RECENT BOOKS</text>
+  <text x="30" y="798" fill="#68768a" font-family="Inter, Arial, sans-serif" font-size="22">No books yet</text>
+  <text x="30" y="856" fill="#68768a" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="760" letter-spacing="2">SETTINGS</text>
+  <text x="50" y="926" fill="#132237" font-family="Inter, Arial, sans-serif" font-size="24">Settings</text>
+  <text x="322" y="926" font-family="Inter, Arial, sans-serif" font-size="24">⚙️</text>
+  <text x="50" y="1008" fill="#132237" font-family="Inter, Arial, sans-serif" font-size="24">My Account</text>
+  <text x="322" y="1008" font-family="Inter, Arial, sans-serif" font-size="24">👤</text>
+
+  <text x="478" y="148" fill="#172335" font-family="Inter, Arial, sans-serif" font-size="52" font-weight="800">×</text>
+  <text x="552" y="152" fill="#172335" font-family="Inter, Arial, sans-serif" font-size="62" font-weight="800">My Books</text>
+
+  <rect x="464" y="214" width="990" height="393" rx="16" fill="#fff" stroke="#d2ddea" stroke-width="2"/>
+  <rect x="502" y="250" width="63" height="63" rx="16" fill="#edf3fa" stroke="#d2ddea"/>
+  <text x="518" y="292" font-family="Inter, Arial, sans-serif" font-size="28">📚</text>
+  <text x="502" y="367" fill="#162237" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="800">Create your first vocabulary book</text>
+  <text x="502" y="426" fill="#5d6c80" font-family="Inter, Arial, sans-serif" font-size="27">Books keep words grouped by class, novel, exam, or topic so review</text>
+  <text x="502" y="464" fill="#5d6c80" font-family="Inter, Arial, sans-serif" font-size="27">stays focused.</text>
+  <rect x="502" y="502" width="164" height="69" rx="14" fill="#fff" stroke="#d2ddea" stroke-width="2"/>
+  <text x="532" y="545" fill="#132237" font-family="Inter, Arial, sans-serif" font-size="24">Add Book</text>
+</svg>

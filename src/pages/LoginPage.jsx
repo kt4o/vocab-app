@@ -9,6 +9,7 @@ const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
 const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
+const ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY = "vocab_onboarding_tutorial_pending";
 const LEGAL_VERSION = "2026-03-14";
 
 function isBearerAuthToken(value) {
@@ -312,6 +313,9 @@ export function LoginPage({ initialMode = "login" }) {
         localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
       }
       localStorage.setItem(AUTH_USERNAME_STORAGE_KEY, savedUsername);
+      if (mode === "register") {
+        localStorage.setItem(ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY, savedUsername || "1");
+      }
       if (Number.isFinite(safeUserId) && safeUserId > 0) {
         identifyAnalyticsUser(safeUserId, {
           username: savedUsername,
