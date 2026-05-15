@@ -1671,6 +1671,9 @@ export default function App() {
   const [isOnboardingTutorialOpen, setIsOnboardingTutorialOpen] = useState(false);
   const [isOnboardingCloseConfirmOpen, setIsOnboardingCloseConfirmOpen] = useState(false);
   const [onboardingTutorialStep, setOnboardingTutorialStep] = useState(0);
+  const [hasCompletedOnboardingThisSession, setHasCompletedOnboardingThisSession] = useState(false);
+  const [guidedTourStep, setGuidedTourStep] = useState("");
+  const [isGuidedTourDismissed, setIsGuidedTourDismissed] = useState(false);
   const [quizBackScreen, setQuizBackScreen] = useState("dashboard");
   const [quizMode, setQuizMode] = useState("normal");
   const [quizSetupStep, setQuizSetupStep] = useState(0);
@@ -1850,6 +1853,7 @@ export default function App() {
   }, []);
 
   const currentBook = books.find((b) => b.id === currentBookId);
+  const currentBookWordCount = (currentBook?.words || []).length;
   const currentBookChapters = getBookChapterList(currentBook);
   const fallbackChapterId = currentBookChapters[0]?.id || DEFAULT_CHAPTER_ID;
   const safeSelectedChapterIdForNewWords = currentBookChapters.some(
@@ -2347,6 +2351,7 @@ export default function App() {
   }, [authToken, isProPlan, loadAdaptiveReviewQueue]);
 
   function renderWithSidebar(content) {
+    const isGuidedModalOpen = Boolean(guidedTourStep && noticeModal);
     const inDefinitions =
       screen === "definitions" || screen === "definitionsSelect" || screen === "chapters";
     const inFlashcards = screen === "flashcards" || screen === "flashcardsSelect";
@@ -2378,7 +2383,7 @@ export default function App() {
     ) : content;
 
     return (
-      <div className="appShell">
+      <div className={`appShell ${guidedTourStep && !isOnboardingTutorialOpen && !isOnboardingCloseConfirmOpen ? "isGuidedLocked" : ""} ${isGuidedModalOpen ? "hasGuidedModalOpen" : ""}`}>
         <aside ref={sidebarRef} className={`sidebar ${isSidebarHidden ? "isCollapsed" : ""}`}>
           <div className="sidebarTopRow">
             {!isSidebarHidden && (
@@ -2537,7 +2542,10 @@ export default function App() {
             </div>
           </div>
         </aside>
-        <main className="appMain">{mainContent}</main>
+        <main className="appMain">
+          {mainContent}
+          {renderGuidedTourCoach("floating")}
+        </main>
       </div>
     );
   }
@@ -2748,6 +2756,9 @@ export default function App() {
     }
     setAuthToken("");
     setAuthUsername("");
+    setHasCompletedOnboardingThisSession(false);
+    setGuidedTourStep("");
+    setIsGuidedTourDismissed(false);
     resetAnalyticsIdentity();
     localStorage.removeItem("vocab_auth_token");
     if (clearLocalData) {
@@ -3916,6 +3927,9 @@ export default function App() {
   function openAddBookModal() {
     setNewBookName("");
     setIsAddBookModalOpen(true);
+    if (guidedTourStep === "dashboard-add-book") {
+      setGuidedTourStep("book-name");
+    }
   }
 
   function createBook() {
@@ -3930,8 +3944,13 @@ export default function App() {
       lastOpened: Date.now(),
     };
     setBooks([...books, newBook]);
+    setCurrentBookId(newBook.id);
+    setScreen("bookMenu");
     setIsAddBookModalOpen(false);
     setNewBookName("");
+    if (guidedTourStep === "book-create" || guidedTourStep === "book-name") {
+      setGuidedTourStep("book-definitions");
+    }
   }
 
   function addChapter() {
@@ -4294,12 +4313,175 @@ export default function App() {
     setIsOnboardingTutorialOpen(false);
     setIsOnboardingCloseConfirmOpen(false);
     setOnboardingTutorialStep(0);
+    setHasCompletedOnboardingThisSession(true);
   }, [authUsername]);
+
+  function focusAddWordFieldSoon() {
+    window.setTimeout(() => {
+      document.querySelector(".addWordFieldGroup input")?.focus();
+    }, 80);
+  }
+
+  function startGuidedDashboardTour() {
+    completeOnboardingTutorial();
+    setIsGuidedTourDismissed(false);
+    setGuidedTourStep("dashboard-add-book");
+    setScreen("dashboard");
+  }
+
+  function getGuidedTourStep() {
+    if (!guidedTourStep) return null;
+
+    const wordCount = (currentBook?.words || []).length;
+    const needsMoreWords = wordCount < 2;
+
+    if (guidedTourStep === "dashboard-add-book") {
+      return {
+        key: "dashboard-add-book",
+        stepLabel: "Step 1",
+        title: tr("Create a book", "Create a book"),
+        body: tr("Press this + button to make your first vocabulary book.", "Press this + button to make your first vocabulary book."),
+      };
+    }
+
+    if (guidedTourStep === "book-name") {
+      return {
+        key: "book-name",
+        stepLabel: "Step 1",
+        title: tr("Name your book", "Name your book"),
+        body: tr("Type a short name, like Class Words, Novel Words, or Exam Prep.", "Type a short name, like Class Words, Novel Words, or Exam Prep."),
+      };
+    }
+
+    if (guidedTourStep === "book-create") {
+      return {
+        key: "book-create",
+        stepLabel: "Step 1",
+        title: tr("Press Create", "Press Create"),
+        body: tr("This button saves the book and opens the next step.", "This button saves the book and opens the next step."),
+      };
+    }
+
+    if (guidedTourStep === "book-definitions") {
+      return {
+        key: "book-definitions",
+        stepLabel: "Step 2",
+        title: tr("Open Definitions", "Open Definitions"),
+        body: tr("Press Definitions. This is where new words are added to the book.", "Press Definitions. This is where new words are added to the book."),
+      };
+    }
+
+    if (guidedTourStep === "word-type") {
+      return {
+        key: "word-type",
+        stepLabel: "Step 2",
+        title: tr(needsMoreWords ? "Type a word" : "Words are ready", needsMoreWords ? "Type a word" : "Words are ready"),
+        body: tr(
+          needsMoreWords
+            ? `Add ${2 - wordCount} more word${2 - wordCount === 1 ? "" : "s"} so the quiz has enough choices.`
+            : "You have enough words for a starter quiz.",
+          needsMoreWords
+            ? `Add ${2 - wordCount} more word${2 - wordCount === 1 ? "" : "s"} so the quiz has enough choices.`
+            : "You have enough words for a starter quiz."
+        ),
+      };
+    }
+
+    if (guidedTourStep === "word-add") {
+      return {
+        key: "word-add",
+        stepLabel: "Step 2",
+        title: tr("Press + to save it", "Press + to save it"),
+        body: tr("Vocalibry will fetch the definition and add the word to this book.", "Vocalibry will fetch the definition and add the word to this book."),
+      };
+    }
+
+    if (guidedTourStep === "word-saving") {
+      return {
+        key: "word-saving",
+        stepLabel: "Step 2",
+        title: tr("Saving the word", "Saving the word"),
+        body: tr("Wait here while Vocalibry fetches and saves the definition.", "Wait here while Vocalibry fetches and saves the definition."),
+      };
+    }
+
+    if (guidedTourStep === "definitions-back") {
+      return {
+        key: "definitions-back",
+        stepLabel: "Step 3",
+        title: tr("Go back to the book menu", "Go back to the book menu"),
+        body: tr("Now press this back button so we can start a quiz from the book menu.", "Now press this back button so we can start a quiz from the book menu."),
+      };
+    }
+
+    if (guidedTourStep === "book-quiz") {
+      return {
+        key: "book-quiz",
+        stepLabel: "Step 3",
+        title: tr("Open Quiz", "Open Quiz"),
+        body: tr("Press Quiz to review the words you just saved.", "Press Quiz to review the words you just saved."),
+      };
+    }
+
+    if (guidedTourStep === "quiz-start") {
+      return {
+        key: "quiz-start",
+        stepLabel: "Step 3",
+        title: tr("Start the quiz", "Start the quiz"),
+        body: tr("Press Start Smart Quiz to begin reviewing your saved words.", "Press Start Smart Quiz to begin reviewing your saved words."),
+      };
+    }
+
+    return null;
+  }
+
+  function renderGuidedTourCoach(placement = "floating", targetKey = "") {
+    const guidedStep = getGuidedTourStep();
+    if (!guidedStep || isOnboardingTutorialOpen || isOnboardingCloseConfirmOpen) return null;
+    if (targetKey && guidedStep.key !== targetKey) return null;
+    if (!targetKey && screen === "dashboard" && guidedStep.key === "dashboard-add-book") return null;
+    if (!targetKey && screen === "bookMenu" && (guidedStep.key === "book-definitions" || guidedStep.key === "book-quiz")) return null;
+    if (!targetKey && screen === "definitions" && ["word-type", "word-add", "word-saving", "definitions-back"].includes(guidedStep.key)) return null;
+    if (!targetKey && isAddBookModalOpen && ["book-name", "book-create"].includes(guidedStep.key)) return null;
+    if (!targetKey && screen === "quizSelect" && guidedStep.key === "quiz-start") return null;
+
+    return (
+      <aside className={`guidedCoach guidedCoach-${guidedStep.key} guidedCoach-${placement}`} aria-live="polite">
+        <div className="guidedCoachTopRow">
+          <span className="guidedCoachStep">{guidedStep.stepLabel}</span>
+        </div>
+        <h2>{guidedStep.title}</h2>
+        <p>{guidedStep.body}</p>
+        <div className="guidedCoachActions">
+          <span className="guidedCoachHint">{tr("Use the highlighted control.", "Use the highlighted control.")}</span>
+        </div>
+      </aside>
+    );
+  }
+
+  useEffect(() => {
+    if (!guidedTourStep) return;
+
+    if (guidedTourStep === "word-saving" && !loading) {
+      if (currentBookWordCount >= 2) {
+        setGuidedTourStep("definitions-back");
+      } else {
+        setGuidedTourStep("word-type");
+        focusAddWordFieldSoon();
+      }
+    }
+  }, [guidedTourStep, loading, currentBookWordCount]);
 
   useEffect(() => {
     if (!authToken || !authUsername) return;
     if (isDevTutorialAccount(authUsername)) {
+      if (hasCompletedOnboardingThisSession) return;
+      localStorage.removeItem(getOnboardingSeenStorageKey(authUsername));
+      localStorage.removeItem(ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY);
+      setGuidedTourStep("");
+      setIsGuidedTourDismissed(false);
       setOnboardingTutorialStep(0);
+      setIsOnboardingCloseConfirmOpen(false);
       setIsOnboardingTutorialOpen(true);
       return;
     }
@@ -4320,7 +4502,22 @@ export default function App() {
     setOnboardingTutorialStep(0);
     setIsOnboardingTutorialOpen(true);
     setIsOnboardingCloseConfirmOpen(false);
-  }, [authToken, authUsername]);
+  }, [authToken, authUsername, hasCompletedOnboardingThisSession]);
+
+  useEffect(() => {
+    if (!authToken || !isDevTutorialAccount(authUsername)) return;
+    if (isGuidedTourDismissed || guidedTourStep) return;
+    if (isOnboardingTutorialOpen || isOnboardingCloseConfirmOpen) return;
+    setGuidedTourStep("dashboard-add-book");
+    setScreen("dashboard");
+  }, [
+    authToken,
+    authUsername,
+    guidedTourStep,
+    isGuidedTourDismissed,
+    isOnboardingTutorialOpen,
+    isOnboardingCloseConfirmOpen,
+  ]);
 
   useEffect(() => {
     const isModalOpen =
@@ -4338,6 +4535,10 @@ export default function App() {
     if (!isModalOpen) return;
 
     const closeModal = () => {
+      if (guidedTourStep) {
+        if (noticeModal) setNoticeModal(null);
+        return;
+      }
       if (isOnboardingCloseConfirmOpen) setIsOnboardingCloseConfirmOpen(false);
       else if (isOnboardingTutorialOpen) setIsOnboardingCloseConfirmOpen(true);
       if (isAddBookModalOpen) setIsAddBookModalOpen(false);
@@ -4396,6 +4597,7 @@ export default function App() {
     isDeleteAccountConfirmOpen,
     noticeModal,
     completeOnboardingTutorial,
+    guidedTourStep,
   ]);
 
   function renderModal() {
@@ -4472,6 +4674,27 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+              ) : currentSlide.type === "action" ? (
+                <div className="tutorialActionSlide">
+                  <div className="tutorialActionPreview" aria-hidden="true">
+                    <div className="tutorialActionPreviewHeader">
+                      <span>{tr("My First Book", "My First Book")}</span>
+                      <span>{tr("Definitions", "Definitions")}</span>
+                    </div>
+                    <div className="tutorialActionInputRow">
+                      <span>{tr("serendipity", "serendipity")}</span>
+                      <strong>+</strong>
+                    </div>
+                    <div className="tutorialActionResult">
+                      <strong>{tr("serendipity", "serendipity")}</strong>
+                      <p>{tr("A useful word saved with its definition, ready for flashcards and quizzes.", "A useful word saved with its definition, ready for flashcards and quizzes.")}</p>
+                    </div>
+                  </div>
+                  <div className="tutorialCopy tutorialActionCopy">
+                    <h3 id="onboarding-tutorial-title">{currentSlide.title}</h3>
+                    <p>{currentSlide.body}</p>
+                  </div>
+                </div>
               ) : (
                 <>
                   <div className="tutorialImageFrame">
@@ -4513,13 +4736,13 @@ export default function App() {
                 className="modalBtn primary"
                 onClick={() => {
                   if (isLastSlide) {
-                    completeOnboardingTutorial();
+                    startGuidedDashboardTour();
                     return;
                   }
                   setOnboardingTutorialStep((step) => Math.min(slideCount - 1, step + 1));
                 }}
               >
-                {isLastSlide ? tr("Start learning", "学習を始める") : tr("Next", "次へ")}
+                {isLastSlide ? tr("Start guided setup", "学習を始める") : tr("Next", "次へ")}
               </button>
             </div>
           </div>
@@ -4540,24 +4763,32 @@ export default function App() {
           >
             <h3 id="create-book-title">{tr("Create Book", "ブック作成")}</h3>
             <input
+              className={guidedTourStep === "book-name" ? "guidedTarget" : ""}
               value={newBookName}
-              onChange={(e) => setNewBookName(e.target.value)}
+              onChange={(e) => {
+                setNewBookName(e.target.value);
+                if (guidedTourStep === "book-name" && e.target.value.trim()) {
+                  setGuidedTourStep("book-create");
+                }
+              }}
               onKeyDown={(e) => e.key === "Enter" && createBook()}
               placeholder={tr("Enter book name", "ブック名を入力")}
               autoFocus
             />
+            {renderGuidedTourCoach("inline", "book-name")}
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={() => setIsAddBookModalOpen(false)}>
                 {tr("Cancel", "キャンセル")}
               </button>
               <button
                 type="button"
-                className="modalBtn primary"
+                className={`modalBtn primary ${guidedTourStep === "book-create" ? "guidedTarget" : ""}`}
                 onClick={createBook}
                 disabled={!newBookName.trim()}
               >
                 {tr("Create", "作成")}
               </button>
+              {renderGuidedTourCoach("inlineRight", "book-create")}
             </div>
           </div>
         </div>
@@ -5483,6 +5714,9 @@ export default function App() {
 
     const cleanWord = inputWord.trim();
     setLastAddedWord("");
+    if (guidedTourStep === "word-add") {
+      setGuidedTourStep("word-saving");
+    }
     const normalizedInput = cleanWord.toLowerCase();
     const duplicateWord = currentBook.words.some(
       (w) =>
@@ -6009,11 +6243,17 @@ export default function App() {
 
         <div className="recentSection">
           <h2 className="recentTitle">{tr("Quick Access", "クイックアクセス")}</h2>
-          <div className="recentBar">
-          <div className="recentScroll">
-            <button className="recentSquare addSquare" onClick={openAddBookModal}>
-              +
-            </button>
+            <div className="recentBar">
+          <div className={`recentScroll ${guidedTourStep === "dashboard-add-book" ? "hasGuidedCoach" : ""}`}>
+            <div className="guidedControlAnchor">
+              <button
+                className={`recentSquare addSquare ${guidedTourStep === "dashboard-add-book" ? "guidedTarget" : ""}`}
+                onClick={openAddBookModal}
+              >
+                +
+              </button>
+              {renderGuidedTourCoach("below", "dashboard-add-book")}
+            </div>
 
             {quickAccessBooks.map((book) => (
                 <div key={book.id} className="recentSquareWrap">
@@ -7165,15 +7405,24 @@ export default function App() {
           <h1>{currentBook?.name}</h1>
         </div>
         <div className="panelGrid bookModeGrid">
-          <button
-            type="button"
-            className="panelCard bookModeCard"
-            onClick={() => setScreen("definitions")}
-          >
-            <span className="bookModeIcon" aria-hidden="true">{"\uD83D\uDCD8"}</span>
-            <strong>{tr("Definitions", "単語追加")}</strong>
-            <p>{tr("Add and manage words, meanings, and chapter placement.", "単語・意味・章を追加/管理します。")}</p>
-          </button>
+          <div className="guidedControlAnchor">
+            <button
+              type="button"
+              className={`panelCard bookModeCard ${guidedTourStep === "book-definitions" ? "guidedTarget" : ""}`}
+              onClick={() => {
+                setScreen("definitions");
+                if (guidedTourStep === "book-definitions") {
+                  setGuidedTourStep("word-type");
+                  focusAddWordFieldSoon();
+                }
+              }}
+            >
+              <span className="bookModeIcon" aria-hidden="true">{"\uD83D\uDCD8"}</span>
+              <strong>{tr("Definitions", "単語追加")}</strong>
+              <p>{tr("Add and manage words, meanings, and chapter placement.", "単語・意味・章を追加/管理します。")}</p>
+            </button>
+            {renderGuidedTourCoach("below", "book-definitions")}
+          </div>
 
           <button
             type="button"
@@ -7184,20 +7433,26 @@ export default function App() {
             <strong>{tr("Flashcards", "フラッシュカード")}</strong>
             <p>{tr("Drill recall quickly with focused review sessions.", "集中復習で素早く記憶を強化します。")}</p>
           </button>
-          <button
-            type="button"
-            className="panelCard bookModeCard"
-            onClick={() => {
-              setQuizBackScreen("bookMenu");
-              setQuizMode("normal");
-              initializeQuizSetupSelection();
-              setScreen("quizSelect");
-            }}
-          >
-            <span className="bookModeIcon" aria-hidden="true">{"\u2705"}</span>
-            <strong>{tr("Quiz", "クイズ")}</strong>
-            <p>{tr("Test active recall with normal, typing, or mistake mode.", "通常・タイピング・ミス復習で能動想起を鍛えます。")}</p>
-          </button>
+          <div className="guidedControlAnchor">
+            <button
+              type="button"
+              className={`panelCard bookModeCard ${guidedTourStep === "book-quiz" ? "guidedTarget" : ""}`}
+              onClick={() => {
+                setQuizBackScreen("bookMenu");
+                setQuizMode("normal");
+                initializeQuizSetupSelection();
+                setScreen("quizSelect");
+                if (guidedTourStep === "book-quiz") {
+                  setGuidedTourStep("quiz-start");
+                }
+              }}
+            >
+              <span className="bookModeIcon" aria-hidden="true">{"\u2705"}</span>
+              <strong>{tr("Quiz", "クイズ")}</strong>
+              <p>{tr("Test active recall with normal, typing, or mistake mode.", "通常・タイピング・ミス復習で能動想起を鍛えます。")}</p>
+            </button>
+            {renderGuidedTourCoach("below", "book-quiz")}
+          </div>
         </div>
         {renderModal()}
       </div>
@@ -7238,19 +7493,41 @@ export default function App() {
 
   // ---------- DEFINITIONS ----------
   if (screen === "definitions") {
+    const isGuidingWordInput = guidedTourStep === "word-type";
+    const isGuidingAddButton = guidedTourStep === "word-add";
+    const isGuidingSaving = guidedTourStep === "word-saving";
+    const isGuidingBackToMenu = guidedTourStep === "definitions-back";
+
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
-          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("bookMenu")}>&times;</button>
+          <div className="guidedControlAnchor">
+            <button
+              className={`backBtn ${isGuidingBackToMenu ? "guidedTarget" : ""}`}
+              aria-label={tr("Go back", "\u623b\u308b")}
+              onClick={() => {
+                setScreen("bookMenu");
+                if (guidedTourStep === "definitions-back") {
+                  setGuidedTourStep("book-quiz");
+                }
+              }}
+            >
+              &times;
+            </button>
+            {renderGuidedTourCoach("below", "definitions-back")}
+          </div>
           <h1>{currentBook?.name}</h1>
         </div>
-        <div className="inputRow">
-          <div className="addWordFieldGroup">
+        <div className={`inputRow ${isGuidingWordInput || isGuidingAddButton || isGuidingSaving ? "guidedTargetRow" : ""}`}>
+          <div className={`addWordFieldGroup ${isGuidingWordInput ? "guidedTarget" : ""}`}>
             <input
               value={inputWord}
               onChange={(e) => {
                 setInputWord(e.target.value);
                 setLastAddedWord("");
+                if (guidedTourStep === "word-type" && e.target.value.trim()) {
+                  setGuidedTourStep("word-add");
+                }
               }}
               onKeyDown={(e) => {
                 if (e.key !== "Enter") return;
@@ -7263,13 +7540,16 @@ export default function App() {
           </div>
           <button
             type="button"
-            className="addWordBtn"
+            className={`addWordBtn ${isGuidingAddButton ? "guidedTarget" : ""}`}
             onClick={addWord}
             disabled={loading || !inputWord.trim()}
             aria-label={tr("Add word", "Add word")}
           >
             {loading ? "..." : "+"}
           </button>
+          {renderGuidedTourCoach("inline", "word-type")}
+          {renderGuidedTourCoach("inlineRight", "word-add")}
+          {renderGuidedTourCoach("inlineRight", "word-saving")}
         </div>
         <p className="definitionAttributionNote">
           {useEnglishToJapaneseDictionary
@@ -7320,7 +7600,10 @@ export default function App() {
             );
 
             return (
-              <div key={i} className="wordRow">
+              <div
+                key={i}
+                className="wordRow"
+              >
                 <button className="deleteBtn" onClick={() => askDeleteWord(w, i)}>x</button>
                 <div className="wordContent">
                   <div className="wordHeaderLine">
@@ -7668,14 +7951,23 @@ export default function App() {
               </p>
             </div>
             <div className="quizFastStartActions">
-              <button
-                type="button"
-                className="primaryBtn"
-                onClick={startSmartQuiz}
-                disabled={smartQuizWordCount < 2}
-              >
-                {tr("Start Smart Quiz", "Start Smart Quiz")}
-              </button>
+              <div className="guidedControlAnchor">
+                <button
+                  type="button"
+                  className={`primaryBtn ${guidedTourStep === "quiz-start" ? "guidedTarget" : ""}`}
+                  onClick={() => {
+                    if (guidedTourStep === "quiz-start") {
+                      setGuidedTourStep("");
+                      setIsGuidedTourDismissed(true);
+                    }
+                    startSmartQuiz();
+                  }}
+                  disabled={smartQuizWordCount < 2}
+                >
+                  {tr("Start Smart Quiz", "Start Smart Quiz")}
+                </button>
+                {renderGuidedTourCoach("below", "quiz-start")}
+              </div>
               <button
                 type="button"
                 className="secondaryBtn"

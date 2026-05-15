@@ -102,6 +102,22 @@ textarea {
   min-height: 100vh;
 }
 
+.appShell.isGuidedLocked {
+  pointer-events: none;
+}
+
+.appShell.isGuidedLocked .guidedTarget,
+.appShell.isGuidedLocked .guidedTarget *,
+.appShell.isGuidedLocked .guidedCoach,
+.appShell.isGuidedLocked .guidedCoach * {
+  pointer-events: auto;
+}
+
+.appShell.isGuidedLocked.hasGuidedModalOpen .modalOverlay,
+.appShell.isGuidedLocked.hasGuidedModalOpen .modalOverlay * {
+  pointer-events: auto;
+}
+
 .sidebar {
   width: 250px;
   flex: 0 0 250px;
@@ -2580,6 +2596,7 @@ body.theme-dark .pinBtn.isPinned {
 }
 
 .modalCard {
+  position: relative;
   width: min(420px, 100%);
   background: var(--surface);
   color: var(--text);
@@ -2871,6 +2888,83 @@ body.theme-dark .modalBtn.primary {
   font-weight: 700;
 }
 
+.tutorialActionSlide {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(230px, 0.92fr);
+  gap: 18px;
+  align-items: center;
+  min-height: 390px;
+}
+
+.tutorialActionPreview {
+  border: 1px solid color-mix(in srgb, var(--border) 78%, var(--accent) 22%);
+  border-radius: 12px;
+  background: var(--surface-alt);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.tutorialActionPreviewHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tutorialActionInputRow {
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.tutorialActionInputRow span {
+  padding: 0 14px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.tutorialActionInputRow strong {
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface) 82%);
+  border-left: 1px solid var(--border);
+  color: var(--text);
+}
+
+.tutorialActionResult {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 14px;
+}
+
+.tutorialActionResult strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.tutorialActionResult p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.tutorialActionCopy {
+  min-height: 0;
+}
+
 .tutorialModalCard h3 {
   margin: 2px 0 0;
   font-size: 22px;
@@ -2949,6 +3043,13 @@ body.theme-dark .modalBtn.primary {
     gap: 8px;
   }
 
+  .tutorialActionSlide {
+    grid-template-columns: 1fr;
+    min-height: 360px;
+    align-items: stretch;
+    gap: 14px;
+  }
+
   .tutorialModalCard h3 {
     font-size: 21px;
   }
@@ -3012,6 +3113,180 @@ body.theme-dark .modalBtn.primary {
 .inputRow .addWordBtn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.guidedTarget {
+  position: relative;
+  z-index: 920;
+  outline: 3px solid color-mix(in srgb, var(--accent) 44%, #ffffff 56%);
+  outline-offset: 4px;
+  box-shadow:
+    0 0 0 7px color-mix(in srgb, var(--accent) 12%, transparent 88%),
+    var(--shadow-soft);
+}
+
+.guidedTargetRow {
+  position: relative;
+}
+
+.guidedTargetList {
+  scroll-margin-bottom: 180px;
+}
+
+.guidedControlAnchor {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.guidedControlAnchor > .panelCard,
+.guidedControlAnchor > .primaryBtn,
+.guidedControlAnchor > .recentSquare {
+  width: 100%;
+}
+
+.bookModeGrid > .guidedControlAnchor {
+  display: flex;
+}
+
+.guidedCoach {
+  width: min(380px, calc(100vw - 44px));
+  z-index: 930;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent) 28%);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18);
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.guidedCoach-floating {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+}
+
+.guidedCoach-inline {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  width: min(560px, 100%);
+  margin: 0;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+}
+
+.guidedCoach-below {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+}
+
+.guidedCoach-inlineRight {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+}
+
+.guidedCoach::before {
+  content: "";
+  position: absolute;
+  right: 34px;
+  bottom: 100%;
+  border: 10px solid transparent;
+  border-bottom-color: color-mix(in srgb, var(--border) 72%, var(--accent) 28%);
+}
+
+.guidedCoach::after {
+  content: "";
+  position: absolute;
+  right: 35px;
+  bottom: calc(100% - 1px);
+  border: 9px solid transparent;
+  border-bottom-color: var(--surface);
+}
+
+.guidedCoach-inline::before {
+  left: 28px;
+  right: auto;
+}
+
+.guidedCoach-inline::after {
+  left: 29px;
+  right: auto;
+}
+
+.guidedCoach-below::before {
+  left: 28px;
+  right: auto;
+}
+
+.guidedCoach-below::after {
+  left: 29px;
+  right: auto;
+}
+
+.guidedCoach-inlineRight::before {
+  right: 28px;
+}
+
+.guidedCoach-inlineRight::after {
+  right: 29px;
+}
+
+.guidedCoachTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.guidedCoachStep {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.guidedCoachCloseBtn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.guidedCoach h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.guidedCoach p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.guidedCoachActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.guidedCoachHint {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 body.theme-dark .inputRow .addWordBtn {
@@ -4973,6 +5248,11 @@ body.theme-dark .recentBar {
   scroll-behavior: smooth;
 
   width: 100%;
+}
+
+.recentBar:has(.hasGuidedCoach),
+.recentScroll.hasGuidedCoach {
+  overflow: visible;
 }
 
 /* Hide ugly scrollbar (optional but cleaner) */
@@ -8606,6 +8886,45 @@ body.theme-dark .recentSquare {
   .inputRow input {
     width: 100%;
     flex-basis: auto;
+  }
+
+  .guidedCoach {
+    width: auto;
+    padding: 14px;
+  }
+
+  .guidedCoach-floating {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .guidedCoach-inline {
+    width: 100%;
+    top: calc(100% + 10px);
+    margin: 0;
+  }
+
+  .guidedCoach-below,
+  .guidedCoach-inlineRight {
+    left: 0;
+    right: auto;
+    width: min(330px, calc(100vw - 28px));
+    top: calc(100% + 10px);
+  }
+
+  .guidedCoach::before,
+  .guidedCoach::after {
+    display: none;
+  }
+
+  .guidedCoachActions {
+    justify-content: stretch;
+  }
+
+  .guidedCoachActions .primaryBtn,
+  .guidedCoachActions .secondaryBtn {
+    flex: 1 1 140px;
   }
 
   .emptyActionState {
