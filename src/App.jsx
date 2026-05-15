@@ -211,6 +211,10 @@ function isValidSignupPassword(value) {
   return /^[\x21-\x7E]{3,24}$/.test(String(value || ""));
 }
 
+function formatUsernameInput(value) {
+  return String(value || "").replace(/ /g, "_");
+}
+
 function buildAuthHeaders(authToken, baseHeaders = {}) {
   const headers = { ...(baseHeaders || {}) };
   if (isBearerAuthToken(authToken)) {
@@ -6589,7 +6593,9 @@ export default function App() {
                     className="settingsInput"
                     value={authForm.username}
                     onChange={(event) => {
-                      setAuthForm((prev) => ({ ...prev, username: event.target.value }));
+                      const usernameValue =
+                        authMode === "register" ? formatUsernameInput(event.target.value) : event.target.value;
+                      setAuthForm((prev) => ({ ...prev, username: usernameValue }));
                       if (authError) setAuthError("");
                     }}
                     placeholder={

@@ -20,6 +20,10 @@ function isValidSignupPassword(value) {
   return /^[\x21-\x7E]{3,24}$/.test(String(value || ""));
 }
 
+function formatUsernameInput(value) {
+  return String(value || "").replace(/ /g, "_");
+}
+
 function navigateTo(path) {
   const nextPath = String(path || "/").trim() || "/";
   window.history.replaceState(null, "", nextPath);
@@ -535,7 +539,7 @@ export function LoginPage({ initialMode = "login" }) {
               className="publicAuthInput"
               value={username}
               onChange={(event) => {
-                setUsername(event.target.value);
+                setUsername(mode === "register" ? formatUsernameInput(event.target.value) : event.target.value);
                 if (error) setError("");
               }}
               autoComplete="username"
