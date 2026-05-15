@@ -10,14 +10,14 @@ const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY = "vocab_onboarding_tutorial_pending";
 const LEGAL_VERSION = "2026-03-14";
-const SIGNUP_PASSWORD_MESSAGE = "Use 3-24 letters for your password.";
+const SIGNUP_PASSWORD_MESSAGE = "Use 3-24 English letters, numbers, or symbols. No spaces.";
 
 function isBearerAuthToken(value) {
   return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
 }
 
 function isValidSignupPassword(value) {
-  return /^[A-Za-z]{3,24}$/.test(String(value || ""));
+  return /^[\x21-\x7E]{3,24}$/.test(String(value || ""));
 }
 
 function navigateTo(path) {
@@ -556,7 +556,7 @@ export function LoginPage({ initialMode = "login" }) {
                 if (error) setError("");
               }}
               autoComplete={mode === "register" ? "new-password" : "current-password"}
-              placeholder={mode === "register" ? "3-24 letters" : "password"}
+              placeholder={mode === "register" ? "3-24 chars, no spaces" : "password"}
               disabled={isSubmitting}
             />
 

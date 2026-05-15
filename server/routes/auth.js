@@ -12,7 +12,7 @@ const DEFAULT_LEGAL_VERSION = String(process.env.LEGAL_VERSION || "2026-04-08").
 const SESSION_COOKIE_NAME = String(process.env.AUTH_COOKIE_NAME || "vocab_session").trim() || "vocab_session";
 
 function isValidSignupPassword(value) {
-  return /^[A-Za-z]{3,24}$/.test(String(value || ""));
+  return /^[\x21-\x7E]{3,24}$/.test(String(value || ""));
 }
 
 function isProductionEnv() {

@@ -35,7 +35,7 @@ const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY = "vocab_onboarding_tutorial_pending";
 const ONBOARDING_TUTORIAL_SEEN_PREFIX = "vocab_onboarding_tutorial_seen";
-const SIGNUP_PASSWORD_MESSAGE = "Use 3-24 letters for your password.";
+const SIGNUP_PASSWORD_MESSAGE = "Use 3-24 English letters, numbers, or symbols. No spaces.";
 const JAPANESE_LEARNER_MODE_STORAGE_KEY = "vocab_japanese_learner_mode";
 const UI_LANGUAGE_STORAGE_KEY = "vocab_ui_language";
 const DICTIONARY_PREFERENCE_STORAGE_KEY = "vocab_dictionary_preference";
@@ -208,7 +208,7 @@ function isBearerAuthToken(value) {
 }
 
 function isValidSignupPassword(value) {
-  return /^[A-Za-z]{3,24}$/.test(String(value || ""));
+  return /^[\x21-\x7E]{3,24}$/.test(String(value || ""));
 }
 
 function buildAuthHeaders(authToken, baseHeaders = {}) {
@@ -6608,7 +6608,7 @@ export default function App() {
                       }}
                       placeholder={
                         authMode === "register"
-                          ? tr("password (3-24 letters)", "パスワード（3〜24文字の英字）")
+                          ? tr("password (3-24 chars, no spaces)", "パスワード（3〜24文字・スペース不可）")
                           : tr("password", "パスワード")
                       }
                       autoComplete={authMode === "login" ? "current-password" : "new-password"}
