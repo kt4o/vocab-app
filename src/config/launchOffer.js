@@ -1,2 +1,0 @@
-export const FOUNDING_MEMBER_DEADLINE_LABEL = "May 15, 2026";
-

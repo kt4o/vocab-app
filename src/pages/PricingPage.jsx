@@ -1,5 +1,4 @@
 import { PREMIUM_UPGRADE_ENABLED } from "../config/premium";
-import { FOUNDING_MEMBER_DEADLINE_LABEL } from "../config/launchOffer.js";
 import { Check, X } from "lucide-react";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
@@ -59,7 +58,7 @@ export function PricingPage() {
           <p className="heroEyebrow">Pricing</p>
           <h1 className="mb-2 text-3xl font-semibold text-foreground">Choose the plan that fits your learning pace</h1>
           <p className="heroCopy text-muted-foreground">
-            Create your account by {FOUNDING_MEMBER_DEADLINE_LABEL} and unlock Pro for life as a Founding Member.
+            Start free, then upgrade to Pro when you want deeper review tools and an ad-free experience.
           </p>
         </section>
 
@@ -101,13 +100,11 @@ export function PricingPage() {
             <div className="mb-8">
               <h2 className="mb-2 text-2xl font-semibold text-foreground">Pro</h2>
               <p className="mb-3">
-                <span className="text-5xl font-bold leading-none text-foreground">A$0</span>
+                <span className="text-5xl font-bold leading-none text-foreground">{PLAN_PRICE}</span>
               </p>
-              <p className="mb-2 text-sm font-medium text-primary">Founding Members only until {FOUNDING_MEMBER_DEADLINE_LABEL}</p>
-              <p className="mb-3 text-sm text-muted-foreground line-through">{PLAN_PRICE}</p>
               <p className="text-primary">
                 {PREMIUM_UPGRADE_ENABLED
-                  ? "Create your account during launch and keep Pro permanently."
+                  ? "Upgrade when you are ready for unlimited premium review."
                   : "Pro coming soon."}
               </p>
             </div>
@@ -116,7 +113,7 @@ export function PricingPage() {
                 className="mb-8 inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-medium text-white shadow-[0_4px_12px_rgba(29,79,143,0.25)] transition-colors hover:bg-[#5d81d6]"
                 href="/register"
               >
-                Claim lifetime Pro
+                Create account
               </a>
             ) : (
               <button
@@ -148,7 +145,7 @@ export function PricingPage() {
         <section className="rounded-2xl border border-border bg-secondary px-6 py-6 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
           <h2 className="mb-2 text-2xl font-semibold text-foreground">Not sure which plan you need?</h2>
           <p className="max-w-3xl text-muted-foreground">
-            If you are early, the simplest move is to claim the Founding Member offer before {FOUNDING_MEMBER_DEADLINE_LABEL}. After that, start with the learning method first. Our guide on{" "}
+            Start with the learning method first, then upgrade when Pro tools fit your routine. Our guide on{" "}
             <a href="/how-to-expand-your-vocabulary" className="font-medium text-primary no-underline hover:underline">
               how to expand your vocabulary
             </a>{" "}

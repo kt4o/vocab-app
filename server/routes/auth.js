@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import { Router } from "express";
 import { pool, query } from "../db/client.js";
-import { isFoundingMemberOfferActive } from "../config/launchOffer.js";
 import { sendPasswordResetCodeEmail, sendVerificationCodeEmail } from "../lib/email.js";
 import { getAuthTokenFromRequest, requireAuth } from "../middleware/auth.js";
 
@@ -667,7 +666,6 @@ authRouter.post("/register", async (req, res) => {
   const now = new Date().toISOString();
   const passwordHash = createPasswordHash(password);
   const token = issueToken();
-  const grantFoundingMemberLifetimePro = isFoundingMemberOfferActive(now);
 
   const client = await pool.connect();
   try {
@@ -739,8 +737,8 @@ authRouter.post("/register", async (req, res) => {
         now,
         now,
         legalVersion,
-        grantFoundingMemberLifetimePro,
-        grantFoundingMemberLifetimePro ? "pro" : "free",
+        false,
+        "free",
       ]
     );
     const userId = Number(userInsert.rows[0].id);

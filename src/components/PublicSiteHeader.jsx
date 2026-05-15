@@ -29,7 +29,7 @@ export function PublicSiteHeader() {
               href="/register"
               className="rounded-[10px] bg-accent px-5 py-2 text-[15px] font-semibold text-white no-underline transition-colors hover:bg-primary"
             >
-              Claim lifetime Pro
+              Start free
             </a>
           </div>
         </div>

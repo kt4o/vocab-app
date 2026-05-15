@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { FOUNDING_MEMBER_DEADLINE_LABEL } from "../config/launchOffer.js";
 import { identifyAnalyticsUser, trackEvent } from "../lib/analytics.js";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
@@ -364,8 +363,8 @@ export function LoginPage({ initialMode = "login" }) {
           <p className="heroCopy">
             {mode === "register"
               ? registerStep === "email"
-                ? `Start by connecting your email. Accounts created by ${FOUNDING_MEMBER_DEADLINE_LABEL} get Pro for life.`
-                : `Finish creating your account to lock in lifetime Pro before ${FOUNDING_MEMBER_DEADLINE_LABEL}.`
+                ? "Start by connecting your email. You can begin with the free plan and upgrade when you need Pro tools."
+                : "Finish creating your account to start building your vocabulary library."
               : "Enter your account details to continue to the app."}
           </p>
           <div className="publicAuthModeSwitch" role="tablist" aria-label="Account mode">
