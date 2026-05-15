@@ -8921,6 +8921,24 @@ body.theme-dark .recentSquare {
     top: calc(100% + 10px);
   }
 
+  .recentBar:has(.hasGuidedCoach) {
+    overflow: hidden;
+  }
+
+  .recentScroll.hasGuidedCoach {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .guidedCoach-dashboard-add-book.guidedCoach-below {
+    position: fixed;
+    top: auto;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: auto;
+  }
+
   .guidedCoach::before,
   .guidedCoach::after {
     display: none;
