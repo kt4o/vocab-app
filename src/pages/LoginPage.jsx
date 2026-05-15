@@ -10,7 +10,10 @@ const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY = "vocab_onboarding_tutorial_pending";
 const LEGAL_VERSION = "2026-03-14";
-const SIGNUP_PASSWORD_MESSAGE = "Use 3-24 English letters, numbers, or symbols. No spaces.";
+const SIGNUP_USERNAME_MESSAGE =
+  "Username must be 3-24 characters: lowercase letters, numbers, or underscores only. Spaces become underscores.";
+const SIGNUP_PASSWORD_MESSAGE =
+  "Password must be 3-24 characters: English letters, numbers, or symbols only. No spaces or non-English characters.";
 
 function isBearerAuthToken(value) {
   return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
@@ -18,6 +21,10 @@ function isBearerAuthToken(value) {
 
 function isValidSignupPassword(value) {
   return /^[\x21-\x7E]{3,24}$/.test(String(value || ""));
+}
+
+function isValidSignupUsername(value) {
+  return /^[a-z0-9_]{3,24}$/.test(String(value || ""));
 }
 
 function formatUsernameInput(value) {
@@ -239,8 +246,16 @@ export function LoginPage({ initialMode = "login" }) {
 
     const normalizedUsername = String(username || "").trim().toLowerCase();
     const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (mode === "register" && !normalizedUsername) {
+      setError("Enter a username. " + SIGNUP_USERNAME_MESSAGE);
+      return;
+    }
+    if (mode === "register" && !password) {
+      setError("Enter a password. " + SIGNUP_PASSWORD_MESSAGE);
+      return;
+    }
     if (!normalizedUsername || !password) {
-      setError("Username or email and password are required.");
+      setError("Enter your username/email and password.");
       return;
     }
     if (mode === "register" && !verifiedEmailToken) {
@@ -249,6 +264,10 @@ export function LoginPage({ initialMode = "login" }) {
     }
     if (mode === "register" && !isValidEmail(normalizedEmail)) {
       setError("Enter a valid email address.");
+      return;
+    }
+    if (mode === "register" && !isValidSignupUsername(normalizedUsername)) {
+      setError(SIGNUP_USERNAME_MESSAGE);
       return;
     }
     if (mode === "register" && !isValidSignupPassword(password)) {
@@ -302,9 +321,9 @@ export function LoginPage({ initialMode = "login" }) {
                 ? "Please accept Terms, Privacy Policy, and Disclaimer."
               :
           backendError === "invalid-username"
-            ? "Use 3-24 chars: lowercase letters, numbers, underscore."
+            ? SIGNUP_USERNAME_MESSAGE
             : backendError === "inappropriate-username"
-              ? "Choose a different username. Inappropriate names are not allowed."
+              ? "Choose a different username. That one contains a blocked word."
             : backendError === "weak-password"
               ? SIGNUP_PASSWORD_MESSAGE
               : backendError === "username-taken"
