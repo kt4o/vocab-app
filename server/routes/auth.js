@@ -11,6 +11,10 @@ const EMAIL_CODE_COOLDOWN_MS = 60 * 1000;
 const DEFAULT_LEGAL_VERSION = String(process.env.LEGAL_VERSION || "2026-04-08").trim() || "2026-04-08";
 const SESSION_COOKIE_NAME = String(process.env.AUTH_COOKIE_NAME || "vocab_session").trim() || "vocab_session";
 
+function isValidSignupPassword(value) {
+  return /^[A-Za-z]{3,24}$/.test(String(value || ""));
+}
+
 function isProductionEnv() {
   return String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 }
@@ -650,7 +654,7 @@ authRouter.post("/register", async (req, res) => {
     res.status(400).json({ error: "inappropriate-username" });
     return;
   }
-  if (password.length < 8) {
+  if (!isValidSignupPassword(password)) {
     res.status(400).json({ error: "weak-password" });
     return;
   }

@@ -10,9 +10,14 @@ const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY = "vocab_onboarding_tutorial_pending";
 const LEGAL_VERSION = "2026-03-14";
+const SIGNUP_PASSWORD_MESSAGE = "Use 3-24 letters for your password.";
 
 function isBearerAuthToken(value) {
   return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
+}
+
+function isValidSignupPassword(value) {
+  return /^[A-Za-z]{3,24}$/.test(String(value || ""));
 }
 
 function navigateTo(path) {
@@ -242,6 +247,10 @@ export function LoginPage({ initialMode = "login" }) {
       setError("Enter a valid email address.");
       return;
     }
+    if (mode === "register" && !isValidSignupPassword(password)) {
+      setError(SIGNUP_PASSWORD_MESSAGE);
+      return;
+    }
     if (mode === "register" && password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -293,7 +302,7 @@ export function LoginPage({ initialMode = "login" }) {
             : backendError === "inappropriate-username"
               ? "Choose a different username. Inappropriate names are not allowed."
             : backendError === "weak-password"
-              ? "Password must be at least 8 characters."
+              ? SIGNUP_PASSWORD_MESSAGE
               : backendError === "username-taken"
                 ? "That username is already taken."
                 : backendError === "invalid-credentials"
@@ -547,7 +556,7 @@ export function LoginPage({ initialMode = "login" }) {
                 if (error) setError("");
               }}
               autoComplete={mode === "register" ? "new-password" : "current-password"}
-              placeholder="password"
+              placeholder={mode === "register" ? "3-24 letters" : "password"}
               disabled={isSubmitting}
             />
 
