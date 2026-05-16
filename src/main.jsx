@@ -307,6 +307,10 @@ function AppRoute() {
       }
 
       if (!cancelled) {
+        if (isBearerAuthToken(storedAuthToken)) {
+          setStatus("authorized");
+          return;
+        }
         setStatus("guest");
         navigateTo("/login");
       }

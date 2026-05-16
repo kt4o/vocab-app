@@ -360,20 +360,29 @@ export function LoginPage({ initialMode = "login" }) {
       if (isBearerAuthToken(authToken)) {
         sessionHeaders.Authorization = `Bearer ${authToken}`;
       }
-      const sessionCheckResponse = await fetch(`${AUTH_API_PATH}/account`, {
-        credentials: "include",
-        headers: sessionHeaders,
-      });
-      if (!sessionCheckResponse.ok) {
-        const sessionPayload = await sessionCheckResponse.json().catch(() => ({}));
-        const sessionError = String(sessionPayload?.error || "").trim().toLowerCase();
-        if (isAuthFailureErrorCode(sessionError)) {
-          setError(
-            "Login succeeded, but your browser blocked the session cookie. Check API/Frontend domain, CORS, and cookie SameSite/Secure settings."
-          );
+      try {
+        const sessionCheckResponse = await fetch(`${AUTH_API_PATH}/account`, {
+          credentials: "include",
+          headers: sessionHeaders,
+        });
+        if (!sessionCheckResponse.ok) {
+          const sessionPayload = await sessionCheckResponse.json().catch(() => ({}));
+          const sessionError = String(sessionPayload?.error || "").trim().toLowerCase();
+          if (isAuthFailureErrorCode(sessionError)) {
+            setError(
+              "Login succeeded, but your browser blocked the session cookie. Check API/Frontend domain, CORS, and cookie SameSite/Secure settings."
+            );
+            return;
+          }
+          // Non-auth failures here are usually transient; continue into /app and let route guard retry.
+        }
+      } catch {
+        if (!isBearerAuthToken(authToken)) {
+          setError("Could not reach auth service. Check backend and try again.");
           return;
         }
-        // Non-auth failures here are usually transient; continue into /app and let route guard retry.
+        // The login response already returned a bearer token, so do not make users click twice
+        // just because the follow-up session check had a transient network failure.
       }
 
       navigateTo("/app");
