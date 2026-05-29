@@ -655,18 +655,17 @@ async function fetchJapaneseTranslations(word) {
       .replace(/[^a-z0-9' -]+/g, " ")
       .replace(/\s+/g, " ");
 
-  const senseMatchesInput = (sense) => {
+  const getSenseMatchScore = (sense) => {
     const normalizedInput = normalizeEnglishLookupText(input);
-    if (!normalizedInput) return false;
+    if (!normalizedInput) return 0;
     const definitions = Array.isArray(sense?.english_definitions) ? sense.english_definitions : [];
-    return definitions.some((definition) => {
+    return definitions.reduce((bestScore, definition) => {
       const normalizedDefinition = normalizeEnglishLookupText(definition);
-      return (
-        normalizedDefinition === normalizedInput ||
-        normalizedDefinition.startsWith(`${normalizedInput},`) ||
-        normalizedDefinition.includes(` ${normalizedInput} `)
-      );
-    });
+      if (normalizedDefinition === normalizedInput) return Math.max(bestScore, 3);
+      if (normalizedDefinition.startsWith(`${normalizedInput} `)) return Math.max(bestScore, 2);
+      if (normalizedDefinition.includes(` ${normalizedInput} `)) return Math.max(bestScore, 1);
+      return bestScore;
+    }, 0);
   };
 
   const fetchJishoDirect = async () => {
@@ -693,13 +692,26 @@ async function fetchJapaneseTranslations(word) {
       const items = Array.isArray(payload?.data) ? payload.data : [];
       const candidates = [];
       const seen = new Set();
-      const hasCommonMatches = items.some((item) => Boolean(item?.is_common));
-
-      items.slice(0, 10).forEach((item) => {
+      const rankedItems = items.slice(0, 12).map((item, itemIndex) => {
         const senses = Array.isArray(item?.senses) ? item.senses : [];
-        const hasMatchingSense = senses.some((sense) => senseMatchesInput(sense));
-        if (hasCommonMatches && !item?.is_common && !hasMatchingSense) return;
+        const senseMatchScore = senses.reduce(
+          (bestScore, sense) => Math.max(bestScore, getSenseMatchScore(sense)),
+          0
+        );
+        return { item, itemIndex, senseMatchScore };
+      });
+      const hasSenseMatches = rankedItems.some((entry) => entry.senseMatchScore > 0);
+      const sourceItems = hasSenseMatches
+        ? rankedItems.filter((entry) => entry.senseMatchScore > 0)
+        : rankedItems.filter((entry) => Boolean(entry.item?.is_common));
+      const selectedItems = [...(sourceItems.length ? sourceItems : rankedItems)].sort(
+        (a, b) =>
+          b.senseMatchScore - a.senseMatchScore ||
+          Number(Boolean(b.item?.is_common)) - Number(Boolean(a.item?.is_common)) ||
+          a.itemIndex - b.itemIndex
+      );
 
+      selectedItems.forEach(({ item }) => {
         const japaneseList = Array.isArray(item?.japanese) ? item.japanese : [];
         japaneseList.forEach((jpEntry) => {
           const candidate = String(jpEntry?.word || jpEntry?.reading || "").trim();

@@ -8,6 +8,7 @@ const TRANSLATION_CACHE_TTL_MS = (() => {
   if (!Number.isFinite(parsed) || parsed <= 0) return 7 * 24 * 60 * 60 * 1000;
   return parsed;
 })();
+const EN_JA_CACHE_VERSION = "common-v3";
 const UPSTREAM_FETCH_TIMEOUT_MS = 8000;
 const UPSTREAM_FETCH_RETRY_DELAYS_MS = [350, 900];
 
@@ -159,31 +160,43 @@ function normalizeEnglishLookupText(value) {
     .replace(/\s+/g, " ");
 }
 
-function senseMatchesEnglishInput(sense, inputText) {
+function getEnglishSenseMatchScore(sense, inputText) {
   const normalizedInput = normalizeEnglishLookupText(inputText);
-  if (!normalizedInput) return false;
+  if (!normalizedInput) return 0;
   const definitions = Array.isArray(sense?.english_definitions) ? sense.english_definitions : [];
-  return definitions.some((definition) => {
+  return definitions.reduce((bestScore, definition) => {
     const normalizedDefinition = normalizeEnglishLookupText(definition);
-    return (
-      normalizedDefinition === normalizedInput ||
-      normalizedDefinition.startsWith(`${normalizedInput},`) ||
-      normalizedDefinition.includes(` ${normalizedInput} `)
-    );
-  });
+    if (normalizedDefinition === normalizedInput) return Math.max(bestScore, 3);
+    if (normalizedDefinition.startsWith(`${normalizedInput} `)) return Math.max(bestScore, 2);
+    if (normalizedDefinition.includes(` ${normalizedInput} `)) return Math.max(bestScore, 1);
+    return bestScore;
+  }, 0);
 }
 
 function extractJishoTranslations(payload, inputText) {
   const items = Array.isArray(payload?.data) ? payload.data : [];
   const candidates = [];
   const normalizedInput = String(inputText || "").trim().toLowerCase();
-  const hasCommonMatches = items.some((item) => Boolean(item?.is_common));
-
-  items.slice(0, 10).forEach((item, itemIndex) => {
+  const rankedItems = items.slice(0, 12).map((item, itemIndex) => {
     const senses = Array.isArray(item?.senses) ? item.senses : [];
-    const hasMatchingSense = senses.some((sense) => senseMatchesEnglishInput(sense, inputText));
-    if (hasCommonMatches && !item?.is_common && !hasMatchingSense) return;
+    const senseMatchScore = senses.reduce(
+      (bestScore, sense) => Math.max(bestScore, getEnglishSenseMatchScore(sense, inputText)),
+      0
+    );
+    return { item, itemIndex, senseMatchScore };
+  });
+  const hasSenseMatches = rankedItems.some((entry) => entry.senseMatchScore > 0);
+  const sourceItems = hasSenseMatches
+    ? rankedItems.filter((entry) => entry.senseMatchScore > 0)
+    : rankedItems.filter((entry) => Boolean(entry.item?.is_common));
+  const selectedItems = [...(sourceItems.length ? sourceItems : rankedItems)].sort(
+    (a, b) =>
+      b.senseMatchScore - a.senseMatchScore ||
+      Number(Boolean(b.item?.is_common)) - Number(Boolean(a.item?.is_common)) ||
+      a.itemIndex - b.itemIndex
+  );
 
+  selectedItems.forEach(({ item, itemIndex, senseMatchScore }) => {
     const japaneseList = Array.isArray(item?.japanese) ? item.japanese : [];
     japaneseList.forEach((jp, jpIndex) => {
       const word = String(jp?.word || "").trim();
@@ -195,8 +208,8 @@ function extractJishoTranslations(payload, inputText) {
         // Favor common entries, direct English sense matches, earlier results, and explicit words over readings.
         score:
           1 +
-          (item?.is_common ? 1 : 0) +
-          (hasMatchingSense ? 0.65 : 0) -
+          (item?.is_common ? 1.25 : 0) +
+          senseMatchScore * 2 -
           itemIndex * 0.05 +
           (word ? 0.1 : 0) -
           jpIndex * 0.01,
@@ -330,7 +343,7 @@ translateRouter.post("/en-ja", async (req, res) => {
 
   const sourceLang = "en";
   const targetLang = "ja";
-  const cacheKey = buildCacheKey({ sourceLang, targetLang, text });
+  const cacheKey = `${buildCacheKey({ sourceLang, targetLang, text })}:${EN_JA_CACHE_VERSION}`;
 
   try {
     const cached = await readCachedTranslation(cacheKey);
