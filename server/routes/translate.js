@@ -9,6 +9,7 @@ const TRANSLATION_CACHE_TTL_MS = (() => {
   return parsed;
 })();
 const EN_JA_CACHE_VERSION = "common-v3";
+const JA_EN_CACHE_VERSION = "headword-v2";
 const UPSTREAM_FETCH_TIMEOUT_MS = 8000;
 const UPSTREAM_FETCH_RETRY_DELAYS_MS = [350, 900];
 
@@ -152,6 +153,37 @@ function isJapaneseText(value) {
   return hasJapaneseCharacters(value);
 }
 
+function normalizeJapaneseLookupText(value) {
+  return String(value || "")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function getJapaneseEntryMatchScore(item, inputText) {
+  const normalizedInput = normalizeJapaneseLookupText(inputText);
+  if (!normalizedInput) return 0;
+
+  const japaneseList = Array.isArray(item?.japanese) ? item.japanese : [];
+  return japaneseList.reduce((bestScore, jp) => {
+    const word = normalizeJapaneseLookupText(jp?.word);
+    const reading = normalizeJapaneseLookupText(jp?.reading);
+    if (word && word === normalizedInput) return Math.max(bestScore, 4);
+    if (reading && reading === normalizedInput) return Math.max(bestScore, 3);
+    return bestScore;
+  }, 0);
+}
+
+function isLowValueJishoSense(sense) {
+  const parts = Array.isArray(sense?.parts_of_speech) ? sense.parts_of_speech : [];
+  const tags = Array.isArray(sense?.tags) ? sense.tags : [];
+  const definitions = Array.isArray(sense?.english_definitions) ? sense.english_definitions : [];
+  const searchable = [...parts, ...tags, ...definitions]
+    .join(" ")
+    .toLowerCase();
+
+  return /\b(wikipedia definition|surname|given name|family name|place name|company name|organization name|product name|unclassified name|person name|archaism|obsolete term)\b/.test(searchable);
+}
+
 function normalizeEnglishLookupText(value) {
   return String(value || "")
     .trim()
@@ -240,23 +272,46 @@ function extractJishoEnglishDefinitions(payload, inputText) {
   const items = Array.isArray(payload?.data) ? payload.data : [];
   const candidates = [];
   const normalizedInput = String(inputText || "").trim().toLowerCase();
+  const rankedItems = items.slice(0, 12).map((item, itemIndex) => ({
+    item,
+    itemIndex,
+    matchScore: getJapaneseEntryMatchScore(item, inputText),
+  }));
+  const exactItems = rankedItems.filter((entry) => entry.matchScore > 0);
+  const commonItems = rankedItems.filter((entry) => Boolean(entry.item?.is_common));
+  const selectedItems = [...(exactItems.length ? exactItems : commonItems.length ? commonItems : rankedItems)]
+    .sort(
+      (a, b) =>
+        b.matchScore - a.matchScore ||
+        Number(Boolean(b.item?.is_common)) - Number(Boolean(a.item?.is_common)) ||
+        a.itemIndex - b.itemIndex
+    )
+    .slice(0, 4);
 
-  items.slice(0, 10).forEach((item, itemIndex) => {
+  selectedItems.forEach(({ item, itemIndex, matchScore }) => {
     const senses = Array.isArray(item?.senses) ? item.senses : [];
-    senses.forEach((sense, senseIndex) => {
+    const usefulSenses = senses.filter((sense) => !isLowValueJishoSense(sense));
+    const selectedSenses = usefulSenses.length ? usefulSenses : senses;
+    selectedSenses.forEach((sense, senseIndex) => {
       const definitions = Array.isArray(sense?.english_definitions)
         ? sense.english_definitions
         : [];
       definitions.forEach((definition, definitionIndex) => {
         candidates.push({
           value: definition,
-          score: 1 - itemIndex * 0.05 - senseIndex * 0.02 - definitionIndex * 0.01,
+          score:
+            1 +
+            matchScore * 2 +
+            (item?.is_common ? 1.25 : 0) -
+            itemIndex * 0.06 -
+            senseIndex * 0.04 -
+            definitionIndex * 0.01,
         });
       });
     });
   });
 
-  return rankAndDedupeCandidates(candidates, normalizedInput);
+  return rankAndDedupeCandidates(candidates, normalizedInput, { maxResults: 1 });
 }
 
 async function fetchJishoEnglishDefinitions(inputText) {
@@ -420,7 +475,7 @@ translateRouter.post("/ja-en", async (req, res) => {
 
   const sourceLang = "ja";
   const targetLang = "en";
-  const cacheKey = buildCacheKey({ sourceLang, targetLang, text });
+  const cacheKey = `${buildCacheKey({ sourceLang, targetLang, text })}:${JA_EN_CACHE_VERSION}`;
 
   try {
     const cached = await readCachedTranslation(cacheKey);

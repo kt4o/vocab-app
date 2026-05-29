@@ -817,7 +817,33 @@ async function fetchJapaneseToEnglishTranslations(word) {
         seen.add(key);
         return true;
       })
-      .slice(0, 6);
+      .slice(0, 1);
+  };
+
+  const normalizeJapaneseLookupText = (value) =>
+    String(value || "")
+      .replace(/\s+/g, "")
+      .trim();
+
+  const getJapaneseEntryMatchScore = (item) => {
+    const normalizedInput = normalizeJapaneseLookupText(input);
+    if (!normalizedInput) return 0;
+    const japaneseList = Array.isArray(item?.japanese) ? item.japanese : [];
+    return japaneseList.reduce((bestScore, jpEntry) => {
+      const word = normalizeJapaneseLookupText(jpEntry?.word);
+      const reading = normalizeJapaneseLookupText(jpEntry?.reading);
+      if (word && word === normalizedInput) return Math.max(bestScore, 4);
+      if (reading && reading === normalizedInput) return Math.max(bestScore, 3);
+      return bestScore;
+    }, 0);
+  };
+
+  const isLowValueJishoSense = (sense) => {
+    const parts = Array.isArray(sense?.parts_of_speech) ? sense.parts_of_speech : [];
+    const tags = Array.isArray(sense?.tags) ? sense.tags : [];
+    const definitions = Array.isArray(sense?.english_definitions) ? sense.english_definitions : [];
+    const searchable = [...parts, ...tags, ...definitions].join(" ").toLowerCase();
+    return /\b(wikipedia definition|surname|given name|family name|place name|company name|organization name|product name|unclassified name|person name|archaism|obsolete term)\b/.test(searchable);
   };
 
   const fetchJishoDirect = async () => {
@@ -841,9 +867,27 @@ async function fetchJapaneseToEnglishTranslations(word) {
       const payload = await res.json().catch(() => null);
       const items = Array.isArray(payload?.data) ? payload.data : [];
       const candidates = [];
-      items.slice(0, 10).forEach((item) => {
+      const rankedItems = items.slice(0, 12).map((item, itemIndex) => ({
+        item,
+        itemIndex,
+        matchScore: getJapaneseEntryMatchScore(item),
+      }));
+      const exactItems = rankedItems.filter((entry) => entry.matchScore > 0);
+      const commonItems = rankedItems.filter((entry) => Boolean(entry.item?.is_common));
+      const selectedItems = [...(exactItems.length ? exactItems : commonItems.length ? commonItems : rankedItems)]
+        .sort(
+          (a, b) =>
+            b.matchScore - a.matchScore ||
+            Number(Boolean(b.item?.is_common)) - Number(Boolean(a.item?.is_common)) ||
+            a.itemIndex - b.itemIndex
+        )
+        .slice(0, 4);
+
+      selectedItems.forEach(({ item }) => {
         const senses = Array.isArray(item?.senses) ? item.senses : [];
-        senses.forEach((sense) => {
+        const usefulSenses = senses.filter((sense) => !isLowValueJishoSense(sense));
+        const selectedSenses = usefulSenses.length ? usefulSenses : senses;
+        selectedSenses.forEach((sense) => {
           const englishDefinitions = Array.isArray(sense?.english_definitions)
             ? sense.english_definitions
             : [];
