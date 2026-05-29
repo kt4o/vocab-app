@@ -16,6 +16,7 @@ export function Flashcards({
     en_ja: { source: "English", target: "Japanese" },
     ja_en: { source: "Japanese", target: "English" },
   }[languageMode] || { source: "Word", target: "Definition" };
+  const showDifficultyFilter = languageMode === "en_en";
   const copy = locale === "ja"
     ? {
         noDefinition: "意味がありません",
@@ -71,7 +72,7 @@ export function Flashcards({
       ? words
       : words.filter((wordEntry) => wordEntry.chapterId === selectedChapterId);
   const filteredWords =
-    selectedDifficulty === "all"
+    !showDifficultyFilter || selectedDifficulty === "all"
       ? chapterFilteredWords
       : selectedDifficulty === "unassigned"
         ? chapterFilteredWords.filter((wordEntry) => !normalizeWordDifficulty(wordEntry.difficulty))
@@ -202,28 +203,30 @@ export function Flashcards({
                 menuClassName="isFlashCompact"
               />
             </div>
-            <div className="chapterControlField flashChapterField">
-              <span>{copy.level}</span>
-              <Dropdown
-                value={selectedDifficulty}
-                options={[
-                  { value: "all", label: copy.allLevels },
-                  { value: "unassigned", label: copy.unassigned },
-                  ...WORD_DIFFICULTY_OPTIONS.map((option) => ({
-                    value: option.value,
-                    label: option.label,
-                  })),
-                ]}
-                onChange={(nextDifficulty) => {
-                  setSelectedDifficulty(nextDifficulty);
-                  setIndex(0);
-                  setShowDef(false);
-                }}
-                className="flashChapterDropdown"
-                triggerClassName="isFlashCompact"
-                menuClassName="isFlashCompact"
-              />
-            </div>
+            {showDifficultyFilter ? (
+              <div className="chapterControlField flashChapterField">
+                <span>{copy.level}</span>
+                <Dropdown
+                  value={selectedDifficulty}
+                  options={[
+                    { value: "all", label: copy.allLevels },
+                    { value: "unassigned", label: copy.unassigned },
+                    ...WORD_DIFFICULTY_OPTIONS.map((option) => ({
+                      value: option.value,
+                      label: option.label,
+                    })),
+                  ]}
+                  onChange={(nextDifficulty) => {
+                    setSelectedDifficulty(nextDifficulty);
+                    setIndex(0);
+                    setShowDef(false);
+                  }}
+                  className="flashChapterDropdown"
+                  triggerClassName="isFlashCompact"
+                  menuClassName="isFlashCompact"
+                />
+              </div>
+            ) : null}
             <div className="chapterControlField flashChapterField">
               <span>{copy.prompt}</span>
               <Dropdown

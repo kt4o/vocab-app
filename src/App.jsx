@@ -645,7 +645,28 @@ async function fetchJapaneseTranslations(word) {
       .filter(Boolean)
       .slice(0, 10);
     const japanese = cleaned.filter((value) => hasJapanese(value));
-    return (japanese.length ? japanese : cleaned).slice(0, 6);
+    return (japanese.length ? japanese : cleaned).slice(0, 1);
+  };
+
+  const normalizeEnglishLookupText = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9' -]+/g, " ")
+      .replace(/\s+/g, " ");
+
+  const senseMatchesInput = (sense) => {
+    const normalizedInput = normalizeEnglishLookupText(input);
+    if (!normalizedInput) return false;
+    const definitions = Array.isArray(sense?.english_definitions) ? sense.english_definitions : [];
+    return definitions.some((definition) => {
+      const normalizedDefinition = normalizeEnglishLookupText(definition);
+      return (
+        normalizedDefinition === normalizedInput ||
+        normalizedDefinition.startsWith(`${normalizedInput},`) ||
+        normalizedDefinition.includes(` ${normalizedInput} `)
+      );
+    });
   };
 
   const fetchJishoDirect = async () => {
@@ -672,8 +693,13 @@ async function fetchJapaneseTranslations(word) {
       const items = Array.isArray(payload?.data) ? payload.data : [];
       const candidates = [];
       const seen = new Set();
+      const hasCommonMatches = items.some((item) => Boolean(item?.is_common));
 
       items.slice(0, 10).forEach((item) => {
+        const senses = Array.isArray(item?.senses) ? item.senses : [];
+        const hasMatchingSense = senses.some((sense) => senseMatchesInput(sense));
+        if (hasCommonMatches && !item?.is_common && !hasMatchingSense) return;
+
         const japaneseList = Array.isArray(item?.japanese) ? item.japanese : [];
         japaneseList.forEach((jpEntry) => {
           const candidate = String(jpEntry?.word || jpEntry?.reading || "").trim();
@@ -3999,6 +4025,10 @@ export default function App() {
       let hasChanges = false;
 
       const nextBooks = prevBooks.map((book) => {
+        if (parseBookLanguageMode(book?.languageMode, DEFAULT_BOOK_LANGUAGE_MODE) !== "en_en") {
+          return book;
+        }
+
         let bookChanged = false;
         const nextWords = (book.words || []).map((wordEntry) => {
           const currentDifficulty = normalizeWordDifficulty(wordEntry?.difficulty);
@@ -7901,6 +7931,7 @@ export default function App() {
           {currentBook?.words.map((w, i) => {
             const definitionVariants = getWordDefinitions(w);
             const masteryMeta = getWordMasteryMeta(w);
+            const showDifficultyBadge = currentBookLanguageMode === "en_en";
             const totalDefinitionVariants = definitionVariants.length;
             const currentDefinitionVariant = Math.min(
               Math.max((w.currentDefinitionIndex ?? 0) + 1, 1),
@@ -7935,17 +7966,19 @@ export default function App() {
                         triggerClassName="asBadge"
                         menuClassName="isCompact"
                       />
-                      <button
-                        type="button"
-                        className="wordChapterBadge wordDifficultyBadgeBtn"
-                        aria-expanded={difficultyInfoWord === w.word}
-                        aria-controls={`difficulty-info-${w.word}`}
-                        onClick={() =>
-                          setDifficultyInfoWord((prevWord) => (prevWord === w.word ? "" : w.word))
-                        }
-                      >
-                        {getDifficultyLabel(w.difficulty)}
-                      </button>
+                      {showDifficultyBadge ? (
+                        <button
+                          type="button"
+                          className="wordChapterBadge wordDifficultyBadgeBtn"
+                          aria-expanded={difficultyInfoWord === w.word}
+                          aria-controls={`difficulty-info-${w.word}`}
+                          onClick={() =>
+                            setDifficultyInfoWord((prevWord) => (prevWord === w.word ? "" : w.word))
+                          }
+                        >
+                          {getDifficultyLabel(w.difficulty)}
+                        </button>
+                      ) : null}
                       {showLocalTranslationDebug &&
                       (String(
                         useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
@@ -7974,7 +8007,7 @@ export default function App() {
                       </span>
                     </div>
                   </div>
-                  {difficultyInfoWord === w.word && (
+                  {showDifficultyBadge && difficultyInfoWord === w.word && (
                     <div className="difficultyInfoPanel" id={`difficulty-info-${w.word}`}>
                       <strong>{getDifficultyLabel(w.difficulty)}</strong>
                       <p>

@@ -110,8 +110,9 @@ function normalizeCandidateTranslation(value) {
     .trim();
 }
 
-function rankAndDedupeCandidates(candidates, inputText) {
+function rankAndDedupeCandidates(candidates, inputText, options = {}) {
   const normalizedInput = String(inputText || "").trim().toLowerCase();
+  const maxResults = Math.max(1, Math.floor(Number(options?.maxResults) || 6));
   const byTranslation = new Map();
 
   candidates.forEach((candidate) => {
@@ -139,7 +140,7 @@ function rankAndDedupeCandidates(candidates, inputText) {
   const japaneseFirst = ranked.filter((entry) => hasJapaneseCharacters(entry.value));
   const others = ranked.filter((entry) => !hasJapaneseCharacters(entry.value));
   const merged = [...japaneseFirst, ...others];
-  return merged.map((entry) => entry.value).slice(0, 6);
+  return merged.map((entry) => entry.value).slice(0, maxResults);
 }
 
 function isSimpleEnglishWord(value) {
@@ -150,12 +151,39 @@ function isJapaneseText(value) {
   return hasJapaneseCharacters(value);
 }
 
+function normalizeEnglishLookupText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9' -]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function senseMatchesEnglishInput(sense, inputText) {
+  const normalizedInput = normalizeEnglishLookupText(inputText);
+  if (!normalizedInput) return false;
+  const definitions = Array.isArray(sense?.english_definitions) ? sense.english_definitions : [];
+  return definitions.some((definition) => {
+    const normalizedDefinition = normalizeEnglishLookupText(definition);
+    return (
+      normalizedDefinition === normalizedInput ||
+      normalizedDefinition.startsWith(`${normalizedInput},`) ||
+      normalizedDefinition.includes(` ${normalizedInput} `)
+    );
+  });
+}
+
 function extractJishoTranslations(payload, inputText) {
   const items = Array.isArray(payload?.data) ? payload.data : [];
   const candidates = [];
   const normalizedInput = String(inputText || "").trim().toLowerCase();
+  const hasCommonMatches = items.some((item) => Boolean(item?.is_common));
 
   items.slice(0, 10).forEach((item, itemIndex) => {
+    const senses = Array.isArray(item?.senses) ? item.senses : [];
+    const hasMatchingSense = senses.some((sense) => senseMatchesEnglishInput(sense, inputText));
+    if (hasCommonMatches && !item?.is_common && !hasMatchingSense) return;
+
     const japaneseList = Array.isArray(item?.japanese) ? item.japanese : [];
     japaneseList.forEach((jp, jpIndex) => {
       const word = String(jp?.word || "").trim();
@@ -164,13 +192,19 @@ function extractJishoTranslations(payload, inputText) {
       if (!candidate) return;
       candidates.push({
         value: candidate,
-        // Favor earlier results and explicit words over readings.
-        score: 1 - itemIndex * 0.05 + (word ? 0.1 : 0) - jpIndex * 0.01,
+        // Favor common entries, direct English sense matches, earlier results, and explicit words over readings.
+        score:
+          1 +
+          (item?.is_common ? 1 : 0) +
+          (hasMatchingSense ? 0.65 : 0) -
+          itemIndex * 0.05 +
+          (word ? 0.1 : 0) -
+          jpIndex * 0.01,
       });
     });
   });
 
-  return rankAndDedupeCandidates(candidates, normalizedInput);
+  return rankAndDedupeCandidates(candidates, normalizedInput, { maxResults: 1 });
 }
 
 async function fetchJishoTranslations(inputText) {
@@ -300,7 +334,7 @@ translateRouter.post("/en-ja", async (req, res) => {
 
   try {
     const cached = await readCachedTranslation(cacheKey);
-    if (cached?.isFresh && cached.provider === "jisho") {
+    if (cached?.isFresh && cached.provider === "jisho" && cached.translations.length === 1) {
       res.json({
         text,
         sourceLang,
