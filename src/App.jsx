@@ -936,6 +936,9 @@ async function fetchJapaneseToEnglishTranslations(word) {
           return {
             translations: normalized,
             provider: String(payload?.provider || "backend").trim().toLowerCase() || "backend",
+            confidence: String(payload?.confidence || "").trim().toLowerCase(),
+            partOfSpeech: String(payload?.partOfSpeech || "").trim(),
+            note: String(payload?.note || "").trim(),
             error: "",
           };
         }
@@ -6088,6 +6091,9 @@ export default function App() {
       let translationProvider = "";
       let definitionProvider = "";
       let translationErrorCode = "";
+      let translationConfidence = "";
+      let translationPartOfSpeech = "";
+      let translationNote = "";
 
       if (useEnglishToJapaneseDictionary) {
         const translationResult = await fetchJapaneseTranslations(cleanWord);
@@ -6115,6 +6121,9 @@ export default function App() {
           : [];
         translationProvider = String(translationResult?.provider || "").trim().toLowerCase();
         translationErrorCode = String(translationResult?.error || "").trim().toLowerCase();
+        translationConfidence = String(translationResult?.confidence || "").trim().toLowerCase();
+        translationPartOfSpeech = String(translationResult?.partOfSpeech || "").trim();
+        translationNote = String(translationResult?.note || "").trim();
         if (!definitions.length) {
           if (translationErrorCode === "jisho-word-not-available") {
             openNoticeModal(uiText.jishoWordUnavailable, uiText.jishoWordUnavailableTitle);
@@ -6174,6 +6183,9 @@ export default function App() {
                     useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
                       ? translationProvider || "unknown"
                       : "",
+                  translationConfidence: useJapaneseToEnglishDictionary ? translationConfidence : "",
+                  translationPartOfSpeech: useJapaneseToEnglishDictionary ? translationPartOfSpeech : "",
+                  translationNote: useJapaneseToEnglishDictionary ? translationNote : "",
                   definitionProvider:
                     useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
                       ? ""

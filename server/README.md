@@ -22,6 +22,9 @@
    - `DAILY_SNAPSHOT_ENABLED=true` (optional; set `false` to disable scheduled daily snapshots)
    - `DAILY_SNAPSHOT_HOUR_UTC=3` (optional; hour 0-23 in UTC for daily snapshot run)
    - `DEFINITION_CACHE_TTL_MS=604800000` (optional; English definition cache TTL in milliseconds, default 7 days)
+   - `OPENAI_API_KEY=sk-...` (optional; enables OpenAI-first Japanese-to-English vocabulary translations)
+   - `OPENAI_TRANSLATION_MODEL=gpt-5-mini` (optional; model for OpenAI vocabulary translations)
+   - `OPENAI_TRANSLATION_ENABLED=true` (optional; set `false` to force Jisho-only translation fallback)
    - `ADMIN_API_KEY=your-long-random-secret` (required for `/api/admin/*` endpoints)
    - `SMTP_HOST=smtp.your-provider.com`
    - `SMTP_PORT=587`

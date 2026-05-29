@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { query } from "../db/client.js";
+import { translateJapaneseToEnglishWithOpenAI } from "../lib/openaiTranslate.js";
 
 export const translateRouter = Router();
 
@@ -9,7 +10,7 @@ const TRANSLATION_CACHE_TTL_MS = (() => {
   return parsed;
 })();
 const EN_JA_CACHE_VERSION = "common-v3";
-const JA_EN_CACHE_VERSION = "headword-v2";
+const JA_EN_CACHE_VERSION = "openai-v1";
 const UPSTREAM_FETCH_TIMEOUT_MS = 8000;
 const UPSTREAM_FETCH_RETRY_DELAYS_MS = [350, 900];
 
@@ -494,11 +495,31 @@ translateRouter.post("/ja-en", async (req, res) => {
 
     let translations = [];
     let provider = "jisho";
+    let confidence = "";
+    let partOfSpeech = "";
+    let note = "";
 
     try {
-      translations = await fetchJishoEnglishDefinitions(text);
-    } catch {
+      const openAiResult = await translateJapaneseToEnglishWithOpenAI(text);
+      if (openAiResult?.english) {
+        translations = [openAiResult.english];
+        provider = "openai";
+        confidence = openAiResult.confidence || "";
+        partOfSpeech = openAiResult.partOfSpeech || "";
+        note = openAiResult.note || "";
+      }
+    } catch (error) {
+      console.error("OpenAI Japanese to English translation failed", error);
       translations = [];
+      provider = "jisho";
+    }
+
+    if (!translations.length) {
+      try {
+        translations = await fetchJishoEnglishDefinitions(text);
+      } catch {
+        translations = [];
+      }
     }
 
     if (!translations.length && cached?.translations?.length && cached.provider === "jisho") {
@@ -535,6 +556,9 @@ translateRouter.post("/ja-en", async (req, res) => {
       translations,
       cached: false,
       provider,
+      confidence,
+      partOfSpeech,
+      note,
     });
   } catch (error) {
     console.error("Japanese to English translation request failed", error);
