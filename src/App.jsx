@@ -19,6 +19,40 @@ const WEAK_WORDS_RECENT_QUESTION_WINDOW = 120;
 const DEFAULT_CHAPTER_ID = "general";
 const WORD_MASTERY_MAX_XP = 10;
 const WORD_MASTERY_BAR_STEPS = 5;
+const DEFAULT_BOOK_LANGUAGE_MODE = "en_en";
+const BOOK_LANGUAGE_MODE_OPTIONS = [
+  {
+    value: "en_en",
+    label: "English to English",
+    shortLabel: "EN -> EN",
+    sourceLabel: "English",
+    targetLabel: "English",
+    addWordPlaceholder: "Add English word...",
+    attribution: "Definition data is fetched through the backend with Free Dictionary API (dictionaryapi.dev) plus fallback sources and caching for reliability.",
+    emptyHint: "Add a word above and Vocalibry will fetch the definition, place it in this chapter, and make it available for flashcards and quizzes.",
+  },
+  {
+    value: "en_ja",
+    label: "English to Japanese",
+    shortLabel: "EN -> JA",
+    sourceLabel: "English",
+    targetLabel: "Japanese",
+    addWordPlaceholder: "Add English word...",
+    attribution: "Translation data is fetched from Jisho (jisho.org) for English-to-Japanese learning.",
+    emptyHint: "Add an English word above and Vocalibry will fetch Japanese meanings for this book's flashcards and quizzes.",
+  },
+  {
+    value: "ja_en",
+    label: "Japanese to English",
+    shortLabel: "JA -> EN",
+    sourceLabel: "Japanese",
+    targetLabel: "English",
+    addWordPlaceholder: "Add Japanese word...",
+    attribution: "Translation data is fetched from Jisho (jisho.org) for Japanese-to-English learning.",
+    emptyHint: "Add a Japanese word above and Vocalibry will fetch English meanings for this book's flashcards and quizzes.",
+  },
+];
+const BOOK_LANGUAGE_MODE_VALUE_SET = new Set(BOOK_LANGUAGE_MODE_OPTIONS.map((option) => option.value));
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
   .replace(/\/$/, "");
@@ -324,6 +358,20 @@ function getSelectedDefinition(wordEntry) {
     definitions.length - 1
   );
   return definitions[safeIndex];
+}
+
+function inferBookLanguageMode(book) {
+  const explicitMode = parseBookLanguageMode(book?.languageMode, "");
+  if (explicitMode) return explicitMode;
+
+  const words = Array.isArray(book?.words) ? book.words : [];
+  const hasJapaneseTranslationWords = words.some((wordEntry) => {
+    const meaningSource = String(wordEntry?.meaningSource || "").trim().toLowerCase();
+    const translationProvider = String(wordEntry?.translationProvider || "").trim();
+    return meaningSource === "translator_en_ja" || Boolean(translationProvider);
+  });
+
+  return hasJapaneseTranslationWords ? "en_ja" : DEFAULT_BOOK_LANGUAGE_MODE;
 }
 
 function getMistakeCount(wordEntry) {
@@ -715,6 +763,128 @@ async function fetchJapaneseTranslations(word) {
   return directResult;
 }
 
+async function fetchJapaneseToEnglishTranslations(word) {
+  const input = String(word || "").trim();
+  if (!input) return { translations: [], provider: "", error: "" };
+  const hasJapanese = (value) => /[\u3040-\u30ff\u3400-\u9fff]/.test(String(value || ""));
+
+  const normalize = (values) => {
+    const seen = new Set();
+    return values
+      .map((value) => String(value || "").replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .filter((value) => {
+        const key = value.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 6);
+  };
+
+  const fetchJishoDirect = async () => {
+    if (!hasJapanese(input)) {
+      return { translations: [], provider: "jisho-direct", error: "jisho-word-not-available" };
+    }
+
+    try {
+      const res = await fetchWithRetry(
+        `https://jisho.org/api/v1/search/words?keyword=${encodeURIComponent(input)}`,
+        {
+          headers: { Accept: "application/json" },
+          timeoutMs: 9000,
+          retryDelays: [500],
+        }
+      );
+      if (!res.ok) {
+        return { translations: [], provider: "jisho-direct", error: "translation-provider-failed" };
+      }
+
+      const payload = await res.json().catch(() => null);
+      const items = Array.isArray(payload?.data) ? payload.data : [];
+      const candidates = [];
+      items.slice(0, 10).forEach((item) => {
+        const senses = Array.isArray(item?.senses) ? item.senses : [];
+        senses.forEach((sense) => {
+          const englishDefinitions = Array.isArray(sense?.english_definitions)
+            ? sense.english_definitions
+            : [];
+          englishDefinitions.forEach((definition) => candidates.push(definition));
+        });
+      });
+
+      const translations = normalize(candidates);
+      if (!translations.length) {
+        return { translations: [], provider: "jisho-direct", error: "jisho-word-not-available" };
+      }
+      return { translations, provider: "jisho-direct", error: "" };
+    } catch {
+      return { translations: [], provider: "jisho-direct", error: "translation-provider-failed" };
+    }
+  };
+
+  const endpointCandidates = [`${TRANSLATION_API_PATH}/ja-en`];
+  const onLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  if (!API_BASE_URL && onLocalhost) {
+    endpointCandidates.push("http://localhost:4000/api/translate/ja-en");
+  }
+
+  const triedEndpoints = new Set();
+  let sawApiConnectionError = false;
+
+  for (const endpoint of endpointCandidates) {
+    const normalizedEndpoint = String(endpoint || "").trim();
+    if (!normalizedEndpoint || triedEndpoints.has(normalizedEndpoint)) continue;
+    triedEndpoints.add(normalizedEndpoint);
+
+    try {
+      const res = await fetchWithRetry(normalizedEndpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: input }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (res.ok) {
+        const normalized = normalize(Array.isArray(payload?.translations) ? payload.translations : []);
+        if (normalized.length) {
+          return {
+            translations: normalized,
+            provider: String(payload?.provider || "backend").trim().toLowerCase() || "backend",
+            error: "",
+          };
+        }
+      }
+
+      const errorCode = String(payload?.error || "").trim().toLowerCase();
+      if (errorCode === "jisho-word-not-available") {
+        return { translations: [], provider: "jisho", error: errorCode };
+      }
+      if (errorCode === "translation-provider-failed") {
+        sawApiConnectionError = true;
+      }
+    } catch {
+      sawApiConnectionError = true;
+    }
+  }
+
+  const directResult = await fetchJishoDirect();
+  if (directResult.translations.length > 0 || directResult.error === "jisho-word-not-available") {
+    return directResult;
+  }
+  if (sawApiConnectionError && directResult.error === "translation-provider-failed") {
+    return {
+      translations: [],
+      provider: directResult.provider || "",
+      error: "translation-connection-error",
+    };
+  }
+  return directResult;
+}
+
 function parseJsonSafely(rawValue, fallbackValue) {
   if (!rawValue) return fallbackValue;
   try {
@@ -752,7 +922,24 @@ function parseStoredDictionaryPreference(value, fallbackValue = "en_en") {
   const normalized = String(value || "")
     .trim()
     .toLowerCase();
-  return normalized === "en_ja" || normalized === "en_en" ? normalized : fallbackValue;
+  return normalized === "en_ja" || normalized === "en_en" || normalized === "ja_en"
+    ? normalized
+    : fallbackValue;
+}
+
+function parseBookLanguageMode(value, fallbackValue = DEFAULT_BOOK_LANGUAGE_MODE) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return BOOK_LANGUAGE_MODE_VALUE_SET.has(normalized) ? normalized : fallbackValue;
+}
+
+function getBookLanguageModeMeta(mode) {
+  const normalized = parseBookLanguageMode(mode);
+  return (
+    BOOK_LANGUAGE_MODE_OPTIONS.find((option) => option.value === normalized) ||
+    BOOK_LANGUAGE_MODE_OPTIONS[0]
+  );
 }
 
 function parseStoredQuizSetup(rawValue) {
@@ -1023,6 +1210,7 @@ function buildQuizQuestions(words, options = {}) {
         correctDefinition,
         options,
         sourceBookId: entry.sourceBookId ?? null,
+        languageMode: parseBookLanguageMode(entry?.languageMode, DEFAULT_BOOK_LANGUAGE_MODE),
         chapterId: entry.chapterId || DEFAULT_CHAPTER_ID,
       };
     })
@@ -1330,6 +1518,7 @@ function sanitizeChapterId(value) {
 }
 
 function ensureBookChapters(book) {
+  const languageMode = inferBookLanguageMode(book);
   const existingChapters = Array.isArray(book?.chapters) ? book.chapters : [];
   const uniqueChapters = [];
   const chapterIdSet = new Set();
@@ -1353,6 +1542,7 @@ function ensureBookChapters(book) {
     const safeChapterId = chapterIdSet.has(chapterId) ? chapterId : fallbackChapterId;
     return {
       ...wordEntry,
+      languageMode: parseBookLanguageMode(wordEntry?.languageMode, languageMode),
       chapterId: safeChapterId,
       difficulty: normalizeWordDifficulty(wordEntry?.difficulty),
       masteryXp: getWordMasteryXp(wordEntry),
@@ -1362,6 +1552,7 @@ function ensureBookChapters(book) {
 
   return {
     ...book,
+    languageMode,
     chapters: uniqueChapters,
     words: normalizedWords,
   };
@@ -1609,13 +1800,13 @@ const ONBOARDING_TUTORIAL_SLIDES = [
   },
   {
     title: "Create your first book",
-    body: "Start by making a vocabulary book for a class, novel, exam, or topic.",
+    body: "Start by making a focused book and choose its language mode, like English vocabulary or Japanese practice.",
     image: "/landing/tutorial-1-create-book.png",
     alt: "My Books screen showing the create your first vocabulary book prompt",
   },
   {
     title: "Add words and chapters",
-    body: "Save new words, then use chapters to keep each unit or section organized.",
+    body: "Add words in the book's chosen direction, then use chapters to keep each unit or section organized.",
     image: "/landing/tutorial-2-add-words.png",
     alt: "Book definitions screen showing a word list and chapter controls",
   },
@@ -1677,6 +1868,9 @@ export default function App() {
   });
   const [isAddBookModalOpen, setIsAddBookModalOpen] = useState(false);
   const [newBookName, setNewBookName] = useState("");
+  const [newBookLanguageMode, setNewBookLanguageMode] = useState(() =>
+    parseBookLanguageMode(localStorage.getItem(DICTIONARY_PREFERENCE_STORAGE_KEY), DEFAULT_BOOK_LANGUAGE_MODE)
+  );
   const [bookPendingRename, setBookPendingRename] = useState(null);
   const [renamedBookName, setRenamedBookName] = useState("");
   const [bookPendingDelete, setBookPendingDelete] = useState(null);
@@ -1843,7 +2037,6 @@ export default function App() {
   const [adaptiveReviewError, setAdaptiveReviewError] = useState("");
   const [adaptiveReviewPendingRating, setAdaptiveReviewPendingRating] = useState("");
   const isJapaneseUi = preferredLanguage === "ja";
-  const useEnglishToJapaneseDictionary = dictionaryPreference === "en_ja";
   const appLocale = isJapaneseUi ? "ja" : "en";
   const uiText = APP_TEXT[appLocale] || APP_TEXT.en;
   const tr = (en, ja) => (isJapaneseUi ? ja : en);
@@ -1869,6 +2062,10 @@ export default function App() {
   }, []);
 
   const currentBook = books.find((b) => b.id === currentBookId);
+  const currentBookLanguageMode = parseBookLanguageMode(currentBook?.languageMode, DEFAULT_BOOK_LANGUAGE_MODE);
+  const currentBookLanguageModeMeta = getBookLanguageModeMeta(currentBookLanguageMode);
+  const useEnglishToJapaneseDictionary = currentBookLanguageMode === "en_ja";
+  const useJapaneseToEnglishDictionary = currentBookLanguageMode === "ja_en";
   const currentBookWordCount = (currentBook?.words || []).length;
   const currentBookChapters = getBookChapterList(currentBook);
   const fallbackChapterId = currentBookChapters[0]?.id || DEFAULT_CHAPTER_ID;
@@ -1966,6 +2163,7 @@ export default function App() {
       .map((wordEntry) => ({
         ...wordEntry,
         sourceBookId: book.id,
+        languageMode: parseBookLanguageMode(wordEntry?.languageMode, book.languageMode),
       }))
     );
   }
@@ -3958,6 +4156,7 @@ export default function App() {
   // Add / delete books
   function openAddBookModal() {
     setNewBookName("");
+    setNewBookLanguageMode(parseBookLanguageMode(dictionaryPreference, DEFAULT_BOOK_LANGUAGE_MODE));
     setIsAddBookModalOpen(true);
     if (guidedTourStep === "dashboard-add-book") {
       setGuidedTourStep("book-name");
@@ -3970,6 +4169,7 @@ export default function App() {
     const newBook = {
       id: Date.now(),
       name,
+      languageMode: parseBookLanguageMode(newBookLanguageMode, DEFAULT_BOOK_LANGUAGE_MODE),
       words: [],
       chapters: [createDefaultChapter()],
       questionsCompleted: 0,
@@ -3980,6 +4180,7 @@ export default function App() {
     setScreen("bookMenu");
     setIsAddBookModalOpen(false);
     setNewBookName("");
+    setNewBookLanguageMode(parseBookLanguageMode(dictionaryPreference, DEFAULT_BOOK_LANGUAGE_MODE));
     if (guidedTourStep === "book-create" || guidedTourStep === "book-name") {
       setGuidedTourStep("book-definitions");
     }
@@ -4381,7 +4582,7 @@ export default function App() {
         key: "book-name",
         stepLabel: "Step 1",
         title: tr("Name your book", "Name your book"),
-        body: tr("Type a short name, like Class Words, Novel Words, or Exam Prep.", "Type a short name, like Class Words, Novel Words, or Exam Prep."),
+        body: tr("Type a short name, then choose whether this book is English, English to Japanese, or Japanese to English.", "Type a short name, then choose whether this book is English, English to Japanese, or Japanese to English."),
       };
     }
 
@@ -4424,7 +4625,7 @@ export default function App() {
         key: "word-add",
         stepLabel: "Step 2",
         title: tr("Press + to save it", "Press + to save it"),
-        body: tr("Vocalibry will fetch the definition and add the word to this book.", "Vocalibry will fetch the definition and add the word to this book."),
+        body: tr("Vocalibry will fetch the right meaning for this book's language mode.", "Vocalibry will fetch the right meaning for this book's language mode."),
       };
     }
 
@@ -4433,7 +4634,7 @@ export default function App() {
         key: "word-saving",
         stepLabel: "Step 2",
         title: tr("Saving the word", "Saving the word"),
-        body: tr("Wait here while Vocalibry fetches and saves the definition.", "Wait here while Vocalibry fetches and saves the definition."),
+        body: tr("Wait here while Vocalibry fetches and saves the meaning.", "Wait here while Vocalibry fetches and saves the meaning."),
       };
     }
 
@@ -4786,7 +4987,7 @@ export default function App() {
       return (
         <div className="modalOverlay" onClick={() => setIsAddBookModalOpen(false)}>
           <div
-            className="modalCard"
+            className="modalCard createBookModalCard"
             ref={modalRef}
             role="dialog"
             aria-modal="true"
@@ -4794,19 +4995,43 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="create-book-title">{tr("Create Book", "ブック作成")}</h3>
-            <input
-              className={guidedTourStep === "book-name" ? "guidedTarget" : ""}
-              value={newBookName}
-              onChange={(e) => {
-                setNewBookName(e.target.value);
-                if (guidedTourStep === "book-name" && e.target.value.trim()) {
-                  setGuidedTourStep("book-create");
-                }
-              }}
-              onKeyDown={(e) => e.key === "Enter" && createBook()}
-              placeholder={tr("Enter book name", "ブック名を入力")}
-              autoFocus
-            />
+            <div className="createBookFields">
+              <input
+                className={guidedTourStep === "book-name" ? "guidedTarget" : ""}
+                value={newBookName}
+                onChange={(e) => {
+                  setNewBookName(e.target.value);
+                  if (guidedTourStep === "book-name" && e.target.value.trim()) {
+                    setGuidedTourStep("book-create");
+                  }
+                }}
+                onKeyDown={(e) => e.key === "Enter" && createBook()}
+                placeholder={tr("Enter book name", "ブック名を入力")}
+                autoFocus
+              />
+              <div className="settingsRow createBookLanguageRow">
+                <span>{tr("Language mode", "学習モード")}</span>
+                <InAppDropdown
+                  value={newBookLanguageMode}
+                  options={BOOK_LANGUAGE_MODE_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  }))}
+                  onChange={(nextMode) => {
+                    setNewBookLanguageMode(parseBookLanguageMode(nextMode, DEFAULT_BOOK_LANGUAGE_MODE));
+                  }}
+                  className="settingsDropdown"
+                  triggerClassName="isSettings"
+                  menuClassName="isSettings"
+                />
+              </div>
+            </div>
+            <p className="settingsHint">
+              {tr(
+                "This keeps each book focused on one learning direction.",
+                "各ブックを1つの学習方向に集中させます。"
+              )}
+            </p>
             {renderGuidedTourCoach("inline", "book-name")}
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={() => setIsAddBookModalOpen(false)}>
@@ -5181,6 +5406,9 @@ export default function App() {
                     <option value="en_ja">
                       {tr("English to Japanese", "\u82F1\u8A9E\u2192\u65E5\u672C\u8A9E")}
                     </option>
+                    <option value="ja_en">
+                      {tr("Japanese to English", "\u65E5\u672C\u8A9E\u2192\u82F1\u8A9E")}
+                    </option>
                   </select>
                 </div>
                 {isLifetimePro ? (
@@ -5481,6 +5709,7 @@ export default function App() {
 
   function renderSelectBookCard(book, onSelect) {
     const words = book?.words || [];
+    const languageModeMeta = getBookLanguageModeMeta(book?.languageMode);
     const questionsCompleted = Math.max(0, Math.floor(Number(book?.questionsCompleted) || 0));
     const chapterCount = getBookChapterList(book).length;
     const masteredCount = words.filter((wordEntry) => getWordMasteryMeta(wordEntry).level >= 4).length;
@@ -5514,7 +5743,9 @@ export default function App() {
               {"\u270E"}
             </button>
           </div>
-          <p className="selectBookLastOpened">Last opened: {lastOpenedText}</p>
+          <p className="selectBookLastOpened">
+            {languageModeMeta.shortLabel} | Last opened: {lastOpenedText}
+          </p>
         </div>
         <div className="selectBookStats">
           <div className="selectBookStat">
@@ -5555,6 +5786,7 @@ export default function App() {
 
   function renderMyBookCard(book) {
     const words = book?.words || [];
+    const languageModeMeta = getBookLanguageModeMeta(book?.languageMode);
     const questionsCompleted = Math.max(0, Math.floor(Number(book?.questionsCompleted) || 0));
     const chapterCount = getBookChapterList(book).length;
     const masteredCount = words.filter((wordEntry) => getWordMasteryMeta(wordEntry).level >= 4).length;
@@ -5621,7 +5853,9 @@ export default function App() {
             </h3>
             {isFullyMasteredBook && <span className="selectBookMasteredBadge">Mastered</span>}
           </div>
-          <p className="selectBookLastOpened">Last opened: {lastOpenedText}</p>
+          <p className="selectBookLastOpened">
+            {languageModeMeta.shortLabel} | Last opened: {lastOpenedText}
+          </p>
         </div>
         <div className="selectBookStats">
           <div className="selectBookStat">
@@ -5788,6 +6022,25 @@ export default function App() {
           }
           return;
         }
+      } else if (useJapaneseToEnglishDictionary) {
+        const translationResult = await fetchJapaneseToEnglishTranslations(cleanWord);
+        definitions = Array.isArray(translationResult?.translations)
+          ? translationResult.translations
+          : [];
+        translationProvider = String(translationResult?.provider || "").trim().toLowerCase();
+        translationErrorCode = String(translationResult?.error || "").trim().toLowerCase();
+        if (!definitions.length) {
+          if (translationErrorCode === "jisho-word-not-available") {
+            openNoticeModal(uiText.jishoWordUnavailable, uiText.jishoWordUnavailableTitle);
+          } else if (translationErrorCode === "translation-connection-error") {
+            openNoticeModal(uiText.translationConnectionError, uiText.translationConnectionErrorTitle);
+          } else if (translationErrorCode) {
+            openNoticeModal(uiText.translationNetworkError, uiText.networkErrorTitle);
+          } else {
+            openNoticeModal(uiText.translationRequired, uiText.translationRequiredTitle);
+          }
+          return;
+        }
       } else {
         const definitionResult = await fetchEnglishDefinitions(cleanWord);
         definitions = Array.isArray(definitionResult?.definitions) ? definitionResult.definitions : [];
@@ -5822,14 +6075,25 @@ export default function App() {
                   word: cleanWord,
                   pronunciation,
                   definitions,
+                  languageMode: currentBookLanguageMode,
                   masteryXp: 0,
                   currentDefinitionIndex: 0,
                   definition: definitions[0],
-                  meaningSource: useEnglishToJapaneseDictionary ? "translator_en_ja" : "dictionary_en",
-                  translationProvider: useEnglishToJapaneseDictionary ? translationProvider || "unknown" : "",
-                  definitionProvider: useEnglishToJapaneseDictionary ? "" : definitionProvider || "unknown",
+                  meaningSource: useEnglishToJapaneseDictionary
+                    ? "translator_en_ja"
+                    : useJapaneseToEnglishDictionary
+                      ? "translator_ja_en"
+                      : "dictionary_en",
+                  translationProvider:
+                    useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
+                      ? translationProvider || "unknown"
+                      : "",
+                  definitionProvider:
+                    useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
+                      ? ""
+                      : definitionProvider || "unknown",
                   chapterId: safeSelectedChapterIdForNewWords,
-                  difficulty: estimateCefrLevel(cleanWord),
+                  difficulty: currentBookLanguageMode === "en_en" ? estimateCefrLevel(cleanWord) : "",
                   quizPerformanceHistory: [],
                 },
                 ...book.words,
@@ -5861,7 +6125,9 @@ export default function App() {
       setLastAddedWord(cleanWord);
     } catch {
       openNoticeModal(
-        useEnglishToJapaneseDictionary ? uiText.translationNetworkError : uiText.dictionaryNetworkError,
+        useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
+          ? uiText.translationNetworkError
+          : uiText.dictionaryNetworkError,
         uiText.networkErrorTitle
       );
     } finally {
@@ -6605,6 +6871,9 @@ export default function App() {
                       </option>
                       <option value="en_ja">
                         {tr("Dictionary: English to Japanese", "辞書: 英語→日本語")}
+                      </option>
+                      <option value="ja_en">
+                        {tr("Dictionary: Japanese to English", "辞書: 日本語→英語")}
                       </option>
                     </select>
                   ) : null}
@@ -7572,7 +7841,7 @@ export default function App() {
                 if (e.nativeEvent?.isComposing) return;
                 addWord();
               }}
-              placeholder={uiText.addWordPlaceholder}
+              placeholder={currentBookLanguageModeMeta.addWordPlaceholder || uiText.addWordPlaceholder}
               disabled={loading}
             />
           </div>
@@ -7590,9 +7859,10 @@ export default function App() {
           {renderGuidedTourCoach("inlineRight", "word-saving")}
         </div>
         <p className="definitionAttributionNote">
-          {useEnglishToJapaneseDictionary
-            ? uiText.definitionAttributionTranslator
-            : uiText.definitionAttributionDictionary}
+          {currentBookLanguageModeMeta.attribution ||
+            (useEnglishToJapaneseDictionary
+              ? uiText.definitionAttributionTranslator
+              : uiText.definitionAttributionDictionary)}
         </p>
         <div className="chapterControlsRow">
           <div className="chapterControlField">
@@ -7620,8 +7890,8 @@ export default function App() {
             icon: "\uD83D\uDCD8",
             title: tr("Start this book with one useful word", "Start this book with one useful word"),
             body: tr(
-              "Add a word above and Vocalibry will fetch the definition, place it in this chapter, and make it available for flashcards and quizzes.",
-              "Add a word above and Vocalibry will fetch the definition, place it in this chapter, and make it available for flashcards and quizzes."
+              currentBookLanguageModeMeta.emptyHint,
+              currentBookLanguageModeMeta.emptyHint
             ),
             primaryLabel: tr("Focus word field", "Focus word field"),
             onPrimary: () => document.querySelector(".addWordFieldGroup input")?.focus(),
@@ -7678,11 +7948,15 @@ export default function App() {
                       </button>
                       {showLocalTranslationDebug &&
                       (String(
-                        useEnglishToJapaneseDictionary ? w.translationProvider : w.definitionProvider
+                        useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
+                          ? w.translationProvider
+                          : w.definitionProvider
                       ).trim()) ? (
                         <span className="translationSourceBadge">
                           {`provider: ${String(
-                            useEnglishToJapaneseDictionary ? w.translationProvider : w.definitionProvider
+                            useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
+                              ? w.translationProvider
+                              : w.definitionProvider
                           ).trim()}`}
                         </span>
                       ) : null}

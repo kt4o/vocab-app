@@ -969,6 +969,28 @@ body.theme-dark .accountLauncherAction {
   font-weight: 500;
 }
 
+.settingsRow .settingsDropdown {
+  width: min(260px, 100%);
+}
+
+.inAppDropdownTrigger.isSettings {
+  min-height: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--surface-alt) 6%);
+  padding: 0 12px;
+}
+
+.inAppDropdownMenu.isSettings {
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.inAppDropdownMenu.isSettings .inAppDropdownOption {
+  border-radius: 8px;
+  padding: 10px 10px;
+}
+
 .definitionSessionAction {
   display: flex;
   flex-direction: column;
@@ -2634,6 +2656,50 @@ body.theme-dark .pinBtn.isPinned {
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 14px;
+}
+
+.createBookModalCard {
+  width: min(460px, 100%);
+  padding: 24px;
+}
+
+.createBookModalCard h3 {
+  margin-bottom: 18px;
+}
+
+.createBookFields {
+  display: grid;
+  gap: 18px;
+}
+
+.createBookFields input {
+  margin-top: 0;
+  min-height: 44px;
+  border-radius: 12px;
+}
+
+.createBookLanguageRow {
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.createBookLanguageRow span {
+  display: block;
+}
+
+.createBookLanguageRow .settingsDropdown {
+  width: 100%;
+}
+
+.createBookModalCard .settingsHint {
+  margin-top: 14px;
+  margin-bottom: 0;
+  line-height: 1.45;
+}
+
+.createBookModalCard .modalActions {
+  margin-top: 24px;
 }
 
 .streakModalCard {

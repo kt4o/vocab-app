@@ -146,6 +146,10 @@ function isSimpleEnglishWord(value) {
   return /^[a-z][a-z0-9' -]{1,63}$/i.test(String(value || "").trim());
 }
 
+function isJapaneseText(value) {
+  return hasJapaneseCharacters(value);
+}
+
 function extractJishoTranslations(payload, inputText) {
   const items = Array.isArray(payload?.data) ? payload.data : [];
   const candidates = [];
@@ -183,6 +187,45 @@ async function fetchJishoTranslations(inputText) {
   if (!response.ok) return [];
   const payload = await response.json().catch(() => null);
   return extractJishoTranslations(payload, inputText);
+}
+
+function extractJishoEnglishDefinitions(payload, inputText) {
+  const items = Array.isArray(payload?.data) ? payload.data : [];
+  const candidates = [];
+  const normalizedInput = String(inputText || "").trim().toLowerCase();
+
+  items.slice(0, 10).forEach((item, itemIndex) => {
+    const senses = Array.isArray(item?.senses) ? item.senses : [];
+    senses.forEach((sense, senseIndex) => {
+      const definitions = Array.isArray(sense?.english_definitions)
+        ? sense.english_definitions
+        : [];
+      definitions.forEach((definition, definitionIndex) => {
+        candidates.push({
+          value: definition,
+          score: 1 - itemIndex * 0.05 - senseIndex * 0.02 - definitionIndex * 0.01,
+        });
+      });
+    });
+  });
+
+  return rankAndDedupeCandidates(candidates, normalizedInput);
+}
+
+async function fetchJishoEnglishDefinitions(inputText) {
+  if (!isJapaneseText(inputText)) return [];
+  const response = await fetchWithRetry(
+    `https://jisho.org/api/v1/search/words?keyword=${encodeURIComponent(inputText)}`,
+    {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "my-vocab-app/1.0 (+https://localhost)",
+      },
+    }
+  );
+  if (!response.ok) return [];
+  const payload = await response.json().catch(() => null);
+  return extractJishoEnglishDefinitions(payload, inputText);
 }
 
 async function readCachedTranslation(cacheKey) {
@@ -317,6 +360,82 @@ translateRouter.post("/en-ja", async (req, res) => {
     });
   } catch (error) {
     console.error("Translation request failed", error);
+    res.status(500).json({ error: "translation-request-failed" });
+  }
+});
+
+translateRouter.post("/ja-en", async (req, res) => {
+  const text = normalizeWordInput(req.body?.text);
+  if (!text) {
+    res.status(400).json({ error: "translation-text-required" });
+    return;
+  }
+
+  const sourceLang = "ja";
+  const targetLang = "en";
+  const cacheKey = buildCacheKey({ sourceLang, targetLang, text });
+
+  try {
+    const cached = await readCachedTranslation(cacheKey);
+    if (cached?.isFresh && cached.provider === "jisho") {
+      res.json({
+        text,
+        sourceLang,
+        targetLang,
+        translations: cached.translations,
+        provider: cached.provider,
+        cached: true,
+        cachedAt: cached.updatedAt,
+      });
+      return;
+    }
+
+    let translations = [];
+    let provider = "jisho";
+
+    try {
+      translations = await fetchJishoEnglishDefinitions(text);
+    } catch {
+      translations = [];
+    }
+
+    if (!translations.length && cached?.translations?.length && cached.provider === "jisho") {
+      res.json({
+        text,
+        sourceLang,
+        targetLang,
+        translations: cached.translations,
+        provider: cached.provider,
+        cached: true,
+        cachedAt: cached.updatedAt,
+      });
+      return;
+    }
+
+    if (!translations.length) {
+      res.status(404).json({ error: "jisho-word-not-available" });
+      return;
+    }
+
+    await writeCachedTranslation({
+      cacheKey,
+      sourceLang,
+      targetLang,
+      inputText: text,
+      translations,
+      provider,
+    });
+
+    res.json({
+      text,
+      sourceLang,
+      targetLang,
+      translations,
+      cached: false,
+      provider,
+    });
+  } catch (error) {
+    console.error("Japanese to English translation request failed", error);
     res.status(500).json({ error: "translation-request-failed" });
   }
 });

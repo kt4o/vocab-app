@@ -114,7 +114,8 @@ function normalizeDictionaryPreference(value) {
   const normalized = String(value || "")
     .trim()
     .toLowerCase();
-  return normalized === "en_ja" ? "en_ja" : "en_en";
+  if (normalized === "en_ja" || normalized === "ja_en") return normalized;
+  return "en_en";
 }
 
 function isValidUsername(value) {

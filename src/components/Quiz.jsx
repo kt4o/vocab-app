@@ -181,6 +181,7 @@ export function Quiz({
   }, [mode, words, buildQuizQuestions]);
 
   const current = questions[index];
+  const currentLanguageMode = String(current?.languageMode || "en_en").toLowerCase();
   const isFinished = questions.length > 0 && index >= questions.length;
   const canGoToNext = isTypingMode ? typedSubmitted : Boolean(selectedOption);
   const totalQuestions = questions.length;
@@ -216,6 +217,19 @@ export function Quiz({
         : accuracyPercent >= 60
           ? "\uD83D\uDCAA"
           : "\uD83D\uDE80";
+
+  function getMultipleChoicePrompt(question) {
+    const word = question?.word || "";
+    if (currentLanguageMode === "en_ja") return `What is the Japanese for "${word}"?`;
+    if (currentLanguageMode === "ja_en") return `What is the English meaning of "${word}"?`;
+    return `${copy.definitionPromptPrefix} "${word}"?`;
+  }
+
+  function getTypingPrompt() {
+    if (currentLanguageMode === "en_ja") return "Type the English word for this Japanese meaning:";
+    if (currentLanguageMode === "ja_en") return "Type the Japanese word for this English meaning:";
+    return copy.typeWordPrompt;
+  }
 
   function restartQuiz() {
     setQuestions(buildQuizQuestions(words));
@@ -516,7 +530,7 @@ export function Quiz({
 
           {isTypingMode ? (
             <>
-              <h2 className="quizPrompt">{copy.typeWordPrompt}</h2>
+              <h2 className="quizPrompt">{getTypingPrompt()}</h2>
               <p className="quizDefinitionPrompt">{current.correctDefinition}</p>
               <form className="quizTypeForm" onSubmit={handleTypedAnswer}>
                 <input
@@ -571,7 +585,7 @@ export function Quiz({
             </>
           ) : (
             <>
-              <h2 className="quizPrompt">{`${copy.definitionPromptPrefix} "${current.word}"?`}</h2>
+              <h2 className="quizPrompt">{getMultipleChoicePrompt(current)}</h2>
 
               <div className="quizOptions">
                 {current.options.map((option) => {

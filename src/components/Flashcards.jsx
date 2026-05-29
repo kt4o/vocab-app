@@ -10,6 +10,12 @@ export function Flashcards({
   getSelectedDefinition,
   locale = "en",
 }) {
+  const languageMode = String(currentBook?.languageMode || "en_en").toLowerCase();
+  const languageLabels = {
+    en_en: { source: "Word", target: "Definition" },
+    en_ja: { source: "English", target: "Japanese" },
+    ja_en: { source: "Japanese", target: "English" },
+  }[languageMode] || { source: "Word", target: "Definition" };
   const copy = locale === "ja"
     ? {
         noDefinition: "意味がありません",
@@ -223,8 +229,8 @@ export function Flashcards({
               <Dropdown
                 value={cardPromptMode}
                 options={[
-                  { value: "word-to-definition", label: copy.wordToDefinition },
-                  { value: "definition-to-word", label: copy.definitionToWord },
+                  { value: "word-to-definition", label: `${languageLabels.source} -> ${languageLabels.target}` },
+                  { value: "definition-to-word", label: `${languageLabels.target} -> ${languageLabels.source}` },
                 ]}
                 onChange={(nextMode) => {
                   setCardPromptMode(nextMode);
