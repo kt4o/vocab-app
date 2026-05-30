@@ -24,6 +24,12 @@ function normalizeConfidence(value) {
     : "medium";
 }
 
+function normalizeText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function parseResponseJson(response) {
   const outputText = String(response?.output_text || "").trim();
   if (outputText) {
@@ -43,7 +49,7 @@ function parseResponseJson(response) {
 }
 
 export async function translateJapaneseToEnglishWithOpenAI(inputText) {
-  const text = String(inputText || "").trim();
+  const text = normalizeText(inputText);
   if (!text || !isOpenAiTranslationEnabled()) return null;
 
   const client = getOpenAiClient();
@@ -100,16 +106,161 @@ export async function translateJapaneseToEnglishWithOpenAI(inputText) {
   });
 
   const parsed = parseResponseJson(response);
-  const english = String(parsed?.english || "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const english = normalizeText(parsed?.english);
 
   if (!english) return null;
 
   return {
     english,
     confidence: normalizeConfidence(parsed?.confidence),
-    partOfSpeech: String(parsed?.partOfSpeech || "unknown").replace(/\s+/g, " ").trim() || "unknown",
-    note: String(parsed?.note || "").replace(/\s+/g, " ").trim(),
+    partOfSpeech: normalizeText(parsed?.partOfSpeech) || "unknown",
+    note: normalizeText(parsed?.note),
+  };
+}
+
+export async function translateEnglishToJapaneseWithOpenAI(inputText) {
+  const text = normalizeText(inputText);
+  if (!text || !isOpenAiTranslationEnabled()) return null;
+
+  const client = getOpenAiClient();
+  if (!client) return null;
+
+  const response = await client.responses.create({
+    model: String(process.env.OPENAI_TRANSLATION_MODEL || DEFAULT_OPENAI_TRANSLATION_MODEL).trim() ||
+      DEFAULT_OPENAI_TRANSLATION_MODEL,
+    input: [
+      {
+        role: "system",
+        content:
+          "You create Japanese vocabulary flashcards for English speakers. Given one English word or short expression, return the most common everyday Japanese translation for a learner. Prefer a concise modern translation. Avoid rare, archaic, overly technical, or name/place senses. If the English is ambiguous, choose the most common general meaning and mark confidence as medium or low.",
+      },
+      {
+        role: "user",
+        content: `English vocabulary item: ${text}`,
+      },
+    ],
+    reasoning: {
+      effort: "minimal",
+    },
+    max_output_tokens: 900,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "english_to_japanese_vocab_translation",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            japanese: {
+              type: "string",
+              description: "One concise Japanese translation suitable for a vocabulary flashcard.",
+            },
+            reading: {
+              type: "string",
+              description: "Kana reading if known. Empty string if not needed or unknown.",
+            },
+            confidence: {
+              type: "string",
+              enum: ["high", "medium", "low"],
+            },
+            partOfSpeech: {
+              type: "string",
+              description: "A short part of speech label, or unknown.",
+            },
+            note: {
+              type: "string",
+              description: "A short learner note. Empty string if not needed.",
+            },
+          },
+          required: ["japanese", "reading", "confidence", "partOfSpeech", "note"],
+        },
+      },
+    },
+  });
+
+  const parsed = parseResponseJson(response);
+  const japanese = normalizeText(parsed?.japanese);
+  if (!japanese) return null;
+
+  return {
+    japanese,
+    reading: normalizeText(parsed?.reading),
+    confidence: normalizeConfidence(parsed?.confidence),
+    partOfSpeech: normalizeText(parsed?.partOfSpeech) || "unknown",
+    note: normalizeText(parsed?.note),
+  };
+}
+
+export async function defineEnglishWithOpenAI(inputText) {
+  const text = normalizeText(inputText);
+  if (!text || !isOpenAiTranslationEnabled()) return null;
+
+  const client = getOpenAiClient();
+  if (!client) return null;
+
+  const response = await client.responses.create({
+    model: String(process.env.OPENAI_TRANSLATION_MODEL || DEFAULT_OPENAI_TRANSLATION_MODEL).trim() ||
+      DEFAULT_OPENAI_TRANSLATION_MODEL,
+    input: [
+      {
+        role: "system",
+        content:
+          "You create English vocabulary flashcards for English speakers. Given one English word or short phrase, return a concise learner-friendly definition. Prefer common modern meanings. Avoid circular definitions, rare senses, and long explanations. Include one to three short definitions only when useful.",
+      },
+      {
+        role: "user",
+        content: `English vocabulary item: ${text}`,
+      },
+    ],
+    reasoning: {
+      effort: "minimal",
+    },
+    max_output_tokens: 900,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "english_vocab_definition",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            definitions: {
+              type: "array",
+              items: { type: "string" },
+              minItems: 1,
+              maxItems: 3,
+            },
+            confidence: {
+              type: "string",
+              enum: ["high", "medium", "low"],
+            },
+            partOfSpeech: {
+              type: "string",
+              description: "A short part of speech label, or unknown.",
+            },
+            note: {
+              type: "string",
+              description: "A short learner note. Empty string if not needed.",
+            },
+          },
+          required: ["definitions", "confidence", "partOfSpeech", "note"],
+        },
+      },
+    },
+  });
+
+  const parsed = parseResponseJson(response);
+  const definitions = Array.isArray(parsed?.definitions)
+    ? parsed.definitions.map((definition) => normalizeText(definition)).filter(Boolean).slice(0, 3)
+    : [];
+  if (!definitions.length) return null;
+
+  return {
+    definitions,
+    confidence: normalizeConfidence(parsed?.confidence),
+    partOfSpeech: normalizeText(parsed?.partOfSpeech) || "unknown",
+    note: normalizeText(parsed?.note),
   };
 }

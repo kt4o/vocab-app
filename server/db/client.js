@@ -179,29 +179,6 @@ export async function initDb() {
   `);
 
   await query(`
-    CREATE TABLE IF NOT EXISTS friendships (
-      id SERIAL PRIMARY KEY,
-      user_low_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      user_high_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      requested_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'declined')),
-      created_at TEXT NOT NULL,
-      responded_at TEXT,
-      CHECK (user_low_id < user_high_id)
-    );
-  `);
-
-  await query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_friendships_pair_unique
-    ON friendships(user_low_id, user_high_id);
-  `);
-
-  await query(`
-    CREATE INDEX IF NOT EXISTS idx_friendships_status
-    ON friendships(status);
-  `);
-
-  await query(`
     CREATE TABLE IF NOT EXISTS retention_events (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -22,9 +22,9 @@
    - `DAILY_SNAPSHOT_ENABLED=true` (optional; set `false` to disable scheduled daily snapshots)
    - `DAILY_SNAPSHOT_HOUR_UTC=3` (optional; hour 0-23 in UTC for daily snapshot run)
    - `DEFINITION_CACHE_TTL_MS=604800000` (optional; English definition cache TTL in milliseconds, default 7 days)
-   - `OPENAI_API_KEY=sk-...` (optional; enables OpenAI-first Japanese-to-English vocabulary translations)
-   - `OPENAI_TRANSLATION_MODEL=gpt-5-mini` (optional; model for OpenAI vocabulary translations)
-   - `OPENAI_TRANSLATION_ENABLED=true` (optional; set `false` to force Jisho-only translation fallback)
+   - `OPENAI_API_KEY=sk-...` (optional; enables OpenAI-first vocabulary lookups)
+   - `OPENAI_TRANSLATION_MODEL=gpt-5-mini` (optional; model for English definitions and translations)
+   - `OPENAI_TRANSLATION_ENABLED=true` (optional; set `false` to force dictionary/Jisho fallbacks)
    - `ADMIN_API_KEY=your-long-random-secret` (required for `/api/admin/*` endpoints)
    - `SMTP_HOST=smtp.your-provider.com`
    - `SMTP_PORT=587`
@@ -78,11 +78,6 @@
 - `GET /api/teacher/cohorts` with `Authorization: Bearer <token>`
 - `GET /api/teacher/cohorts/:codeId/word-adds/summary?days=30` with `Authorization: Bearer <token>`
 - `GET /api/teacher/cohorts/:codeId/word-adds/trends?days=30` with `Authorization: Bearer <token>`
-- `GET /api/social/overview` with `Authorization: Bearer <token>`
-- `POST /api/social/requests` with `Authorization: Bearer <token>` body: `{"username":"friend_user"}`
-- `POST /api/social/requests/:requestId/respond` with `Authorization: Bearer <token>` body: `{"action":"accept"}` or `{"action":"decline"}`
-- `DELETE /api/social/requests/:requestId` with `Authorization: Bearer <token>` (cancel your own pending request)
-- `DELETE /api/social/friends/:friendUserId` with `Authorization: Bearer <token>`
 - `POST /api/analytics/retention/ping` with `Authorization: Bearer <token>` body: `{"eventName":"session_start","dayKey":"2026-03-14","metadata":{"source":"app/client"}}`
 - `GET /api/analytics/retention/summary?days=30` with `Authorization: Bearer <token>`
 - `GET /api/billing/status` with `Authorization: Bearer <token>`

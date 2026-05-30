@@ -58,7 +58,6 @@ const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .replace(/\/$/, "");
 const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
 const STATE_API_PATH = `${API_BASE_URL}/api/state`;
-const SOCIAL_API_PATH = `${API_BASE_URL}/api/social`;
 const BILLING_API_PATH = `${API_BASE_URL}/api/billing`;
 const ANALYTICS_API_PATH = `${API_BASE_URL}/api/analytics`;
 const TRANSLATION_API_PATH = `${API_BASE_URL}/api/translate`;
@@ -81,6 +80,40 @@ const LEGAL_VERSION = "2026-04-08";
 const RETENTION_PING_DAY_KEY_STORAGE = "vocab_retention_ping_day";
 const API_FETCH_TIMEOUT_MS = 12000;
 const API_FETCH_RETRY_DELAYS_MS = [400, 1000];
+const VOCABULARY_INPUT_MAX_WORDS = 3;
+const VOCABULARY_INPUT_MAX_LENGTH = 64;
+const SENTENCE_PUNCTUATION_PATTERN = /[.!?,;:。！？、；：]/;
+
+function normalizeVocabularyInput(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isShortVocabularyItem(value, { allowJapanese = false } = {}) {
+  const input = normalizeVocabularyInput(value);
+  if (!input || input.length > VOCABULARY_INPUT_MAX_LENGTH) return false;
+  if (SENTENCE_PUNCTUATION_PATTERN.test(input)) return false;
+
+  const spaceSeparatedParts = input.split(" ").filter(Boolean);
+  if (spaceSeparatedParts.length > VOCABULARY_INPUT_MAX_WORDS) return false;
+
+  const hasJapanese = /[\u3040-\u30ff\u3400-\u9fff]/.test(input);
+  if (hasJapanese) {
+    if (!allowJapanese) return false;
+    return /^[\u3040-\u30ff\u3400-\u9fffー々〆ヶ・\s-]+$/.test(input);
+  }
+
+  return /^[a-z][a-z0-9' -]{1,63}$/i.test(input);
+}
+
+function hasJapaneseVocabularyCharacters(value) {
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(String(value || ""));
+}
+
+function hasEnglishVocabularyCharacters(value) {
+  return /[a-z]/i.test(String(value || ""));
+}
 
 function getAdaptiveReviewItemKey(item) {
   return [item?.bookId || "", item?.chapterId || "", item?.word || ""].join("\u001f");
@@ -113,7 +146,6 @@ const APP_TEXT = {
     navDefinitions: "Definitions",
     navFlashcards: "Flashcards",
     navQuiz: "Quiz",
-    navSocials: "Socials",
     recentBooks: "Recent Books",
     noBooksYet: "No books yet",
     settings: "Settings",
@@ -148,8 +180,10 @@ const APP_TEXT = {
     manageChapters: "Manage Chapters",
     duplicateWord: "That word is already in this chapter.",
     duplicateWordTitle: "Duplicate Word",
-    invalidEnglishWord: "Please enter a valid English word.",
-    invalidEnglishWordTitle: "Invalid Word",
+    invalidEnglishWord: "Please enter one word or a short compound word.",
+    invalidEnglishWordTitle: "Invalid word",
+    wrongLanguageEnglishWord: "Please enter a word in English.",
+    wrongLanguageJapaneseWord: "Please enter a word in Japanese.",
     definitionRequired: "A valid definition is required before this word can be added.",
     definitionRequiredTitle: "Definition Required",
     translationRequired: "No Japanese translation was returned. Try another English word.",
@@ -170,7 +204,6 @@ const APP_TEXT = {
     navDefinitions: "単語追加",
     navFlashcards: "フラッシュカード",
     navQuiz: "クイズ",
-    navSocials: "ソーシャル",
     recentBooks: "最近のブック",
     noBooksYet: "ブックがまだありません",
     settings: "設定",
@@ -205,8 +238,10 @@ const APP_TEXT = {
     manageChapters: "章を管理",
     duplicateWord: "この単語はこの章に既にあります。",
     duplicateWordTitle: "重複単語",
-    invalidEnglishWord: "有効な英単語を入力してください。",
+    invalidEnglishWord: "1つの単語、または短い複合語を入力してください。",
     invalidEnglishWordTitle: "無効な単語",
+    wrongLanguageEnglishWord: "英語の単語を入力してください。",
+    wrongLanguageJapaneseWord: "日本語の単語を入力してください。",
     definitionRequired: "有効な定義が必要です。",
     definitionRequiredTitle: "定義が必要です",
     translationRequired: "日本語訳が取得できませんでした。別の英単語を試してください。",
@@ -272,6 +307,11 @@ function wait(ms) {
 
 function isTransientHttpStatus(status) {
   return status === 408 || status === 425 || status === 429 || (status >= 500 && status <= 599);
+}
+
+function isAbortLikeError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return error?.name === "AbortError" || message.includes("aborted") || message.includes("abort");
 }
 
 async function fetchWithTimeout(url, options = {}) {
@@ -768,6 +808,10 @@ async function fetchJapaneseTranslations(word) {
           return {
             translations: normalized,
             provider: provider || "backend",
+            confidence: String(payload?.confidence || "").trim().toLowerCase(),
+            partOfSpeech: String(payload?.partOfSpeech || "").trim(),
+            note: String(payload?.note || "").trim(),
+            reading: String(payload?.reading || "").trim(),
             error: "",
           };
         }
@@ -778,6 +822,9 @@ async function fetchJapaneseTranslations(word) {
         .toLowerCase();
       if (errorCode === "jisho-word-not-available") {
         return { translations: [], provider: "jisho", error: errorCode };
+      }
+      if (errorCode === "invalid-vocabulary-item") {
+        return { translations: [], provider: "backend", error: errorCode };
       }
       if (errorCode === "translation-provider-failed") {
         sawApiConnectionError = true;
@@ -947,6 +994,9 @@ async function fetchJapaneseToEnglishTranslations(word) {
       const errorCode = String(payload?.error || "").trim().toLowerCase();
       if (errorCode === "jisho-word-not-available") {
         return { translations: [], provider: "jisho", error: errorCode };
+      }
+      if (errorCode === "invalid-vocabulary-item") {
+        return { translations: [], provider: "backend", error: errorCode };
       }
       if (errorCode === "translation-provider-failed") {
         sawApiConnectionError = true;
@@ -1961,7 +2011,6 @@ export default function App() {
   const [bookPendingDelete, setBookPendingDelete] = useState(null);
   const [chapterPendingDelete, setChapterPendingDelete] = useState(null);
   const [wordPendingDelete, setWordPendingDelete] = useState(null);
-  const [friendPendingRemove, setFriendPendingRemove] = useState(null);
   const [noticeModal, setNoticeModal] = useState(null);
   const [isOnboardingTutorialOpen, setIsOnboardingTutorialOpen] = useState(false);
   const [isOnboardingCloseConfirmOpen, setIsOnboardingCloseConfirmOpen] = useState(false);
@@ -2106,18 +2155,14 @@ export default function App() {
   const [isDeleteAccountSubmitting, setIsDeleteAccountSubmitting] = useState(false);
   const [isDeleteAccountConfirmOpen, setIsDeleteAccountConfirmOpen] = useState(false);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
-  const [isSocialLoading, setIsSocialLoading] = useState(false);
-  const [socialError, setSocialError] = useState("");
-  const [socialOverview, setSocialOverview] = useState(null);
-  const [friendUsernameInput, setFriendUsernameInput] = useState("");
-  const [socialActionLoadingKey, setSocialActionLoadingKey] = useState("");
-  const [socialMetric, setSocialMetric] = useState("wordsAdded");
-  const [socialTimeframe, setSocialTimeframe] = useState("weekly");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isCloudStateHydrated, setIsCloudStateHydrated] = useState(false);
   const [isLocalPersistencePaused, setIsLocalPersistencePaused] = useState(false);
   const [adaptiveReviewItems, setAdaptiveReviewItems] = useState([]);
   const [adaptiveReviewStats, setAdaptiveReviewStats] = useState({ dueNow: 0, overdue: 0 });
+  const [adaptiveReviewBookSummaries, setAdaptiveReviewBookSummaries] = useState([]);
+  const [selectedAdaptiveReviewBookId, setSelectedAdaptiveReviewBookId] = useState("");
+  const [adaptiveReviewBackScreen, setAdaptiveReviewBackScreen] = useState("adaptiveReviewSelect");
   const [adaptiveReviewLoading, setAdaptiveReviewLoading] = useState(false);
   const [adaptiveReviewError, setAdaptiveReviewError] = useState("");
   const [adaptiveReviewPendingRating, setAdaptiveReviewPendingRating] = useState("");
@@ -2504,8 +2549,63 @@ export default function App() {
     return true;
   }, [activeQuizIsMistakeReview, activeQuizMode, freeDailyUsage, isProPlan]);
 
+  const loadAdaptiveReviewSummary = useCallback(async (options = {}) => {
+    const showLoading = !options?.silent;
+
+    if (!authToken || !isProPlan) {
+      setAdaptiveReviewBookSummaries([]);
+      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewError("");
+      return { ok: false, skipped: true };
+    }
+
+    if (showLoading) {
+      setAdaptiveReviewLoading(true);
+    }
+    setAdaptiveReviewError("");
+
+    try {
+      const response = await fetchWithRetry(`${REVIEW_API_PATH}/summary`, {
+        credentials: "include",
+        headers: buildAuthHeaders(authToken),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const errorMessage =
+          typeof payload?.error === "string" && payload.error.trim()
+            ? payload.error.trim()
+            : "Unable to load adaptive review.";
+        throw new Error(errorMessage);
+      }
+
+      setAdaptiveReviewBookSummaries(Array.isArray(payload?.books) ? payload.books : []);
+      setAdaptiveReviewStats({
+        dueNow: Math.max(0, Math.floor(Number(payload?.stats?.dueNow) || 0)),
+        overdue: Math.max(0, Math.floor(Number(payload?.stats?.overdue) || 0)),
+      });
+      return { ok: true, payload };
+    } catch (error) {
+      setAdaptiveReviewBookSummaries([]);
+      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewError(
+        isAbortLikeError(error)
+          ? "Adaptive Review took too long to load. Please try again."
+          : error instanceof Error
+            ? error.message
+            : "Unable to load adaptive review."
+      );
+      return { ok: false, error };
+    } finally {
+      if (showLoading) {
+        setAdaptiveReviewLoading(false);
+      }
+    }
+  }, [authToken, isProPlan]);
+
   const loadAdaptiveReviewQueue = useCallback(async (limit = 20, options = {}) => {
     const showLoading = !options?.silent;
+    const bookId = String(options?.bookId ?? selectedAdaptiveReviewBookId ?? "").trim();
 
     if (!authToken || !isProPlan) {
       setAdaptiveReviewItems([]);
@@ -2522,6 +2622,9 @@ export default function App() {
     try {
       const params = new URLSearchParams();
       params.set("limit", String(Math.max(1, Math.floor(Number(limit) || 20))));
+      if (bookId) {
+        params.set("bookId", bookId);
+      }
       const response = await fetchWithRetry(`${REVIEW_API_PATH}/due?${params.toString()}`, {
         credentials: "include",
         headers: buildAuthHeaders(authToken),
@@ -2548,16 +2651,22 @@ export default function App() {
     } catch (error) {
       setAdaptiveReviewItems([]);
       setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
-      setAdaptiveReviewError(error instanceof Error ? error.message : "Unable to load adaptive review.");
+      setAdaptiveReviewError(
+        isAbortLikeError(error)
+          ? "Adaptive Review took too long to load. Please try again."
+          : error instanceof Error
+            ? error.message
+            : "Unable to load adaptive review."
+      );
       return { ok: false, error };
     } finally {
       if (showLoading) {
         setAdaptiveReviewLoading(false);
       }
     }
-  }, [authToken, isProPlan]);
+  }, [authToken, isProPlan, selectedAdaptiveReviewBookId]);
 
-  const openAdaptiveReviewSession = useCallback(async () => {
+  const openAdaptiveReviewSelect = useCallback(async () => {
     if (!isProPlan) {
       openNoticeModal(
         "Adaptive Review is available on Vocalibry Pro. Upgrade to unlock spaced repetition.",
@@ -2566,15 +2675,56 @@ export default function App() {
       return;
     }
 
+    setSelectedAdaptiveReviewBookId("");
+    setAdaptiveReviewBackScreen("adaptiveReviewSelect");
+    setScreen("adaptiveReviewSelect");
+    await loadAdaptiveReviewSummary();
+  }, [isProPlan, loadAdaptiveReviewSummary]);
+
+  const openAdaptiveReviewSession = useCallback(async (bookId, options = {}) => {
+    if (!isProPlan) {
+      openNoticeModal(
+        "Adaptive Review is available on Vocalibry Pro. Upgrade to unlock spaced repetition.",
+        "Pro Feature"
+      );
+      return;
+    }
+
+    const safeBookId = String(bookId || "").trim();
+    if (!safeBookId) {
+      await openAdaptiveReviewSelect();
+      return;
+    }
+
+    setSelectedAdaptiveReviewBookId(safeBookId);
+    setAdaptiveReviewBackScreen(options.backScreen || "adaptiveReviewSelect");
     setScreen("adaptiveReview");
-    const result = await loadAdaptiveReviewQueue(20);
+    const result = await loadAdaptiveReviewQueue(20, { bookId: safeBookId });
     if (result?.ok) {
       trackEvent("adaptive_review_started", {
+        book_id: safeBookId,
         due_now: Math.max(0, Math.floor(Number(result?.payload?.stats?.dueNow) || 0)),
         overdue: Math.max(0, Math.floor(Number(result?.payload?.stats?.overdue) || 0)),
       });
     }
-  }, [isProPlan, loadAdaptiveReviewQueue]);
+  }, [isProPlan, loadAdaptiveReviewQueue, openAdaptiveReviewSelect]);
+
+  function openPracticeQuizForBook(bookId) {
+    const safeBookId = String(bookId || "").trim();
+    const book = books.find((item) => String(item.id) === safeBookId);
+    if (!book) return;
+
+    setCurrentBookId(book.id);
+    setQuizBackScreen(screen === "bookMenu" ? "bookMenu" : "adaptiveReviewSelect");
+    setQuizMode("normal");
+    setQuizSetupStep(0);
+    setQuizSetupSelection({
+      bookIds: [String(book.id)],
+      chapterKeys: getBookChapterList(book).map((chapter) => `${book.id}:${chapter.id}`),
+      difficultyKeys: [],
+    });
+    setScreen("quizSelect");
+  }
 
   const rateAdaptiveReviewWord = useCallback(async (rating) => {
     const currentItem = adaptiveReviewItems[0];
@@ -2582,6 +2732,7 @@ export default function App() {
     if (!currentItem || !authToken || adaptiveReviewRatingInFlightRef.current.has(itemKey)) return;
 
     adaptiveReviewRatingInFlightRef.current.add(itemKey);
+    setAdaptiveReviewPendingRating(rating);
     const remainingCount = Math.max(0, adaptiveReviewItems.length - 1);
     const shouldReloadQueueAfterSave = adaptiveReviewItems.length <= 1;
 
@@ -2625,7 +2776,7 @@ export default function App() {
       });
 
       if (shouldReloadQueueAfterSave) {
-        await loadAdaptiveReviewQueue(20, { silent: true });
+        await loadAdaptiveReviewQueue(20, { silent: true, bookId: currentItem.bookId });
         trackEvent("adaptive_review_completed", {});
       }
     } catch (error) {
@@ -2640,14 +2791,16 @@ export default function App() {
     if (!authToken || !isProPlan) {
       setAdaptiveReviewItems([]);
       setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewBookSummaries([]);
+      setSelectedAdaptiveReviewBookId("");
       setAdaptiveReviewLoading(false);
       setAdaptiveReviewError("");
       setAdaptiveReviewPendingRating("");
       return;
     }
 
-    loadAdaptiveReviewQueue(6);
-  }, [authToken, isProPlan, loadAdaptiveReviewQueue]);
+    loadAdaptiveReviewSummary({ silent: true });
+  }, [authToken, isProPlan, loadAdaptiveReviewSummary]);
 
   function renderWithSidebar(content) {
     const isGuidedModalOpen = Boolean(guidedTourStep && noticeModal);
@@ -2655,7 +2808,6 @@ export default function App() {
       screen === "definitions" || screen === "definitionsSelect" || screen === "chapters";
     const inFlashcards = screen === "flashcards" || screen === "flashcardsSelect";
     const inQuiz = screen === "quiz" || screen === "quizSelect";
-    const inSocial = screen === "socialLeaderboard" || screen === "socialFriends";
     const showActiveRecentBook =
       screen === "bookMenu" ||
       screen === "chapters" ||
@@ -2783,14 +2935,6 @@ export default function App() {
               >
                 <span className="sidebarNavBtnLabel">{uiText.navQuiz}</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\u2705"}</span>
-              </button>
-              <button
-                type="button"
-                className={`sidebarNavBtn ${inSocial ? "isActive" : ""}`}
-                onClick={() => setScreen("socialLeaderboard")}
-              >
-                <span className="sidebarNavBtnLabel">{uiText.navSocials}</span>
-                <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDC65"}</span>
               </button>
             </nav>
             <div className="sidebarSection">
@@ -3091,9 +3235,6 @@ export default function App() {
     setBillingCurrentPeriodEnd("");
     setIsStripeBillingConfigured(false);
     setIsAccountProfileLoading(false);
-    setFriendPendingRemove(null);
-    setSocialOverview(null);
-    setSocialError("");
     setAccountActionError("");
     setIsChangePasswordModalOpen(false);
     setIsDailyGoalModalOpen(false);
@@ -3592,178 +3733,6 @@ export default function App() {
     }
   }
 
-  const requestSocial = useCallback(async (path, options = {}) => {
-    if (!authToken) return { ok: false, status: 401, payload: { error: "missing-auth-token" } };
-    try {
-      const method = String(options.method || "GET").trim().toUpperCase();
-      const request = method === "GET" ? fetchWithRetry : fetchWithTimeout;
-      const response = await request(`${SOCIAL_API_PATH}${path}`, {
-        ...options,
-        method,
-        credentials: "include",
-        headers: buildAuthHeaders(authToken, {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      return { ok: response.ok, status: response.status, payload };
-    } catch {
-      return { ok: false, status: 0, payload: { error: "network-error" } };
-    }
-  }, [authToken]);
-
-  function mapSocialError(payload, fallback = "Could not complete social action.") {
-    const code = String(payload?.error || "").trim().toLowerCase();
-    if (code === "missing-auth-token" || code === "invalid-auth-token") {
-      return "Your session expired. Please log in again.";
-    }
-    if (code === "invalid-username") return "Use a valid username (a-z, 0-9, _).";
-    if (code === "user-not-found") return "That user was not found.";
-    if (code === "cannot-add-self") return "You cannot add yourself.";
-    if (code === "already-friends") return "You are already friends.";
-    if (code === "request-already-pending") return "A friend request is already pending.";
-    if (code === "request-not-pending") return "That request is no longer pending.";
-    return fallback;
-  }
-
-  const loadSocialOverview = useCallback(async () => {
-    if (!authToken) return;
-    setIsSocialLoading(true);
-    setSocialError("");
-    const result = await requestSocial("/overview", { method: "GET" });
-    if (result.status === 401) {
-      logoutAccount();
-      setAuthError("Your session expired. Please log in again.");
-      setIsSocialLoading(false);
-      return;
-    }
-    if (!result.ok) {
-      setSocialError(mapSocialError(result.payload, "Could not load social data."));
-      setIsSocialLoading(false);
-      return;
-    }
-    setSocialOverview(result.payload || null);
-    setIsSocialLoading(false);
-  }, [authToken, logoutAccount, requestSocial]);
-
-  async function sendFriendRequest() {
-    if (!authToken || socialActionLoadingKey) return;
-    const username = String(friendUsernameInput || "").trim().toLowerCase();
-    if (!username) {
-      setSocialError("Enter a username to add.");
-      return;
-    }
-    setSocialActionLoadingKey("send-request");
-    setSocialError("");
-    const result = await requestSocial("/requests", {
-      method: "POST",
-      body: JSON.stringify({ username }),
-    });
-    if (result.status === 401) {
-      logoutAccount();
-      setAuthError("Your session expired. Please log in again.");
-      setSocialActionLoadingKey("");
-      return;
-    }
-    if (!result.ok) {
-      setSocialError(mapSocialError(result.payload, "Could not send request."));
-      setSocialActionLoadingKey("");
-      return;
-    }
-    setFriendUsernameInput("");
-    await loadSocialOverview();
-    setSocialActionLoadingKey("");
-  }
-
-  async function respondToFriendRequest(requestId, action) {
-    if (!authToken || socialActionLoadingKey) return;
-    const safeAction = action === "accept" ? "accept" : "decline";
-    setSocialActionLoadingKey(`respond-${requestId}-${safeAction}`);
-    setSocialError("");
-    const result = await requestSocial(`/requests/${requestId}/respond`, {
-      method: "POST",
-      body: JSON.stringify({ action: safeAction }),
-    });
-    if (result.status === 401) {
-      logoutAccount();
-      setAuthError("Your session expired. Please log in again.");
-      setSocialActionLoadingKey("");
-      return;
-    }
-    if (!result.ok) {
-      setSocialError(mapSocialError(result.payload, "Could not respond to request."));
-      setSocialActionLoadingKey("");
-      return;
-    }
-    await loadSocialOverview();
-    setSocialActionLoadingKey("");
-  }
-
-  async function cancelOutgoingFriendRequest(requestId) {
-    if (!authToken || socialActionLoadingKey) return;
-    setSocialActionLoadingKey(`cancel-request-${requestId}`);
-    setSocialError("");
-    const result = await requestSocial(`/requests/${requestId}`, {
-      method: "DELETE",
-    });
-    if (result.status === 401) {
-      logoutAccount();
-      setAuthError("Your session expired. Please log in again.");
-      setSocialActionLoadingKey("");
-      return;
-    }
-    if (!result.ok) {
-      setSocialError(mapSocialError(result.payload, "Could not cancel request."));
-      setSocialActionLoadingKey("");
-      return;
-    }
-    await loadSocialOverview();
-    setSocialActionLoadingKey("");
-  }
-
-  function askRemoveFriend(friendProfile) {
-    if (!friendProfile) return;
-    const userId = Number(friendProfile.userId);
-    if (!Number.isFinite(userId)) return;
-    setFriendPendingRemove({
-      userId,
-      username: String(friendProfile.username || ""),
-    });
-  }
-
-  async function confirmRemoveFriend() {
-    if (!friendPendingRemove) return;
-    const friendUserId = friendPendingRemove.userId;
-    setFriendPendingRemove(null);
-    if (!authToken || socialActionLoadingKey) return;
-    setSocialActionLoadingKey(`remove-${friendUserId}`);
-    setSocialError("");
-    const result = await requestSocial(`/friends/${encodeURIComponent(friendUserId)}`, {
-      method: "DELETE",
-    });
-    if (result.status === 401) {
-      logoutAccount();
-      setAuthError("Your session expired. Please log in again.");
-      setSocialActionLoadingKey("");
-      return;
-    }
-    if (!result.ok) {
-      setSocialError(mapSocialError(result.payload, "Could not remove friend."));
-      setSocialActionLoadingKey("");
-      return;
-    }
-    await loadSocialOverview();
-    setSocialActionLoadingKey("");
-  }
-
-  useEffect(() => {
-    const onSocialScreen = screen === "socialLeaderboard" || screen === "socialFriends";
-    if (!onSocialScreen) return;
-    if (!authToken) return;
-    loadSocialOverview();
-  }, [screen, authToken, loadSocialOverview]);
-
   useEffect(() => {
     if (!authToken) {
       setBillingPlan("free");
@@ -3775,15 +3744,11 @@ export default function App() {
       setIsDailyGoalModalOpen(false);
       setIsBillingStatusLoading(false);
       setIsAccountProfileLoading(false);
-      setSocialOverview(null);
-      setSocialError("");
-      setIsSocialLoading(false);
       return;
     }
     void loadBillingStatus();
     void loadAccountProfile();
-    void loadSocialOverview();
-  }, [authToken, loadBillingStatus, loadAccountProfile, loadSocialOverview]);
+  }, [authToken, loadBillingStatus, loadAccountProfile]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -3837,24 +3802,6 @@ export default function App() {
       cancelled = true;
     };
   }, [authToken]);
-
-  function getProfileStatsForPeriod(profile, period = "weekly") {
-    const safePeriod =
-      period === "monthly" || period === "yearly" || period === "total" ? period : "weekly";
-    const statsRoot =
-      profile?.stats && typeof profile.stats === "object" && !Array.isArray(profile.stats)
-        ? profile.stats
-        : {};
-    const bucket =
-      statsRoot[safePeriod] && typeof statsRoot[safePeriod] === "object"
-        ? statsRoot[safePeriod]
-        : {};
-    return {
-      wordsAdded: Math.max(0, Math.floor(Number(bucket?.wordsAdded) || 0)),
-      questionsCompleted: Math.max(0, Math.floor(Number(bucket?.questionsCompleted) || 0)),
-      timeSpentSeconds: Math.max(0, Math.floor(Number(bucket?.timeSpentSeconds) || 0)),
-    };
-  }
 
   useEffect(() => {
     let cancelled = false;
@@ -4852,7 +4799,6 @@ export default function App() {
       Boolean(bookPendingDelete) ||
       Boolean(chapterPendingDelete) ||
       Boolean(wordPendingDelete) ||
-      Boolean(friendPendingRemove) ||
       Boolean(noticeModal);
     if (!isModalOpen) return;
 
@@ -4871,7 +4817,6 @@ export default function App() {
       if (bookPendingDelete) setBookPendingDelete(null);
       if (chapterPendingDelete) setChapterPendingDelete(null);
       if (wordPendingDelete) setWordPendingDelete(null);
-      if (friendPendingRemove) setFriendPendingRemove(null);
       if (noticeModal) setNoticeModal(null);
     };
 
@@ -4915,7 +4860,6 @@ export default function App() {
     bookPendingDelete,
     chapterPendingDelete,
     wordPendingDelete,
-    friendPendingRemove,
     isDeleteAccountConfirmOpen,
     noticeModal,
     completeOnboardingTutorial,
@@ -5742,34 +5686,6 @@ export default function App() {
       );
     }
 
-    if (friendPendingRemove) {
-      return (
-        <div className="modalOverlay" onClick={() => setFriendPendingRemove(null)}>
-          <div
-            className="modalCard"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="remove-friend-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 id="remove-friend-title">{tr("Remove Friend", "友達を削除")}</h3>
-            <p>
-              {tr(`Remove @${friendPendingRemove.username || `user_${friendPendingRemove.userId}`} from your friends list?`, `@${friendPendingRemove.username || `user_${friendPendingRemove.userId}`} を友達一覧から削除しますか？`)}
-            </p>
-            <div className="modalActions">
-              <button type="button" className="modalBtn ghost" onClick={() => setFriendPendingRemove(null)}>
-                {tr("Cancel", "キャンセル")}
-              </button>
-              <button type="button" className="modalBtn danger" onClick={confirmRemoveFriend}>
-                Remove
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     if (noticeModal) {
       return (
         <div className="modalOverlay" onClick={() => setNoticeModal(null)}>
@@ -6067,7 +5983,23 @@ export default function App() {
   async function addWord() {
     if (!inputWord.trim() || !currentBook) return;
 
-    const cleanWord = inputWord.trim();
+    const cleanWord = normalizeVocabularyInput(inputWord);
+    if (
+      (useEnglishToJapaneseDictionary || currentBookLanguageMode === "en_en") &&
+      hasJapaneseVocabularyCharacters(cleanWord)
+    ) {
+      openNoticeModal(uiText.wrongLanguageEnglishWord, uiText.invalidEnglishWordTitle);
+      return;
+    }
+    if (useJapaneseToEnglishDictionary && !hasJapaneseVocabularyCharacters(cleanWord) && hasEnglishVocabularyCharacters(cleanWord)) {
+      openNoticeModal(uiText.wrongLanguageJapaneseWord, uiText.invalidEnglishWordTitle);
+      return;
+    }
+    if (!isShortVocabularyItem(cleanWord, { allowJapanese: useJapaneseToEnglishDictionary })) {
+      openNoticeModal(uiText.invalidEnglishWord, uiText.invalidEnglishWordTitle);
+      return;
+    }
+
     setLastAddedWord("");
     if (guidedTourStep === "word-add") {
       setGuidedTourStep("word-saving");
@@ -6102,8 +6034,14 @@ export default function App() {
           : [];
         translationProvider = String(translationResult?.provider || "").trim().toLowerCase();
         translationErrorCode = String(translationResult?.error || "").trim().toLowerCase();
+        pronunciation = String(translationResult?.reading || "").trim();
+        translationConfidence = String(translationResult?.confidence || "").trim().toLowerCase();
+        translationPartOfSpeech = String(translationResult?.partOfSpeech || "").trim();
+        translationNote = String(translationResult?.note || "").trim();
         if (!definitions.length) {
-          if (translationErrorCode === "jisho-word-not-available") {
+          if (translationErrorCode === "invalid-vocabulary-item") {
+            openNoticeModal(uiText.invalidEnglishWord, uiText.invalidEnglishWordTitle);
+          } else if (translationErrorCode === "jisho-word-not-available") {
             openNoticeModal(uiText.jishoWordUnavailable, uiText.jishoWordUnavailableTitle);
           } else if (translationErrorCode === "translation-connection-error") {
             openNoticeModal(uiText.translationConnectionError, uiText.translationConnectionErrorTitle);
@@ -6125,7 +6063,9 @@ export default function App() {
         translationPartOfSpeech = String(translationResult?.partOfSpeech || "").trim();
         translationNote = String(translationResult?.note || "").trim();
         if (!definitions.length) {
-          if (translationErrorCode === "jisho-word-not-available") {
+          if (translationErrorCode === "invalid-vocabulary-item") {
+            openNoticeModal(uiText.invalidEnglishWord, uiText.invalidEnglishWordTitle);
+          } else if (translationErrorCode === "jisho-word-not-available") {
             openNoticeModal(uiText.jishoWordUnavailable, uiText.jishoWordUnavailableTitle);
           } else if (translationErrorCode === "translation-connection-error") {
             openNoticeModal(uiText.translationConnectionError, uiText.translationConnectionErrorTitle);
@@ -6183,9 +6123,18 @@ export default function App() {
                     useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
                       ? translationProvider || "unknown"
                       : "",
-                  translationConfidence: useJapaneseToEnglishDictionary ? translationConfidence : "",
-                  translationPartOfSpeech: useJapaneseToEnglishDictionary ? translationPartOfSpeech : "",
-                  translationNote: useJapaneseToEnglishDictionary ? translationNote : "",
+                  translationConfidence:
+                    useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
+                      ? translationConfidence
+                      : "",
+                  translationPartOfSpeech:
+                    useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
+                      ? translationPartOfSpeech
+                      : "",
+                  translationNote:
+                    useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
+                      ? translationNote
+                      : "",
                   definitionProvider:
                     useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
                       ? ""
@@ -6654,15 +6603,7 @@ export default function App() {
             {quickAccessBooks.map((book) => (
                 <div key={book.id} className="recentSquareWrap">
                   <button
-                    type="button"
-                    className={`pinBtn small ${book.pinned ? "isPinned" : ""}`}
-                    aria-label={book.pinned ? `Unpin ${book.name}` : `Pin ${book.name}`}
-                    onClick={() => togglePinBook(book.id)}
-                  >
-                    <PinIcon pinned={book.pinned} />
-                  </button>
-                  <button
-                    className="recentSquare"
+                    className={`recentSquare ${book.pinned ? "isPinned" : ""}`}
                     title={book.name}
                     onClick={() => {
                       setCurrentBookId(book.id);
@@ -6682,7 +6623,7 @@ export default function App() {
               type="button"
               className="panelCard wide"
               style={{ gridColumn: "1", gridRow: "2" }}
-              onClick={openAdaptiveReviewSession}
+              onClick={openAdaptiveReviewSelect}
             >
               <span>
                 {"\uD83E\uDDE0"} {tr("Adaptive Review", "é©å¿œåž‹å¾©ç¿’")}
@@ -6731,13 +6672,6 @@ export default function App() {
             onClick={() => setScreen("data")}
           >
             <span>{"\uD83D\uDCCA"} {tr("Data", "データ")}</span>
-          </button>
-          <button
-            type="button"
-            className="panelCard wide"
-            onClick={() => setScreen("socialLeaderboard")}
-          >
-            <span>{"\uD83D\uDC65"} {tr("Socials", "ソーシャル")}</span>
           </button>
           {isMobileViewport ? (
             <button
@@ -7093,364 +7027,6 @@ export default function App() {
           )}
           {authToken && accountActionError ? <p className="settingsErrorText">{accountActionError}</p> : null}
         </div>
-        {renderModal()}
-      </div>
-    );
-  }
-
-  // ---------- SOCIAL ----------
-  if (screen === "socialLeaderboard") {
-    const currentUserProfile = socialOverview?.currentUser || null;
-    const friendProfiles = Array.isArray(socialOverview?.friends) ? socialOverview.friends : [];
-    const strictLeaderboardProfiles = Array.isArray(socialOverview?.leaderboardProfiles)
-      ? socialOverview.leaderboardProfiles
-      : [];
-    const ownLeagueTrack = (currentUserProfile?.plan || billingPlan) === "pro" ? "pro" : "free";
-    const leagueTrack = ownLeagueTrack;
-    const leagueLabel = leagueTrack === "pro"
-      ? tr("Pro League", "Proリーグ")
-      : tr("Free League", "無料リーグ");
-    const rankedProfiles = (strictLeaderboardProfiles.length > 0
-      ? strictLeaderboardProfiles
-      : [currentUserProfile, ...friendProfiles])
-      .filter(Boolean)
-      .filter((profile) => ((profile?.plan || "free") === "pro" ? "pro" : "free") === leagueTrack);
-    const timeframeKey = socialTimeframe === "monthly"
-      ? "monthly"
-      : socialTimeframe === "yearly"
-        ? "yearly"
-        : socialTimeframe === "total"
-          ? "total"
-          : "weekly";
-    const timeframeLabel = timeframeKey === "monthly"
-      ? tr("Monthly", "月間")
-      : timeframeKey === "yearly"
-        ? tr("Yearly", "年間")
-        : timeframeKey === "total"
-          ? tr("Total", "累計")
-          : tr("Weekly", "週間");
-    const timeframeOptions = [
-      { value: "weekly", label: tr("Weekly", "週間") },
-      { value: "monthly", label: tr("Monthly", "月間") },
-      { value: "yearly", label: tr("Yearly", "年間") },
-      { value: "total", label: tr("Total", "累計") },
-    ];
-    const metricKey = socialMetric === "questionsCompleted"
-      ? "questionsCompleted"
-      : socialMetric === "timeSpentSeconds"
-        ? "timeSpentSeconds"
-        : "wordsAdded";
-    const metricLabel = metricKey === "questionsCompleted"
-      ? tr("Questions", "問題数")
-      : metricKey === "timeSpentSeconds"
-        ? tr("Time Spent", "学習時間")
-        : tr("Words Added", "追加単語");
-    const leaderboardRows = rankedProfiles
-      .map((profile) => ({
-        userId: profile.userId,
-        username: profile.username,
-        isMe: profile.userId === currentUserProfile?.userId,
-        ...getProfileStatsForPeriod(profile, timeframeKey),
-      }))
-      .sort((a, b) => {
-        if (b[metricKey] !== a[metricKey]) return b[metricKey] - a[metricKey];
-        return a.username.localeCompare(b.username);
-      });
-    const topScore = leaderboardRows.length > 0 ? Math.max(1, leaderboardRows[0][metricKey]) : 1;
-    const myRankIndex = leaderboardRows.findIndex((row) => row.isMe);
-    const myRow = myRankIndex >= 0 ? leaderboardRows[myRankIndex] : null;
-    const rivalRow = myRankIndex > 0 ? leaderboardRows[myRankIndex - 1] : null;
-    const rivalGap = rivalRow && myRow ? Math.max(0, rivalRow[metricKey] - myRow[metricKey]) : 0;
-    const podiumRows = leaderboardRows.slice(0, 3);
-    const podiumSlots = [podiumRows[1], podiumRows[0], podiumRows[2]];
-
-    return renderWithSidebar(
-      <div className="page">
-        <div className="pageHeader">
-          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>{tr("Leaderboard", "ランキング")}</h1>
-        </div>
-        {!authToken ? (
-          <p>{tr("Please log in from My Account to use leaderboard features.", "ランキング機能を使うにはアカウントからログインしてください。")}</p>
-        ) : (
-          <div className="analyticsSection socialSectionStack">
-            <div className="analyticsCard">
-              <div className="settingsRow">
-                <span>{tr("Manage friends and requests", "友達とリクエスト管理")}</span>
-                <button
-                  type="button"
-                  className="primaryBtn"
-                  onClick={() => setScreen("socialFriends")}
-                >
-                  {tr("Go To Friends", "友達管理へ")}
-                </button>
-              </div>
-            </div>
-            <div className="analyticsCard socialLeaderboardCard">
-              <h3>{tr("Leaderboard", "ランキング")}</h3>
-              <p className="settingsHint">
-                {tr("Climb the ranks in your plan league.", "所属リーグで順位を上げましょう。")}
-              </p>
-              <p className="settingsHint">{tr("League", "リーグ")}: {leagueLabel}</p>
-              <div className="socialMetricRow">
-                <span className="socialTimeframeLabel">
-                  {tr("Timeframe", "期間")}
-                </span>
-                <InAppDropdown
-                  className="socialTimeframeDropdown"
-                  value={timeframeKey}
-                  options={timeframeOptions}
-                  onChange={(nextValue) => setSocialTimeframe(nextValue)}
-                />
-              </div>
-              <div className="socialMetricRow">
-                <button
-                  type="button"
-                  className={`settingsAuthModeBtn ${socialMetric === "wordsAdded" ? "isActive" : ""}`}
-                  onClick={() => setSocialMetric("wordsAdded")}
-                >
-                  {tr("Words Added", "追加単語")}
-                </button>
-                <button
-                  type="button"
-                  className={`settingsAuthModeBtn ${socialMetric === "questionsCompleted" ? "isActive" : ""}`}
-                  onClick={() => setSocialMetric("questionsCompleted")}
-                >
-                  {tr("Questions", "問題数")}
-                </button>
-                <button
-                  type="button"
-                  className={`settingsAuthModeBtn ${socialMetric === "timeSpentSeconds" ? "isActive" : ""}`}
-                  onClick={() => setSocialMetric("timeSpentSeconds")}
-                >
-                  {tr("Time Spent", "学習時間")}
-                </button>
-              </div>
-              {myRow ? (
-                <div className="socialRivalCard">
-                  {myRankIndex === 0 ? (
-                    <p>
-                      {"\uD83C\uDFC6"} You are rank #1 in {timeframeLabel.toLowerCase()} {metricLabel.toLowerCase()}. Keep pushing to stay on top.
-                    </p>
-                  ) : (
-                    <p>
-                      {"\u26A1"} You are #{myRankIndex + 1}. You need{" "}
-                      <strong>
-                        {metricKey === "timeSpentSeconds" ? formatWeeklyTime(rivalGap) : rivalGap}
-                      </strong>{" "}
-                      more {timeframeLabel.toLowerCase()} {metricLabel.toLowerCase()} to pass @{rivalRow?.username}.
-                    </p>
-                  )}
-                </div>
-              ) : null}
-              {leaderboardRows.length === 0 ? (
-                <p className="settingsHint">{tr("No leaderboard data yet.", "ランキングデータはまだありません。")}</p>
-              ) : (
-                <>
-                  <div className="socialPodium">
-                    {podiumSlots.map((row, index) => {
-                      if (!row) return <div key={`podium-empty-${index}`} className="socialPodiumCard isEmpty" />;
-                      const isFirst = index === 1;
-                      const rank = isFirst ? 1 : index === 0 ? 2 : 3;
-                      const rankEmoji = rank === 1 ? "\uD83E\uDD47" : rank === 2 ? "\uD83E\uDD48" : "\uD83E\uDD49";
-                      const scoreDisplay = metricKey === "timeSpentSeconds"
-                        ? formatWeeklyTime(row[metricKey])
-                        : row[metricKey];
-                      return (
-                        <div
-                          key={row.userId}
-                          className={`socialPodiumCard rank${rank} ${row.isMe ? "isMe" : ""}`}
-                        >
-                          <span className="socialPodiumMedal">{rankEmoji}</span>
-                          <strong>@{row.username}</strong>
-                          <span className="socialPodiumValue">{scoreDisplay}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="socialLeaderboard">
-                    {leaderboardRows.map((row, index) => {
-                      const score = row[metricKey];
-                      const scoreDisplay = metricKey === "timeSpentSeconds" ? formatWeeklyTime(score) : score;
-                      const barWidth = Math.round((Math.max(score, 0) / topScore) * 100);
-                      return (
-                        <div key={row.userId} className={`socialLeaderboardRow ${row.isMe ? "isMe" : ""}`}>
-                          <span className="socialLeaderboardRank">#{index + 1}</span>
-                          <div className="socialLeaderboardIdentity">
-                            <div className="socialLeaderboardNameRow">
-                              <strong>@{row.username}</strong>
-                              {index === 0 ? <span className="socialLeaderBadge">{tr("Leader", "首位")}</span> : null}
-                            </div>
-                            <div className="socialLeaderboardBarTrack" aria-hidden="true">
-                              <div className="socialLeaderboardBarFill" style={{ width: `${barWidth}%` }} />
-                            </div>
-                          </div>
-                          <span className="socialLeaderboardValue">{scoreDisplay}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {isSocialLoading ? <p className="settingsHint">{tr("Loading social data...", "ソーシャルデータを読み込み中...")}</p> : null}
-            {socialError ? <p className="settingsErrorText">{socialError}</p> : null}
-          </div>
-        )}
-        {renderModal()}
-      </div>
-    );
-  }
-
-  if (screen === "socialFriends") {
-    const friendProfiles = Array.isArray(socialOverview?.friends) ? socialOverview.friends : [];
-    const incomingRequests = Array.isArray(socialOverview?.incomingRequests)
-      ? socialOverview.incomingRequests
-      : [];
-    const outgoingRequests = Array.isArray(socialOverview?.outgoingRequests)
-      ? socialOverview.outgoingRequests
-      : [];
-
-    return renderWithSidebar(
-      <div className="page">
-        <div className="pageHeader">
-          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("socialLeaderboard")}>&times;</button>
-          <h1>{tr("Manage Friends", "友達管理")}</h1>
-        </div>
-        {!authToken ? (
-          <p>{tr("Please log in from My Account to manage friends.", "友達管理にはアカウントからログインしてください。")}</p>
-        ) : (
-          <div className="analyticsSection socialSectionStack">
-            <div className="analyticsGrid">
-              <div className="analyticsCard settingsCard">
-                <h3>{tr("Add Friend", "友達を追加")}</h3>
-                <p className="settingsHint">{tr("Search by username, then send a friend request.", "ユーザー名で検索して友達申請を送信します。")}</p>
-                <input
-                  className="settingsInput"
-                  value={friendUsernameInput}
-                  onChange={(event) => {
-                    setFriendUsernameInput(event.target.value);
-                    if (socialError) setSocialError("");
-                  }}
-                  placeholder={tr("friend username", "友達のユーザー名")}
-                  autoComplete="off"
-                />
-                <div className="settingsRow">
-                  <span>{tr("Send request", "申請を送信")}</span>
-                  <button
-                    type="button"
-                    className="primaryBtn"
-                    onClick={sendFriendRequest}
-                    disabled={socialActionLoadingKey === "send-request"}
-                  >
-                    {socialActionLoadingKey === "send-request" ? tr("Sending...", "送信中...") : tr("Add Friend", "友達追加")}
-                  </button>
-                </div>
-              </div>
-
-              <div className="analyticsCard">
-                <h3>{tr("Incoming Requests", "受信リクエスト")}</h3>
-                {incomingRequests.length === 0 ? (
-                  <p className="settingsHint">{tr("No incoming requests.", "受信リクエストはありません。")}</p>
-                ) : (
-                  <div className="socialList">
-                    {incomingRequests.map((request) => (
-                      <div key={request.requestId} className="socialListRow">
-                        <div>
-                          <strong>@{request.username}</strong>
-                        </div>
-                        <div className="socialRowActions">
-                          <button
-                            type="button"
-                            className="primaryBtn"
-                            onClick={() => respondToFriendRequest(request.requestId, "accept")}
-                            disabled={socialActionLoadingKey === `respond-${request.requestId}-accept`}
-                          >
-                            {tr("Accept", "承認")}
-                          </button>
-                          <button
-                            type="button"
-                            className="primaryBtn ghostBtn"
-                            onClick={() => respondToFriendRequest(request.requestId, "decline")}
-                            disabled={socialActionLoadingKey === `respond-${request.requestId}-decline`}
-                          >
-                            {tr("Decline", "拒否")}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="analyticsCard">
-              <h3>{tr("Friends", "友達")}</h3>
-              {friendProfiles.length === 0 ? (
-                <p className="settingsHint">{tr("Add friends to start competing.", "友達を追加して競争を始めましょう。")}</p>
-              ) : (
-                <div className="socialList">
-                  {friendProfiles.map((friend) => {
-                    const friendStreak = Math.max(
-                      0,
-                      Math.floor(Number(friend?.stats?.streakCount) || 0)
-                    );
-                    return (
-                      <div key={friend.userId} className="socialListRow">
-                        <div>
-                          <div className="socialFriendHeaderRow">
-                            <strong className="socialFriendName">@{friend.username}</strong>
-                            <div className="socialFriendBadgeRow socialFriendBadgeRowInline">
-                              <span className="socialFriendBadge streak">
-                                {"\uD83D\uDD25"} {friendStreak}{tr("-day streak", "日連続")}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          className="primaryBtn ghostBtn"
-                          onClick={() => askRemoveFriend(friend)}
-                          disabled={socialActionLoadingKey === `remove-${friend.userId}`}
-                        >
-                          {tr("Remove", "削除")}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="socialOutgoing">
-                <h3>{tr("Outgoing Requests", "送信済みリクエスト")}</h3>
-                {outgoingRequests.length === 0 ? (
-                  <p className="settingsHint">{tr("No outgoing requests.", "送信済みリクエストはありません。")}</p>
-                ) : (
-                  <div className="socialList">
-                    {outgoingRequests.map((request) => (
-                      <div key={request.requestId} className="socialListRow">
-                        <div>
-                          <strong>@{request.username}</strong>
-                        </div>
-                        <button
-                          type="button"
-                          className="primaryBtn ghostBtn"
-                          onClick={() => cancelOutgoingFriendRequest(request.requestId)}
-                          disabled={socialActionLoadingKey === `cancel-request-${request.requestId}`}
-                        >
-                          {tr("Cancel Request", "申請を取り消す")}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {isSocialLoading ? <p className="settingsHint">{tr("Loading social data...", "ソーシャルデータを読み込み中...")}</p> : null}
-            {socialError ? <p className="settingsErrorText">{socialError}</p> : null}
-          </div>
-        )}
         {renderModal()}
       </div>
     );
@@ -7838,6 +7414,17 @@ export default function App() {
             <strong>{tr("Flashcards", "フラッシュカード")}</strong>
             <p>{tr("Drill recall quickly with focused review sessions.", "集中復習で素早く記憶を強化します。")}</p>
           </button>
+          {isProPlan ? (
+            <button
+              type="button"
+              className="panelCard bookModeCard"
+              onClick={() => openAdaptiveReviewSession(currentBook?.id, { backScreen: "bookMenu" })}
+            >
+              <span className="bookModeIcon" aria-hidden="true">{"\uD83E\uDDE0"}</span>
+              <strong>{tr("Adaptive Review", "適応型復習")}</strong>
+              <p>{tr("Review only the due words from this book.", "このブックの復習期限が来た単語だけを練習します。")}</p>
+            </button>
+          ) : null}
           <div className="guidedControlAnchor">
             <button
               type="button"
@@ -8688,18 +8275,125 @@ export default function App() {
     );
   }
 
-  // ---------- FLASHCARDS ----------
+  if (screen === "adaptiveReviewSelect") {
+    const reviewBookSummaries = adaptiveReviewBookSummaries.map((summary) => {
+      const matchingBook = books.find((book) => String(book.id) === String(summary.bookId));
+      return {
+        ...summary,
+        bookName: matchingBook?.name || summary.bookName || "Book",
+      };
+    });
+
+    return renderWithSidebar(
+      <div className="page">
+        <div className="pageHeader">
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>{tr("Select Review Book", "復習するブックを選択")}</h1>
+        </div>
+        <div className="analyticsSection">
+          <div className="analyticsCard adaptiveReviewHeroCard">
+            <div className="adaptiveReviewHeroCopy">
+              <h3>{tr("Adaptive Review", "適応型復習")}</h3>
+              <p className="settingsHint">
+                {tr("Choose one book so your spaced repetition stays focused.", "1つのブックを選んで、復習内容を集中させます。")}
+              </p>
+            </div>
+            <div className="adaptiveReviewStatsRow" aria-label="Adaptive review stats">
+              <div className="adaptiveReviewStatPill">
+                <span>{tr("Due", "期限")}</span>
+                <strong>{adaptiveReviewStats.dueNow}</strong>
+              </div>
+              <div className="adaptiveReviewStatPill isOverdue">
+                <span>{tr("Overdue", "期限超過")}</span>
+                <strong>{adaptiveReviewStats.overdue}</strong>
+              </div>
+            </div>
+          </div>
+
+          {adaptiveReviewLoading ? (
+            <div className="analyticsCard adaptiveReviewStateCard">
+              <h3>{tr("Loading review books...", "復習ブックを読み込み中...")}</h3>
+              <p className="settingsHint">{tr("Checking due counts for each book.", "各ブックの復習数を確認しています。")}</p>
+            </div>
+          ) : null}
+
+          {adaptiveReviewError ? (
+            <div className="analyticsCard adaptiveReviewStateCard">
+              <h3>{tr("Could not load review books", "復習ブックを読み込めませんでした")}</h3>
+              <p className="settingsHint">{adaptiveReviewError}</p>
+              <div className="modalActions">
+                <button type="button" className="modalBtn primary" onClick={() => loadAdaptiveReviewSummary()}>
+                  {tr("Reload", "再読み込み")}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {!adaptiveReviewLoading && !adaptiveReviewError && reviewBookSummaries.length === 0 ? (
+            <div className="analyticsCard adaptiveReviewStateCard">
+              <h3>{tr("No books ready for review", "復習できるブックがありません")}</h3>
+              <p className="settingsHint">
+                {tr("Add words to a book first, then Adaptive Review can schedule them.", "まずブックに単語を追加すると、適応型復習が予定を作れます。")}
+              </p>
+            </div>
+          ) : null}
+
+          {!adaptiveReviewLoading && !adaptiveReviewError && reviewBookSummaries.length > 0 ? (
+            <div className="adaptiveReviewBookGrid">
+              {reviewBookSummaries.map((summary) => (
+                <button
+                  key={summary.bookId}
+                  type="button"
+                  className="analyticsCard adaptiveReviewBookCard"
+                  onClick={() => openAdaptiveReviewSession(summary.bookId, { backScreen: "adaptiveReviewSelect" })}
+                >
+                  <div>
+                    <h3>{summary.bookName}</h3>
+                    <p className="settingsHint">
+                      {Math.max(0, Math.floor(Number(summary.totalWords) || 0))} {tr("tracked words", "学習単語")}
+                    </p>
+                  </div>
+                  <div className="adaptiveReviewBookStats">
+                    <span>
+                      <strong>{Math.max(0, Math.floor(Number(summary.dueNow) || 0))}</strong>
+                      {tr("due", "期限")}
+                    </span>
+                    <span>
+                      <strong>{Math.max(0, Math.floor(Number(summary.overdue) || 0))}</strong>
+                      {tr("overdue", "期限超過")}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        {renderModal()}
+      </div>
+    );
+  }
+
   if (screen === "adaptiveReview") {
+    const selectedAdaptiveReviewBook = books.find(
+      (book) => String(book.id) === String(selectedAdaptiveReviewBookId)
+    );
     return renderWithSidebar(
       <AdaptiveReviewSession
         items={adaptiveReviewItems}
         stats={adaptiveReviewStats}
+        title={
+          selectedAdaptiveReviewBook?.name
+            ? `${selectedAdaptiveReviewBook.name} Review`
+            : "Adaptive Review"
+        }
+        scopeName={selectedAdaptiveReviewBook?.name || ""}
         loading={adaptiveReviewLoading}
         error={adaptiveReviewError}
         pendingRating={adaptiveReviewPendingRating}
-        goBack={() => setScreen("dashboard")}
-        onReload={() => loadAdaptiveReviewQueue(20)}
+        goBack={() => setScreen(adaptiveReviewBackScreen || "adaptiveReviewSelect")}
+        onReload={() => loadAdaptiveReviewQueue(20, { bookId: selectedAdaptiveReviewBookId })}
         onRate={rateAdaptiveReviewWord}
+        onPracticeQuiz={() => openPracticeQuizForBook(selectedAdaptiveReviewBookId)}
       />
     );
   }

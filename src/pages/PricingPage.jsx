@@ -33,13 +33,6 @@ const FEATURES = [
     pro: true,
   },
   {
-    name: "Socials (friends + leaderboards)",
-    free: true,
-    freeNote: "Free League",
-    pro: true,
-    proNote: "Pro League",
-  },
-  {
     name: "Ads",
     free: false,
     freeNote: "May be introduced later",

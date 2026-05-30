@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { query } from "../db/client.js";
-import { translateJapaneseToEnglishWithOpenAI } from "../lib/openaiTranslate.js";
+import {
+  translateEnglishToJapaneseWithOpenAI,
+  translateJapaneseToEnglishWithOpenAI,
+} from "../lib/openaiTranslate.js";
 
 export const translateRouter = Router();
 
@@ -9,10 +12,13 @@ const TRANSLATION_CACHE_TTL_MS = (() => {
   if (!Number.isFinite(parsed) || parsed <= 0) return 7 * 24 * 60 * 60 * 1000;
   return parsed;
 })();
-const EN_JA_CACHE_VERSION = "common-v3";
+const EN_JA_CACHE_VERSION = "openai-v1";
 const JA_EN_CACHE_VERSION = "openai-v1";
 const UPSTREAM_FETCH_TIMEOUT_MS = 8000;
 const UPSTREAM_FETCH_RETRY_DELAYS_MS = [350, 900];
+const VOCABULARY_INPUT_MAX_WORDS = 3;
+const VOCABULARY_INPUT_MAX_LENGTH = 64;
+const SENTENCE_PUNCTUATION_PATTERN = /[.!?,;:。！？、；：]/;
 
 function normalizeWordInput(value) {
   return String(value || "")
@@ -147,11 +153,19 @@ function rankAndDedupeCandidates(candidates, inputText, options = {}) {
 }
 
 function isSimpleEnglishWord(value) {
-  return /^[a-z][a-z0-9' -]{1,63}$/i.test(String(value || "").trim());
+  const input = normalizeWordInput(value);
+  if (!input || input.length > VOCABULARY_INPUT_MAX_LENGTH) return false;
+  if (SENTENCE_PUNCTUATION_PATTERN.test(input)) return false;
+  if (input.split(" ").filter(Boolean).length > VOCABULARY_INPUT_MAX_WORDS) return false;
+  return /^[a-z][a-z0-9' -]{1,63}$/i.test(input);
 }
 
 function isJapaneseText(value) {
-  return hasJapaneseCharacters(value);
+  const input = normalizeWordInput(value);
+  if (!input || input.length > VOCABULARY_INPUT_MAX_LENGTH) return false;
+  if (SENTENCE_PUNCTUATION_PATTERN.test(input)) return false;
+  if (input.split(" ").filter(Boolean).length > VOCABULARY_INPUT_MAX_WORDS) return false;
+  return hasJapaneseCharacters(input) && /^[\u3040-\u30ff\u3400-\u9fffー々〆ヶ・\s-]+$/.test(input);
 }
 
 function normalizeJapaneseLookupText(value) {
@@ -396,6 +410,10 @@ translateRouter.post("/en-ja", async (req, res) => {
     res.status(400).json({ error: "translation-text-required" });
     return;
   }
+  if (!isSimpleEnglishWord(text)) {
+    res.status(400).json({ error: "invalid-vocabulary-item" });
+    return;
+  }
 
   const sourceLang = "en";
   const targetLang = "ja";
@@ -403,7 +421,7 @@ translateRouter.post("/en-ja", async (req, res) => {
 
   try {
     const cached = await readCachedTranslation(cacheKey);
-    if (cached?.isFresh && cached.provider === "jisho" && cached.translations.length === 1) {
+    if (cached?.isFresh && cached.translations.length === 1) {
       res.json({
         text,
         sourceLang,
@@ -418,11 +436,33 @@ translateRouter.post("/en-ja", async (req, res) => {
 
     let translations = [];
     let provider = "jisho";
+    let confidence = "";
+    let partOfSpeech = "";
+    let note = "";
+    let reading = "";
 
     try {
-      translations = await fetchJishoTranslations(text);
-    } catch {
+      const openAiResult = await translateEnglishToJapaneseWithOpenAI(text);
+      if (openAiResult?.japanese) {
+        translations = [openAiResult.japanese];
+        provider = "openai";
+        confidence = openAiResult.confidence || "";
+        partOfSpeech = openAiResult.partOfSpeech || "";
+        note = openAiResult.note || "";
+        reading = openAiResult.reading || "";
+      }
+    } catch (error) {
+      console.error("OpenAI English to Japanese translation failed", error);
       translations = [];
+      provider = "jisho";
+    }
+
+    if (!translations.length) {
+      try {
+        translations = await fetchJishoTranslations(text);
+      } catch {
+        translations = [];
+      }
     }
 
     // If Jisho has no current match, allow stale Jisho cache as a fallback.
@@ -460,6 +500,10 @@ translateRouter.post("/en-ja", async (req, res) => {
       translations,
       cached: false,
       provider,
+      confidence,
+      partOfSpeech,
+      note,
+      reading,
     });
   } catch (error) {
     console.error("Translation request failed", error);
@@ -471,6 +515,10 @@ translateRouter.post("/ja-en", async (req, res) => {
   const text = normalizeWordInput(req.body?.text);
   if (!text) {
     res.status(400).json({ error: "translation-text-required" });
+    return;
+  }
+  if (!isJapaneseText(text)) {
+    res.status(400).json({ error: "invalid-vocabulary-item" });
     return;
   }
 

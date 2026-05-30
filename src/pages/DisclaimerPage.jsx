@@ -45,15 +45,7 @@ export function DisclaimerPage() {
         </section>
 
         <section>
-          <h2>5. Social Metrics and Leaderboards</h2>
-          <p>
-            Social scores, streaks, levels, and leaderboard positions are informational app metrics only.
-            They are not official rankings, certifications, or guarantees of skill.
-          </p>
-        </section>
-
-        <section>
-          <h2>6. Classroom and Teacher Analytics</h2>
+          <h2>5. Classroom and Teacher Analytics</h2>
           <p>
             If your account is linked to a school or classroom cohort, teacher-facing analytics are provided to
             support learning progress monitoring. These analytics are educational indicators and should not be

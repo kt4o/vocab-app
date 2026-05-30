@@ -60,14 +60,10 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>4. Social, School, and Community Data</h2>
+          <h2>4. School and Community Data</h2>
           <p>
-            If you use social features, we process friend requests, friend relationships, and leaderboard
-            metrics derived from learning activity.
-          </p>
-          <p>
-            Your username and relevant leaderboard metrics may be visible to approved friends. Leaderboard
-            rankings may be separated by plan tier (for example Free and Pro leagues).
+            If you use school or classroom features, we process school codes, cohort membership, teacher
+            relationships, and learning activity summaries needed to support those workflows.
           </p>
           <p>
             If your account is connected to a school code or institutional cohort, authorized school or

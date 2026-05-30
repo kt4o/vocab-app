@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { query } from "../db/client.js";
+import { defineEnglishWithOpenAI } from "../lib/openaiTranslate.js";
 
 export const defineRouter = Router();
 
@@ -8,8 +9,12 @@ const DEFINITION_CACHE_TTL_MS = (() => {
   if (!Number.isFinite(parsed) || parsed <= 0) return 7 * 24 * 60 * 60 * 1000;
   return parsed;
 })();
+const EN_DEFINITION_CACHE_VERSION = "openai-v1";
 const UPSTREAM_FETCH_TIMEOUT_MS = 8000;
 const UPSTREAM_FETCH_RETRY_DELAYS_MS = [350, 900];
+const VOCABULARY_INPUT_MAX_WORDS = 3;
+const VOCABULARY_INPUT_MAX_LENGTH = 64;
+const SENTENCE_PUNCTUATION_PATTERN = /[.!?,;:。！？、；：]/;
 
 function normalizeWordInput(value) {
   return String(value || "")
@@ -18,11 +23,15 @@ function normalizeWordInput(value) {
 }
 
 function isSimpleEnglishWord(value) {
-  return /^[a-z][a-z0-9' -]{1,63}$/i.test(String(value || "").trim());
+  const input = normalizeWordInput(value);
+  if (!input || input.length > VOCABULARY_INPUT_MAX_LENGTH) return false;
+  if (SENTENCE_PUNCTUATION_PATTERN.test(input)) return false;
+  if (input.split(" ").filter(Boolean).length > VOCABULARY_INPUT_MAX_WORDS) return false;
+  return /^[a-z][a-z0-9' -]{1,63}$/i.test(input);
 }
 
 function buildCacheKey(word) {
-  return `en:definition:${String(word || "").trim().toLowerCase()}`;
+  return `en:definition:${String(word || "").trim().toLowerCase()}:${EN_DEFINITION_CACHE_VERSION}`;
 }
 
 function parseCachedDefinitions(value) {
@@ -291,6 +300,36 @@ defineRouter.post("/en", async (req, res) => {
         cached: true,
         stale: false,
         cachedAt: cached.updatedAt,
+      });
+      return;
+    }
+
+    let openAiDefinition = null;
+
+    try {
+      openAiDefinition = await defineEnglishWithOpenAI(word);
+    } catch (error) {
+      console.error("OpenAI English definition failed", error);
+    }
+
+    if (openAiDefinition?.definitions?.length) {
+      await writeCachedDefinition({
+        cacheKey,
+        inputWord: word,
+        definitions: openAiDefinition.definitions,
+        pronunciation: "",
+        provider: "openai",
+      });
+      res.json({
+        word,
+        definitions: openAiDefinition.definitions,
+        pronunciation: "",
+        provider: "openai",
+        cached: false,
+        stale: false,
+        confidence: openAiDefinition.confidence || "",
+        partOfSpeech: openAiDefinition.partOfSpeech || "",
+        note: openAiDefinition.note || "",
       });
       return;
     }

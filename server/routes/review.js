@@ -71,6 +71,27 @@ function buildWordCatalog(appState) {
   return catalog;
 }
 
+function buildBookSummaryBase(wordCatalog) {
+  const summaries = new Map();
+
+  wordCatalog.forEach((item) => {
+    if (!summaries.has(item.bookId)) {
+      summaries.set(item.bookId, {
+        bookId: item.bookId,
+        bookName: item.bookName || "Book",
+        totalWords: 0,
+        dueNow: 0,
+        overdue: 0,
+      });
+    }
+
+    const summary = summaries.get(item.bookId);
+    summary.totalWords += 1;
+  });
+
+  return summaries;
+}
+
 async function loadUserWordCatalog(userId) {
   const result = await query("SELECT state_json FROM app_state WHERE user_id = $1", [userId]);
   const appState = result.rows[0]?.state_json || {};
@@ -78,24 +99,37 @@ async function loadUserWordCatalog(userId) {
 }
 
 async function ensureReviewStateRows(userId, wordCatalog, nowIso) {
-  for (const item of wordCatalog.values()) {
-    await query(
-      `
-        INSERT INTO word_review_state (
-          user_id,
-          book_id,
-          chapter_id,
-          word,
-          next_review_at,
-          created_at,
-          updated_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT(user_id, book_id, chapter_id, word) DO NOTHING
-      `,
-      [userId, item.bookId, item.chapterId, item.word, nowIso, nowIso, nowIso]
-    );
-  }
+  const items = Array.from(wordCatalog.values());
+  if (!items.length) return;
+
+  const bookIds = items.map((item) => item.bookId);
+  const chapterIds = items.map((item) => item.chapterId);
+  const words = items.map((item) => item.word);
+
+  await query(
+    `
+      INSERT INTO word_review_state (
+        user_id,
+        book_id,
+        chapter_id,
+        word,
+        next_review_at,
+        created_at,
+        updated_at
+      )
+      SELECT
+        $1,
+        input.book_id,
+        input.chapter_id,
+        input.word,
+        $5,
+        $5,
+        $5
+      FROM UNNEST($2::text[], $3::text[], $4::text[]) AS input(book_id, chapter_id, word)
+      ON CONFLICT(user_id, book_id, chapter_id, word) DO NOTHING
+    `,
+    [userId, bookIds, chapterIds, words, nowIso]
+  );
 }
 
 function toReviewItem(row, catalogItem) {
@@ -194,6 +228,55 @@ reviewRouter.get("/due", async (req, res) => {
     });
   } catch {
     res.status(500).json({ error: "review-due-query-failed" });
+  }
+});
+
+reviewRouter.get("/summary", async (req, res) => {
+  const userId = req.authUser.id;
+  const nowIso = new Date().toISOString();
+  const overdueBeforeIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  try {
+    const wordCatalog = await loadUserWordCatalog(userId);
+    await ensureReviewStateRows(userId, wordCatalog, nowIso);
+
+    const summaries = buildBookSummaryBase(wordCatalog);
+    const countResult = await query(
+      `
+        SELECT
+          book_id,
+          COUNT(*) FILTER (WHERE next_review_at <= $2)::int AS due_now,
+          COUNT(*) FILTER (WHERE next_review_at <= $3)::int AS overdue
+        FROM word_review_state
+        WHERE user_id = $1
+        GROUP BY book_id
+      `,
+      [userId, nowIso, overdueBeforeIso]
+    );
+
+    countResult.rows.forEach((row) => {
+      const bookId = normalizeText(row.book_id);
+      const summary = summaries.get(bookId);
+      if (!summary) return;
+      summary.dueNow = Math.max(0, Math.floor(Number(row.due_now) || 0));
+      summary.overdue = Math.max(0, Math.floor(Number(row.overdue) || 0));
+    });
+
+    const books = Array.from(summaries.values()).sort((a, b) => {
+      if (b.dueNow !== a.dueNow) return b.dueNow - a.dueNow;
+      if (b.overdue !== a.overdue) return b.overdue - a.overdue;
+      return a.bookName.localeCompare(b.bookName);
+    });
+
+    res.json({
+      books,
+      stats: {
+        dueNow: books.reduce((total, book) => total + book.dueNow, 0),
+        overdue: books.reduce((total, book) => total + book.overdue, 0),
+      },
+    });
+  } catch {
+    res.status(500).json({ error: "review-summary-query-failed" });
   }
 });
 

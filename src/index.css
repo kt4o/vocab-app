@@ -1473,265 +1473,6 @@ body.theme-dark .accountFoundingBadge {
   }
 }
 
-.socialList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.socialListRow {
-  border: 1px solid var(--border);
-  background: var(--surface-alt);
-  border-radius: 10px;
-  padding: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.socialRowActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
-}
-
-.socialListRow .ghostBtn {
-  margin-top: 0;
-}
-
-.socialFriendHeaderRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.socialFriendName {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.socialFriendBadgeRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.socialFriendBadgeRowInline {
-  margin-left: auto;
-  justify-content: flex-end;
-}
-
-.socialFriendBadge {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  border-radius: 999px;
-  min-height: 24px;
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.socialFriendBadge.level {
-  border-color: color-mix(in srgb, #f5b700 45%, var(--border) 55%);
-}
-
-.socialFriendBadge.streak {
-  border-color: color-mix(in srgb, #ff7a45 45%, var(--border) 55%);
-}
-
-@media (max-width: 640px) {
-  .socialFriendHeaderRow {
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-
-  .socialFriendBadgeRowInline {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
-}
-
-.socialOutgoing {
-  margin-top: 12px;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-}
-
-.socialMetricRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-
-.socialTimeframeLabel {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.socialTimeframeDropdown {
-  min-width: 170px;
-}
-
-.socialRivalCard {
-  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent) 28%);
-  background: color-mix(in srgb, var(--surface-alt) 86%, var(--accent) 14%);
-  border-radius: 12px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
-}
-
-.socialRivalCard p {
-  margin: 0;
-  color: var(--text);
-  font-size: 14px;
-}
-
-.socialPodium {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  align-items: end;
-  margin-bottom: 12px;
-}
-
-.socialPodiumCard {
-  border: 1px solid var(--border);
-  background: var(--surface-alt);
-  border-radius: 12px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  text-align: center;
-  box-shadow: var(--shadow-soft);
-}
-
-.socialPodiumCard.rank1 {
-  min-height: 126px;
-  border-color: color-mix(in srgb, #d8b23f 58%, var(--border) 42%);
-  background: color-mix(in srgb, #f7d354 18%, var(--surface-alt) 82%);
-}
-
-.socialPodiumCard.rank2 {
-  min-height: 108px;
-}
-
-.socialPodiumCard.rank3 {
-  min-height: 96px;
-}
-
-.socialPodiumCard.isMe {
-  outline: 2px solid color-mix(in srgb, var(--accent) 34%, transparent 66%);
-}
-
-.socialPodiumCard.isEmpty {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.socialPodiumMedal {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.socialPodiumValue {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.socialLeaderboard {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.socialLeaderboardRow {
-  border: 1px solid var(--border);
-  background: var(--surface-alt);
-  border-radius: 10px;
-  padding: 7px 10px;
-  display: grid;
-  grid-template-columns: 42px 1fr auto;
-  align-items: center;
-  gap: 8px;
-}
-
-.socialLeaderboardRank {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.socialLeaderboardIdentity {
-  min-width: 0;
-}
-
-.socialLeaderboardNameRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.socialLeaderBadge {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: #6f4a00;
-  background: color-mix(in srgb, #f7d354 28%, white 72%);
-  border: 1px solid color-mix(in srgb, #d8b23f 52%, white 48%);
-  border-radius: 999px;
-  padding: 2px 6px;
-}
-
-.socialLeaderboardBarTrack {
-  width: 100%;
-  height: 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 60%, var(--border) 40%);
-  overflow: hidden;
-}
-
-.socialLeaderboardBarFill {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #2b68c9 0%, #3e8aff 100%);
-  transition: width 0.35s ease;
-}
-
-.socialLeaderboardValue {
-  font-weight: 700;
-  color: var(--text);
-}
-
-.socialLeaderboardRow.isMe {
-  border-color: color-mix(in srgb, var(--border) 62%, var(--accent) 38%);
-  background: color-mix(in srgb, var(--surface-alt) 85%, var(--accent) 15%);
-}
-
-.socialSectionStack {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.socialLeaderboardCard {
-  width: min(100%, 760px);
-  align-self: center;
-}
-
 .panelGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 220px));
@@ -1991,6 +1732,55 @@ body.theme-dark .accountFoundingBadge {
 
 .adaptiveReviewStateCard {
   max-width: 100%;
+}
+
+.adaptiveReviewBookGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.adaptiveReviewBookCard {
+  width: 100%;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: space-between;
+  min-height: 150px;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.adaptiveReviewBookCard:hover {
+  border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+  background: var(--surface-alt);
+}
+
+.adaptiveReviewBookStats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.adaptiveReviewBookStats span {
+  flex: 1 1 92px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-alt);
+  min-height: 52px;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.adaptiveReviewBookStats strong {
+  display: block;
+  color: var(--text);
+  font-size: 19px;
+  line-height: 1;
+  margin-bottom: 4px;
 }
 
 .adaptiveReviewCard {
@@ -2584,10 +2374,19 @@ body.theme-dark .pinBtn.isPinned {
 }
 
 .pinBtn.small {
-  top: 6px;
-  left: 6px;
+  top: 4px;
+  right: 4px;
+  left: auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   font-size: 13px;
-  z-index: 1;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-alt) 88%, transparent 12%);
 }
 
 .pinIcon {
@@ -5041,14 +4840,18 @@ body.theme-dark .quizOption.wrong {
 }
 
 .quizResultLayout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
-  align-items: start;
+  display: block;
 }
 
 .quizResultMain {
   min-width: 0;
+}
+
+.quizResultCard.hasMistakes .quizResultLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
 }
 
 .quizResultCard h2 {
@@ -5233,6 +5036,7 @@ body.theme-dark .quizResultProgressFill {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  margin-top: 18px;
 }
 
 .backupRestoreCard .quizResultActions {
@@ -5350,7 +5154,7 @@ body.theme-dark .recentBar {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 6px;
+  padding: 7px;
   box-shadow: none;
   transition:
     border-color 0.16s ease,
@@ -5362,10 +5166,27 @@ body.theme-dark .recentBar {
   background: var(--surface);
 }
 
+.recentSquare.isPinned {
+  border-color: color-mix(in srgb, #d8a326 34%, var(--border) 66%);
+  background: var(--surface-alt);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #f7d354 10%, transparent 90%);
+}
+
+.recentSquare.isPinned:hover {
+  border-color: color-mix(in srgb, #d8a326 42%, var(--border) 58%);
+  background: var(--surface);
+}
+
 body.theme-dark .recentSquare {
   border-color: var(--border);
   background: var(--surface-alt);
   box-shadow: none;
+}
+
+body.theme-dark .recentSquare.isPinned {
+  border-color: color-mix(in srgb, #f5c85a 34%, var(--border) 66%);
+  background: var(--surface-alt);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #f5c85a 10%, transparent 90%);
 }
 
 .recentSquareLabel {
@@ -5378,6 +5199,7 @@ body.theme-dark .recentSquare {
   word-break: break-word;
   line-height: 1.2;
   max-width: 100%;
+  min-width: 0;
 }
 
 .recentSquare:focus {
@@ -5689,27 +5511,6 @@ body.theme-dark .recentSquare {
   .streakStatusText,
   .streakProgressText {
     max-width: 100%;
-  }
-  .socialListRow {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .socialPodium {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-  .socialPodiumCard {
-    min-height: 0 !important;
-  }
-  .socialPodiumCard.isEmpty {
-    display: none;
-  }
-  .socialLeaderboardRow {
-    grid-template-columns: 36px 1fr;
-  }
-  .socialLeaderboardValue {
-    grid-column: 2;
-    justify-self: end;
   }
   .streakModalSummary {
     grid-template-columns: 1fr;

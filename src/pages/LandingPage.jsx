@@ -113,7 +113,6 @@ const FREE_PLAN = [
   { type: "check", text: "Unlimited word testing", note: "Included", muted: true },
   { type: "x", text: "Smart Review queue", muted: true },
   { type: "x", text: "Weak-Words Lab + CSV export", muted: true },
-  { type: "check", text: "Socials (friends + leaderboards)", note: "Free League" },
   { type: "x", text: "Ads", note: "May be introduced later", muted: true },
 ];
 
@@ -123,7 +122,6 @@ const PRO_PLAN = [
   { type: "check", text: "Unlimited word adding", note: "Included" },
   { type: "check", text: "Smart Review queue" },
   { type: "check", text: "Weak-Words Lab + CSV export" },
-  { type: "check", text: "Socials (friends + leaderboards)", note: "Pro League" },
   { type: "check", text: "Ads", note: "Ad-free" },
 ];
 

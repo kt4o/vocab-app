@@ -39,11 +39,10 @@ export function TermsPage() {
           <h2>4. Acceptable Use</h2>
           <p>
             You agree not to misuse, disrupt, abuse, or reverse-engineer the service, and not to manipulate
-            game/learning mechanics or social features.
+            game or learning mechanics.
           </p>
           <p>
-            You also agree not to use offensive, hateful, or abusive account names, impersonate others, or
-            use social features to harass, spam, or intimidate users.
+            You also agree not to use offensive, hateful, or abusive account names or impersonate others.
           </p>
         </section>
 

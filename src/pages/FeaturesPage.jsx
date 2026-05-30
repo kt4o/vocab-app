@@ -1,4 +1,4 @@
-import { BookOpen, Brain, Trophy, Zap, Target, BarChart3 } from "lucide-react";
+import { BookOpen, Brain, Zap, Target, BarChart3 } from "lucide-react";
 
 const FEATURE_SECTIONS = [
   {
@@ -24,12 +24,6 @@ const FEATURE_SECTIONS = [
     title: "Progress and Learning Analytics",
     description:
       "Track consistency, questions completed, and vocabulary growth over time to stay motivated.",
-  },
-  {
-    icon: Trophy,
-    title: "Social Motivation",
-    description:
-      "Compete in leaderboards, add friends, and turn daily practice into a measurable routine.",
   },
   {
     icon: Target,

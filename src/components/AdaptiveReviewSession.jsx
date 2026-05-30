@@ -5,10 +5,13 @@ export function AdaptiveReviewSession({
   stats,
   loading,
   error,
+  title = "Adaptive Review",
+  scopeName = "",
   pendingRating,
   goBack,
   onReload,
   onRate,
+  onPracticeQuiz,
 }) {
   const [showAnswer, setShowAnswer] = useState(false);
   const reviewCardRef = useRef(null);
@@ -41,7 +44,7 @@ export function AdaptiveReviewSession({
     <div className="page">
       <div className="pageHeader">
         <button className="backBtn" aria-label="Go back" onClick={goBack}>&times;</button>
-        <h1>Adaptive Review</h1>
+        <h1>{title}</h1>
       </div>
 
       <div className="analyticsSection adaptiveReviewSection">
@@ -49,7 +52,9 @@ export function AdaptiveReviewSession({
           <div className="adaptiveReviewHeroCopy">
             <h3>Review words before you forget them</h3>
             <p className="settingsHint">
-              Reveal the answer, rate your recall, and move to the next card.
+              {scopeName
+                ? `Focused on ${scopeName}. Reveal the answer, rate your recall, and move to the next card.`
+                : "Reveal the answer, rate your recall, and move to the next card."}
             </p>
           </div>
           <div className="adaptiveReviewStatsRow" aria-label="Adaptive review stats">
@@ -91,10 +96,19 @@ export function AdaptiveReviewSession({
           <div className="analyticsCard adaptiveReviewStateCard">
             <h3>No words due right now</h3>
             <p className="settingsHint">
-              Your adaptive review queue is clear for now. Come back later, or keep building your vocabulary so the
-              scheduler has more to work with.
+              {scopeName
+                ? `Your ${scopeName} review queue is clear for now. Come back later, or practice this book another way.`
+                : "Your adaptive review queue is clear for now. Come back later, or keep building your vocabulary so the scheduler has more to work with."}
             </p>
             <div className="modalActions">
+              {onPracticeQuiz ? (
+                <button type="button" className="modalBtn primary" onClick={onPracticeQuiz}>
+                  Practice Quiz
+                </button>
+              ) : null}
+              <button type="button" className="modalBtn ghost" onClick={goBack}>
+                Back
+              </button>
               <button type="button" className="modalBtn primary" onClick={onReload}>
                 Refresh queue
               </button>
