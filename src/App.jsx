@@ -3813,8 +3813,8 @@ export default function App() {
       }
 
       setIsLocalPersistencePaused(true);
-      resetAppDataToDefaults();
       setIsCloudStateHydrated(false);
+      let shouldResumePersistence = true;
 
       try {
         const response = await fetchWithRetry(STATE_API_PATH, {
@@ -3823,10 +3823,13 @@ export default function App() {
         });
 
         if (response.status === 401) {
+          shouldResumePersistence = false;
           if (!cancelled) {
             setAuthToken("");
             setAuthUsername("");
             setAuthError("Your session expired. Please log in again.");
+            setIsLocalPersistencePaused(false);
+            setIsCloudStateHydrated(false);
           }
           return;
         }
@@ -3847,12 +3850,13 @@ export default function App() {
         if (stateData) {
           applyAppDataSnapshot(stateData);
         }
-        if (!cancelled) {
+      } catch {
+        // Keep local state when cloud sync is unavailable.
+      } finally {
+        if (!cancelled && shouldResumePersistence) {
           setIsCloudStateHydrated(true);
           setIsLocalPersistencePaused(false);
         }
-      } catch {
-        // Keep local state when cloud sync is unavailable.
       }
     }
 
