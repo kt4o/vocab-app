@@ -285,6 +285,19 @@ function AppRoute() {
           if (cancelled) return;
 
           if (response.ok) {
+            const payload = await response.json().catch(() => null);
+            const hasValidAccountPayload =
+              payload &&
+              typeof payload === "object" &&
+              !Array.isArray(payload) &&
+              (Number.isFinite(Number(payload.userId)) || String(payload.username || "").trim());
+
+            if (!hasValidAccountPayload) {
+              setStatus("guest");
+              navigateTo("/login");
+              return;
+            }
+
             setStatus("authorized");
             return;
           }

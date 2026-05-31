@@ -3956,7 +3956,19 @@ export default function App() {
           },
         }),
       }).then(async (response) => {
-        if (response.ok) return;
+        if (response.ok) {
+          const payload = await response.json().catch(() => null);
+          const hasValidSavePayload =
+            payload &&
+            typeof payload === "object" &&
+            !Array.isArray(payload) &&
+            Number.isFinite(Number(payload.userId)) &&
+            String(payload.updatedAt || "").trim();
+          if (!hasValidSavePayload) {
+            throw new Error("invalid-cloud-state-save-response");
+          }
+          return;
+        }
 
         if (response.status === 401) {
           setAuthToken("");
