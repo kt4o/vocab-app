@@ -55,12 +55,22 @@ const defaultAllowedOrigins = isProduction && !allowLocalhostInProduction
     "http://127.0.0.1:5173",
   ];
 const envAllowedOrigins = parseCsvEnv(process.env.CORS_ORIGIN || process.env.CORS_ORIGINS || "");
-const allowedOrigins = new Set([...defaultAllowedOrigins, ...envAllowedOrigins]);
+const appBaseUrlOrigins = parseCsvEnv(
+  [
+    process.env.APP_BASE_URL,
+    process.env.FRONTEND_BASE_URL,
+    process.env.PUBLIC_SITE_URL,
+    process.env.VITE_SITE_URL,
+  ]
+    .filter(Boolean)
+    .join(",")
+);
+const allowedOrigins = new Set([...defaultAllowedOrigins, ...envAllowedOrigins, ...appBaseUrlOrigins]);
 
 if (isProduction && !allowLocalhostInProduction) {
-  if (!envAllowedOrigins.length) {
+  if (!envAllowedOrigins.length && !appBaseUrlOrigins.length) {
     throw new Error(
-      "CORS_ORIGIN or CORS_ORIGINS is required in production. Refusing localhost-only CORS config."
+      "CORS_ORIGIN, CORS_ORIGINS, APP_BASE_URL, or FRONTEND_BASE_URL is required in production. Refusing localhost-only CORS config."
     );
   }
 
