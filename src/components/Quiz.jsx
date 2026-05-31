@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { JapaneseWordDisplay } from "./JapaneseWordDisplay";
 import hintIconOn from "../assets/typing-hint-icon-on.svg";
 
 const QUIZ_COPY = {
@@ -221,7 +222,13 @@ export function Quiz({
   function getMultipleChoicePrompt(question) {
     const word = question?.word || "";
     if (currentLanguageMode === "en_ja") return `What is the Japanese for "${word}"?`;
-    if (currentLanguageMode === "ja_en") return `What is the English meaning of "${word}"?`;
+    if (currentLanguageMode === "ja_en") {
+      return (
+        <>
+          What is the English meaning of <JapaneseWordDisplay wordEntry={question} className="quizPromptJapaneseWord" />?
+        </>
+      );
+    }
     return `${copy.definitionPromptPrefix} "${word}"?`;
   }
 
@@ -284,6 +291,8 @@ export function Quiz({
         ...prev,
         {
           word: current.word,
+          japaneseReading: current.japaneseReading || "",
+          japaneseRomaji: current.japaneseRomaji || "",
           definition: current.correctDefinition,
           sourceBookId: current.sourceBookId ?? null,
           chapterId: current.chapterId || DEFAULT_CHAPTER_ID,
@@ -330,6 +339,8 @@ export function Quiz({
         ...prev,
         {
           word: current.word,
+          japaneseReading: current.japaneseReading || "",
+          japaneseRomaji: current.japaneseRomaji || "",
           definition: current.correctDefinition,
           sourceBookId: current.sourceBookId ?? null,
           chapterId: current.chapterId || DEFAULT_CHAPTER_ID,
@@ -485,7 +496,9 @@ export function Quiz({
                 <div className="quizMistakeReviewList">
                   {mistakeReviewItems.map((item, itemIndex) => (
                     <div className="quizMistakeReviewItem" key={`${item.word}-${itemIndex}`}>
-                      <strong>{item.word}</strong>
+                      <strong>
+                        <JapaneseWordDisplay wordEntry={item} />
+                      </strong>
                       <p className="quizMistakeDefinition">
                         {item.definition || item.correctAnswer || copy.notAvailable}
                       </p>
@@ -577,9 +590,8 @@ export function Quiz({
               )}
               {typedSubmitted && (
                 <p className={`quizTypedResult ${isMotivationPositive ? "correct" : "wrong"}`}>
-                  {isMotivationPositive
-                    ? `${copy.correctPrefix} ${current.word}`
-                    : `${copy.correctWordPrefix} ${current.word}`}
+                  <span>{isMotivationPositive ? copy.correctPrefix : copy.correctWordPrefix}</span>{" "}
+                  <JapaneseWordDisplay wordEntry={current} />
                 </p>
               )}
             </>

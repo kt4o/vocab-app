@@ -4047,7 +4047,7 @@ body.theme-dark .inputRow .addWordBtn {
 }
 .wordTitleGroup {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
@@ -4055,6 +4055,28 @@ body.theme-dark .inputRow .addWordBtn {
 }
 .wordRow strong {
   font-size: 16px;
+}
+.japaneseWordDisplay {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.japaneseWordDisplayText {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  line-height: 1.2;
+}
+.japaneseWordDisplay ruby {
+  ruby-position: over;
+}
+.japaneseWordDisplay rt {
+  color: var(--muted);
+  font-size: 0.5em;
+  font-weight: 600;
+  line-height: 1;
 }
 .wordRow p {
   font-size: 14px;
@@ -4146,12 +4168,12 @@ body.theme-dark .wordMasteryBlocks.isMastered {
   padding: 0 8px;
   line-height: 1;
   box-sizing: border-box;
-  align-self: center;
+  align-self: flex-end;
 }
 
 .wordChapterBadgeDropdown {
   min-width: 0;
-  align-self: center;
+  align-self: flex-end;
 }
 
 .wordChapterBadgeDropdown .inAppDropdownTrigger.asBadge {
@@ -4445,6 +4467,11 @@ body.theme-dark .definitionArrowBtn {
   transition: 0.2s ease;
   box-shadow: var(--shadow-soft);
 }
+.flashcard .japaneseWordDisplay {
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: 1.35em;
+}
 .flashcard:hover {
   transform: scale(1.02);
 }
@@ -4703,6 +4730,14 @@ body.theme-dark .definitionArrowBtn {
   margin: 0 0 18px;
   color: var(--text);
   font-size: 20px;
+}
+.quizPrompt .japaneseWordDisplay {
+  margin: 0 3px;
+  font-size: 1.15em;
+}
+.quizTypedResult .japaneseWordDisplay,
+.quizMistakeReviewItem .japaneseWordDisplay {
+  flex-wrap: wrap;
 }
 
 .quizDefinitionPrompt {

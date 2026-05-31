@@ -3,8 +3,10 @@ import { CEFR_WORDLIST } from "./data/cefrWordlist";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { AdaptiveReviewSession } from "./components/AdaptiveReviewSession";
+import { JapaneseWordDisplay } from "./components/JapaneseWordDisplay";
 import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
 import { identifyAnalyticsUser, resetAnalyticsIdentity, trackEvent } from "./lib/analytics.js";
+import { kanaToRomaji } from "./lib/japaneseText";
 import { useThemeMode } from "./hooks/useThemeMode.js";
 
 const INACTIVITY_TIMEOUT_MS = 7 * 60 * 1000;
@@ -1373,6 +1375,8 @@ function buildQuizQuestions(words, options = {}) {
 
       return {
         word: entry.word,
+        japaneseReading: entry.japaneseReading || entry.reading || entry.pronunciation || "",
+        japaneseRomaji: entry.japaneseRomaji || "",
         correctDefinition,
         options,
         sourceBookId: entry.sourceBookId ?? null,
@@ -1706,10 +1710,19 @@ function ensureBookChapters(book) {
   const normalizedWords = (book?.words || []).map((wordEntry) => {
     const chapterId = String(wordEntry?.chapterId || "").trim();
     const safeChapterId = chapterIdSet.has(chapterId) ? chapterId : fallbackChapterId;
+    const japaneseReading = String(
+      wordEntry?.japaneseReading ||
+        wordEntry?.reading ||
+        wordEntry?.pronunciation ||
+        wordEntry?.pronounciation ||
+        ""
+    ).trim();
     return {
       ...wordEntry,
       languageMode: parseBookLanguageMode(wordEntry?.languageMode, languageMode),
       chapterId: safeChapterId,
+      japaneseReading,
+      japaneseRomaji: String(wordEntry?.japaneseRomaji || (japaneseReading ? kanaToRomaji(japaneseReading) : "")).trim(),
       difficulty: normalizeWordDifficulty(wordEntry?.difficulty),
       masteryXp: getWordMasteryXp(wordEntry),
       quizPerformanceHistory: sanitizeWordQuizPerformanceHistory(wordEntry?.quizPerformanceHistory),
@@ -6089,6 +6102,8 @@ export default function App() {
       let translationPartOfSpeech = "";
       let translationNote = "";
       let savedWord = cleanWord;
+      let japaneseReading = "";
+      let japaneseRomaji = "";
 
       if (useEnglishToJapaneseDictionary) {
         const translationResult = await fetchJapaneseTranslations(cleanWord);
@@ -6130,6 +6145,8 @@ export default function App() {
           savedWord = resolvedJapaneseWord;
         }
         pronunciation = String(translationResult?.reading || "").trim();
+        japaneseReading = pronunciation;
+        japaneseRomaji = japaneseReading ? kanaToRomaji(japaneseReading) : "";
         if (!definitions.length) {
           if (translationErrorCode === "invalid-vocabulary-item") {
             openNoticeModal(uiText.invalidEnglishWord, uiText.invalidEnglishWordTitle);
@@ -6191,6 +6208,8 @@ export default function App() {
                 {
                   word: savedWord,
                   pronunciation,
+                  japaneseReading,
+                  japaneseRomaji,
                   definitions,
                   languageMode: currentBookLanguageMode,
                   masteryXp: 0,
@@ -7696,8 +7715,10 @@ export default function App() {
                 <div className="wordContent">
                   <div className="wordHeaderLine">
                     <div className="wordTitleGroup">
-                      <strong>{w.word}</strong>
-                      {(w.pronunciation || w.pronounciation) && (
+                      <strong>
+                        <JapaneseWordDisplay wordEntry={w} />
+                      </strong>
+                      {(w.pronunciation || w.pronounciation) && !w.japaneseRomaji && (
                         <span className="wordPronunciation">{w.pronunciation || w.pronounciation}</span>
                       )}
                       <InAppDropdown

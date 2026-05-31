@@ -14,6 +14,9 @@ export function PublicSiteHeader() {
             <a href="/features" className="text-[15px] text-foreground no-underline transition-colors hover:text-primary">
               Features
             </a>
+            <a href="/learn-japanese-from-books" className="text-[15px] text-foreground no-underline transition-colors hover:text-primary">
+              Japanese
+            </a>
             <a href="/pricing" className="text-[15px] text-foreground no-underline transition-colors hover:text-primary">
               Pricing
             </a>

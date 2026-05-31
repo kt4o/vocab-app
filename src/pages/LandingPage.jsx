@@ -1,4 +1,4 @@
-import { Check, X, BookOpen, Brain, Trophy, Zap, ArrowRight } from "lucide-react";
+import { Check, X, BookOpen, Brain, Trophy, Zap, ArrowRight, Languages } from "lucide-react";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const appScreenshot = "/landing/book-page.png";
@@ -28,6 +28,14 @@ const FEATURE_CARDS = [
     title: "Turn Recognition Into Recall",
     description:
       "Practice with flashcards, typing, and quizzes until words feel familiar enough to use, not just recognize.",
+  },
+  {
+    icon: Languages,
+    title: "Read Japanese Books",
+    description:
+      "Create Japanese learning books, save kanji or kana vocabulary, and review Japanese-to-English or English-to-Japanese cards.",
+    href: "/learn-japanese-from-books",
+    badge: "New",
   },
 ];
 
@@ -217,16 +225,64 @@ export function LandingPage() {
               If you already understand English but want stronger recall and more precise expression, your reading habit can become your vocabulary system.
             </p>
 
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
               {FEATURE_CARDS.map((card) => (
                 <article key={card.title} className="text-center">
-                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8eefc]">
+                  <div className="relative mb-4 inline-flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8eefc]">
                     <card.icon className="h-8 w-8 text-[#6F92E8]" />
+                    {card.badge ? (
+                      <span className="absolute -right-5 -top-2 rounded-full bg-[#dff6ec] px-2 py-0.5 text-[11px] font-semibold text-[#157347]">
+                        {card.badge}
+                      </span>
+                    ) : null}
                   </div>
                   <h3 className="mb-2 text-[17px] font-semibold text-foreground">{card.title}</h3>
                   <p className="text-[15px] leading-relaxed text-muted-foreground">{card.description}</p>
+                  {card.href ? (
+                    <a href={card.href} className="mt-3 inline-flex text-[15px] font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
+                      Learn more
+                    </a>
+                  ) : null}
                 </article>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
+          <div className="mx-auto grid w-full max-w-[1120px] gap-8 md:grid-cols-[1fr_1.1fr] md:items-center">
+            <div>
+              <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">New Feature</p>
+              <h2 className="mb-4 text-[30px] font-bold text-foreground sm:text-[36px]">Japanese books now fit the same learning loop</h2>
+              <p className="mb-5 text-[16px] leading-relaxed text-muted-foreground">
+                Keep Vocalibry focused on book-based vocabulary, while giving Japanese learners their own path for kanji, kana, translations, and review.
+              </p>
+              <a href="/learn-japanese-from-books" className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#8FB0FF] px-5 text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]">
+                Explore Japanese books
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            </div>
+
+            <div className="rounded-lg border border-border/40 bg-white p-5 shadow-[0_18px_44px_rgba(16,24,40,0.10)]">
+              <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#6F92E8]">Japanese to English</p>
+                  <h3 className="text-[20px] font-semibold text-foreground">吾輩は猫である</h3>
+                </div>
+                <span className="rounded-full bg-[#eef4ff] px-3 py-1 text-[12px] font-semibold text-[#5d81d6]">Book</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  ["単語", "word"],
+                  ["記憶", "memory"],
+                  ["復習", "review"],
+                ].map(([word, meaning]) => (
+                  <div key={word} className="rounded-lg border border-border/40 bg-[#f8fafe] p-4">
+                    <strong className="block text-[24px] text-foreground">{word}</strong>
+                    <span className="text-[14px] text-muted-foreground">{meaning}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -412,6 +468,7 @@ export function LandingPage() {
               <h4 className="mb-4 text-[14px] font-semibold uppercase tracking-[0.08em] text-foreground">Product</h4>
               <div className="space-y-3">
                 <a href="/features" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Features</a>
+                <a href="/learn-japanese-from-books" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Japanese Books</a>
                 <a href="/pricing" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Pricing</a>
                 <a href="/guides" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">All Guides</a>
                 <a href="/how-to-memorize-vocabulary" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Memorize Vocabulary</a>

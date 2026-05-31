@@ -64,6 +64,13 @@ function buildWordCatalog(appState) {
         definitions,
         selectedDefinition,
         pronunciation: normalizeText(wordEntry?.pronunciation || wordEntry?.pronounciation),
+        japaneseReading: normalizeText(
+          wordEntry?.japaneseReading ||
+            wordEntry?.reading ||
+            wordEntry?.pronunciation ||
+            wordEntry?.pronounciation
+        ),
+        japaneseRomaji: normalizeText(wordEntry?.japaneseRomaji),
       });
     });
   });
@@ -141,6 +148,8 @@ function toReviewItem(row, catalogItem) {
     word: row.word,
     selectedDefinition: catalogItem?.selectedDefinition || "",
     pronunciation: catalogItem?.pronunciation || "",
+    japaneseReading: catalogItem?.japaneseReading || "",
+    japaneseRomaji: catalogItem?.japaneseRomaji || "",
     nextReviewAt: row.next_review_at,
     lastReviewedAt: row.last_reviewed_at || null,
     lastRating: row.last_rating || "",

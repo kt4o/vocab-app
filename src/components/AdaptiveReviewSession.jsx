@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { JapaneseWordDisplay } from "./JapaneseWordDisplay";
 
 export function AdaptiveReviewSession({
   items,
@@ -148,10 +149,12 @@ export function AdaptiveReviewSession({
                 <div className="adaptiveReviewFlashcardInner">
                   {!showAnswer ? (
                     <>
-                      <strong className="adaptiveReviewWord">{currentItem.word}</strong>
-                      <p className="adaptiveReviewPronunciation">
+                      <strong className="adaptiveReviewWord">
+                        <JapaneseWordDisplay wordEntry={currentItem} />
+                      </strong>
+                      {!currentItem.japaneseRomaji ? <p className="adaptiveReviewPronunciation">
                         {currentItem.pronunciation || "Tap to reveal the selected definition."}
-                      </p>
+                      </p> : null}
                     </>
                   ) : (
                     <>

@@ -6,6 +6,7 @@ import { DisclaimerPage } from "./pages/DisclaimerPage.jsx";
 import { ContactPage } from "./pages/ContactPage.jsx";
 import { PricingPage } from "./pages/PricingPage.jsx";
 import { FeaturesPage } from "./pages/FeaturesPage.jsx";
+import { JapaneseBooksPage } from "./pages/JapaneseBooksPage.jsx";
 import { VocabularyGuidePage } from "./pages/VocabularyGuidePage.jsx";
 import { MemorizeVocabularyPage } from "./pages/MemorizeVocabularyPage.jsx";
 import { VocabularyInContextPage } from "./pages/VocabularyInContextPage.jsx";
@@ -26,6 +27,8 @@ function getPublicPage(route) {
       return <PricingPage />;
     case "features":
       return <FeaturesPage />;
+    case "japanese-books":
+      return <JapaneseBooksPage />;
     case "vocabulary-guide":
       return <VocabularyGuidePage />;
     case "memorize-vocabulary":
@@ -74,4 +77,3 @@ export function renderPage(pathname, siteUrl = DEFAULT_SITE_URL) {
     breadcrumbJsonLd,
   };
 }
-

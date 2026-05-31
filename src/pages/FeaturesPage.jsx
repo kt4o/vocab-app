@@ -1,4 +1,5 @@
-import { BookOpen, Brain, Zap, Target, BarChart3 } from "lucide-react";
+import { BookOpen, Brain, Zap, Target, BarChart3, Languages } from "lucide-react";
+import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const FEATURE_SECTIONS = [
   {
@@ -31,46 +32,20 @@ const FEATURE_SECTIONS = [
     description:
       "Build confidence in speaking, reading, and writing by practicing vocabulary matched to your current level.",
   },
+  {
+    icon: Languages,
+    title: "Japanese Books",
+    description:
+      "Use Japanese-to-English or English-to-Japanese books to save kanji, kana, and translations from real reading.",
+    href: "/learn-japanese-from-books",
+    label: "New",
+  },
 ];
 
 export function FeaturesPage() {
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="flex h-16 items-center justify-between">
-            <a href="/" className="flex items-center gap-2 no-underline">
-              <img src="/favicon.svg" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
-              <span className="text-lg font-semibold text-foreground">Vocalibry</span>
-            </a>
-            <nav className="hidden items-center gap-6 md:flex">
-              <a href="/guides" className="text-foreground no-underline transition-colors hover:text-primary">
-                Guides
-              </a>
-              <a href="/features" className="text-foreground no-underline transition-colors hover:text-primary">
-                Features
-              </a>
-              <a href="/pricing" className="text-foreground no-underline transition-colors hover:text-primary">
-                Pricing
-              </a>
-              <a href="/contact" className="text-foreground no-underline transition-colors hover:text-primary">
-                Contact
-              </a>
-            </nav>
-            <div className="flex items-center gap-3">
-              <a href="/login" className="font-medium text-foreground no-underline transition-colors hover:text-primary">
-                Log in
-              </a>
-              <a
-                href="/register"
-                className="rounded-lg bg-accent px-5 py-2 font-medium text-white no-underline shadow-[0_2px_8px_rgba(29,79,143,0.2)] transition-colors hover:bg-primary"
-              >
-                Start for free
-              </a>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PublicSiteHeader />
 
       <main>
         <section className="px-4 py-16">
@@ -92,8 +67,18 @@ export function FeaturesPage() {
                   <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-white">
                     <section.icon className="h-6 w-6 text-primary" />
                   </div>
+                  {section.label ? (
+                    <span className="mb-3 inline-flex rounded-full bg-[#dff6ec] px-3 py-1 text-xs font-semibold text-[#157347]">
+                      {section.label}
+                    </span>
+                  ) : null}
                   <h2 className="mb-2 text-xl font-semibold text-foreground">{section.title}</h2>
                   <p className="text-muted-foreground">{section.description}</p>
+                  {section.href ? (
+                    <a href={section.href} className="mt-4 inline-flex font-medium text-primary no-underline hover:text-[#5d81d6]">
+                      Learn more
+                    </a>
+                  ) : null}
                 </article>
               ))}
             </div>

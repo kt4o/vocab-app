@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { JapaneseWordDisplay } from "./JapaneseWordDisplay";
 
 export function Flashcards({
   currentBook,
@@ -80,28 +81,36 @@ export function Flashcards({
             (wordEntry) => normalizeWordDifficulty(wordEntry.difficulty) === selectedDifficulty
           );
   const current = filteredWords[index];
-  const hasCards = filteredWords.length > 0;
+  const filteredWordCount = filteredWords.length;
+  const hasCards = filteredWordCount > 0;
   const currentDefinition = current ? getSelectedDefinition(current) : "";
-  const flashcardFrontText =
-    cardPromptMode === "definition-to-word"
-      ? currentDefinition || copy.noDefinition
-      : current?.word || "";
-  const flashcardBackText =
-    cardPromptMode === "definition-to-word"
-      ? current?.word || ""
+  function renderWord(entry, className = "") {
+    return <JapaneseWordDisplay wordEntry={entry} className={className} />;
+  }
+
+  function renderFlashcardText() {
+    if (!showDef) {
+      return cardPromptMode === "definition-to-word"
+        ? currentDefinition || copy.noDefinition
+        : renderWord(current, "flashcardJapaneseWord");
+    }
+
+    return cardPromptMode === "definition-to-word"
+      ? renderWord(current, "flashcardJapaneseWord")
       : currentDefinition || copy.noDefinition;
+  }
 
   const goToPreviousCard = useCallback(() => {
     if (!hasCards) return;
-    setIndex((prev) => (prev - 1 + filteredWords.length) % filteredWords.length);
+    setIndex((prev) => (prev - 1 + filteredWordCount) % filteredWordCount);
     setShowDef(false);
-  }, [hasCards, filteredWords.length]);
+  }, [hasCards, filteredWordCount]);
 
   const goToNextCard = useCallback(() => {
     if (!hasCards) return;
-    setIndex((prev) => (prev + 1) % filteredWords.length);
+    setIndex((prev) => (prev + 1) % filteredWordCount);
     setShowDef(false);
-  }, [hasCards, filteredWords.length]);
+  }, [hasCards, filteredWordCount]);
 
   const flipCurrentCard = useCallback(() => {
     if (!hasCards) return;
@@ -118,11 +127,11 @@ export function Flashcards({
   }, [currentBook?.id]);
 
   useEffect(() => {
-    if (index >= filteredWords.length) {
+    if (index >= filteredWordCount) {
       setIndex(0);
       setShowDef(false);
     }
-  }, [index, filteredWords.length]);
+  }, [index, filteredWordCount]);
 
   useEffect(() => {
     function isEditableTarget(target) {
@@ -254,7 +263,7 @@ export function Flashcards({
               {showWordList ? copy.hideWordList : copy.showWordList}
             </button>
             <span className="flashListMeta">
-              {index + 1} / {filteredWords.length}
+              {index + 1} / {filteredWordCount}
             </span>
           </div>
           {showWordList && (
@@ -269,7 +278,7 @@ export function Flashcards({
                     setShowDef(false);
                   }}
                 >
-                  {entry.word}
+                  {renderWord(entry)}
                 </button>
               ))}
             </div>
@@ -286,7 +295,7 @@ export function Flashcards({
               }
             }}
           >
-            {showDef ? flashcardBackText : flashcardFrontText}
+            {renderFlashcardText()}
           </div>
           <div className="flashControls">
             <button onClick={goToPreviousCard}>

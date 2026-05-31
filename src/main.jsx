@@ -11,6 +11,7 @@ import { DisclaimerPage } from "./pages/DisclaimerPage.jsx";
 import { ContactPage } from "./pages/ContactPage.jsx";
 import { PricingPage } from "./pages/PricingPage.jsx";
 import { FeaturesPage } from "./pages/FeaturesPage.jsx";
+import { JapaneseBooksPage } from "./pages/JapaneseBooksPage.jsx";
 import { VocabularyGuidePage } from "./pages/VocabularyGuidePage.jsx";
 import { MemorizeVocabularyPage } from "./pages/MemorizeVocabularyPage.jsx";
 import { VocabularyInContextPage } from "./pages/VocabularyInContextPage.jsx";
@@ -798,6 +799,7 @@ function RootPage() {
   if (route === "disclaimer") pageContent = <DisclaimerPage />;
   if (route === "pricing") pageContent = <PricingPage />;
   if (route === "features") pageContent = <FeaturesPage />;
+  if (route === "japanese-books") pageContent = <JapaneseBooksPage />;
   if (route === "vocabulary-guide") pageContent = <VocabularyGuidePage />;
   if (route === "memorize-vocabulary") pageContent = <MemorizeVocabularyPage />;
   if (route === "vocabulary-in-context") pageContent = <VocabularyInContextPage />;

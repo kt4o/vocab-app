@@ -20,6 +20,13 @@ export const ROUTE_SEO = {
       "Explore Vocalibry features for vocabulary building, flashcards, quizzes, smart review, and progress tracking.",
     indexable: true,
   },
+  "japanese-books": {
+    path: "/learn-japanese-from-books",
+    title: "Learn Japanese From Books | Vocalibry",
+    description:
+      "Use Vocalibry to learn Japanese vocabulary from books, manga, textbooks, and reading notes with kanji, kana, translations, flashcards, and smart review.",
+    indexable: true,
+  },
   "vocabulary-guide": {
     path: "/how-to-expand-your-vocabulary",
     title: "How to Expand Your Vocabulary: Research-Backed Ways to Learn More Words | Vocalibry",
@@ -152,6 +159,7 @@ export function getRoute(pathname) {
   if (normalizedPath === "/disclaimer" || normalizedPath === "/legal-disclaimer") return "disclaimer";
   if (normalizedPath === "/pricing") return "pricing";
   if (normalizedPath === "/features") return "features";
+  if (normalizedPath === "/learn-japanese-from-books" || normalizedPath === "/japanese-books") return "japanese-books";
   if (normalizedPath === "/how-to-expand-your-vocabulary") return "vocabulary-guide";
   if (normalizedPath === "/how-to-memorize-vocabulary") return "memorize-vocabulary";
   if (normalizedPath === "/how-to-learn-vocabulary-in-context") return "vocabulary-in-context";
@@ -163,4 +171,3 @@ export function getRoute(pathname) {
   if (normalizedPath === "/contact") return "contact";
   return "landing";
 }
-
