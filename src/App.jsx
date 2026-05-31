@@ -68,6 +68,7 @@ const REVIEW_API_PATH = `${API_BASE_URL}/api/review`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
 const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
+const LOCAL_STATE_UPDATED_AT_STORAGE_KEY = "vocab_local_state_updated_at";
 const ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY = "vocab_onboarding_tutorial_pending";
 const ONBOARDING_TUTORIAL_SEEN_PREFIX = "vocab_onboarding_tutorial_seen";
 const SIGNUP_USERNAME_MESSAGE =
@@ -127,6 +128,23 @@ function getAdaptiveReviewItemKey(item) {
   return [item?.bookId || "", item?.chapterId || "", item?.word || ""].join("\u001f");
 }
 
+function parseTimestampMs(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return 0;
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function countStoredWords(rawBooks) {
+  const books = Array.isArray(rawBooks) ? rawBooks : [];
+  return books.reduce((total, book) => {
+    const words = Array.isArray(book?.words) ? book.words : [];
+    return total + words.length;
+  }, 0);
+}
+
 const ACCOUNT_DATA_STORAGE_KEYS = [
   "vocab_books",
   "vocab_weekly_stats",
@@ -140,6 +158,7 @@ const ACCOUNT_DATA_STORAGE_KEYS = [
   "vocab_last_quiz_mistake_mode_by_book",
   "vocab_last_quiz_setup",
   "vocab_streak",
+  LOCAL_STATE_UPDATED_AT_STORAGE_KEY,
   UI_LANGUAGE_STORAGE_KEY,
   DICTIONARY_PREFERENCE_STORAGE_KEY,
   JAPANESE_LEARNER_MODE_STORAGE_KEY,
@@ -3055,6 +3074,8 @@ export default function App() {
 
   useEffect(() => {
     if (isLocalPersistencePaused) return;
+    if (authToken && !isCloudStateHydrated) return;
+    const localUpdatedAt = new Date().toISOString();
     const persistedState = {
       vocab_books: JSON.stringify(books),
       vocab_theme: theme,
@@ -3072,6 +3093,7 @@ export default function App() {
       vocab_last_quiz_mistake_mode_by_book: JSON.stringify(lastQuizMistakeModeByBook),
       vocab_last_quiz_setup: JSON.stringify(lastQuizSetup),
       vocab_streak: JSON.stringify(streak),
+      [LOCAL_STATE_UPDATED_AT_STORAGE_KEY]: localUpdatedAt,
       [AUTH_USERNAME_STORAGE_KEY]: authUsername,
     };
 
@@ -3104,6 +3126,7 @@ export default function App() {
     authToken,
     authUsername,
     isLocalPersistencePaused,
+    isCloudStateHydrated,
   ]);
 
   async function submitAuth(mode) {
@@ -3902,6 +3925,19 @@ export default function App() {
             : rawState;
 
         if (stateData) {
+          const localUpdatedAtMs = parseTimestampMs(
+            localStorage.getItem(LOCAL_STATE_UPDATED_AT_STORAGE_KEY)
+          );
+          const cloudUpdatedAtMs = parseTimestampMs(payload?.updatedAt);
+          const localBooks = parseJsonSafely(localStorage.getItem("vocab_books"), []);
+          const localWordCount = countStoredWords(localBooks);
+          const cloudWordCount = countStoredWords(stateData?.books);
+          if (localUpdatedAtMs && (!cloudUpdatedAtMs || localUpdatedAtMs > cloudUpdatedAtMs + 1000)) {
+            return;
+          }
+          if (!localUpdatedAtMs && localWordCount > cloudWordCount) {
+            return;
+          }
           applyAppDataSnapshot(stateData);
         }
       } catch {
