@@ -3951,11 +3951,26 @@ export default function App() {
               lastQuizMistakeKeysByBook,
               lastQuizMistakeMode,
               lastQuizMistakeModeByBook,
+              lastQuizSetup,
             },
           },
         }),
-      }).catch(() => {
+      }).then(async (response) => {
+        if (response.ok) return;
+
+        if (response.status === 401) {
+          setAuthToken("");
+          setAuthUsername("");
+          setAuthError("Your session expired. Please log in again.");
+          return;
+        }
+
+        const payload = await response.json().catch(() => ({}));
+        const errorCode = String(payload?.error || response.statusText || "cloud-state-save-failed").trim();
+        throw new Error(errorCode);
+      }).catch((error) => {
         // Keep app fully usable even if cloud save fails.
+        console.warn("Cloud state save failed.", error);
       });
     }, CLOUD_STATE_SYNC_DEBOUNCE_MS);
 
@@ -3980,6 +3995,7 @@ export default function App() {
     lastQuizMistakeKeysByBook,
     lastQuizMistakeMode,
     lastQuizMistakeModeByBook,
+    lastQuizSetup,
   ]);
 
   useEffect(() => {
