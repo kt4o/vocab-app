@@ -62,7 +62,7 @@ export async function translateJapaneseToEnglishWithOpenAI(inputText) {
       {
         role: "system",
         content:
-          "You create Japanese vocabulary flashcards for English speakers. Return the most common learner-friendly English meaning for the given Japanese word or short expression. Prefer everyday modern meanings. Avoid names, places, rare senses, archaic meanings, overly specific dictionary senses, and long explanations. If the input is ambiguous, choose the most common general meaning and mark confidence as medium or low.",
+          "You create Japanese vocabulary flashcards for English speakers. The input may be Japanese text or romaji. Return the most common learner-friendly English meaning for the given Japanese word or short expression. If the input is romaji, resolve it to the most likely everyday Japanese spelling and kana reading. Prefer everyday modern meanings. Avoid names, places, rare senses, archaic meanings, overly specific dictionary senses, and long explanations. If the input is ambiguous, choose the most common general meaning and mark confidence as medium or low.",
       },
       {
         role: "user",
@@ -86,6 +86,15 @@ export async function translateJapaneseToEnglishWithOpenAI(inputText) {
               type: "string",
               description: "One concise English meaning suitable for a vocabulary flashcard.",
             },
+            resolvedJapanese: {
+              type: "string",
+              description:
+                "The resolved Japanese spelling for the input. For romaji, return kana/kanji. For Japanese input, return the normalized Japanese word. Empty string only if unknown.",
+            },
+            reading: {
+              type: "string",
+              description: "Kana reading if known. Empty string if not needed or unknown.",
+            },
             confidence: {
               type: "string",
               enum: ["high", "medium", "low"],
@@ -99,7 +108,7 @@ export async function translateJapaneseToEnglishWithOpenAI(inputText) {
               description: "A short learner note. Empty string if not needed.",
             },
           },
-          required: ["english", "confidence", "partOfSpeech", "note"],
+          required: ["english", "resolvedJapanese", "reading", "confidence", "partOfSpeech", "note"],
         },
       },
     },
@@ -112,6 +121,8 @@ export async function translateJapaneseToEnglishWithOpenAI(inputText) {
 
   return {
     english,
+    resolvedJapanese: normalizeText(parsed?.resolvedJapanese),
+    reading: normalizeText(parsed?.reading),
     confidence: normalizeConfidence(parsed?.confidence),
     partOfSpeech: normalizeText(parsed?.partOfSpeech) || "unknown",
     note: normalizeText(parsed?.note),

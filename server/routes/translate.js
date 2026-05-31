@@ -168,6 +168,19 @@ function isJapaneseText(value) {
   return hasJapaneseCharacters(input) && /^[\u3040-\u30ff\u3400-\u9fffー々〆ヶ・\s-]+$/.test(input);
 }
 
+function isRomanizedJapaneseText(value) {
+  const input = normalizeWordInput(value);
+  if (!input || input.length > VOCABULARY_INPUT_MAX_LENGTH) return false;
+  if (hasJapaneseCharacters(input)) return false;
+  if (SENTENCE_PUNCTUATION_PATTERN.test(input)) return false;
+  if (input.split(" ").filter(Boolean).length > VOCABULARY_INPUT_MAX_WORDS) return false;
+  return /^[a-z][a-z0-9' -]{1,63}$/i.test(input);
+}
+
+function isJapaneseLookupText(value) {
+  return isJapaneseText(value) || isRomanizedJapaneseText(value);
+}
+
 function normalizeJapaneseLookupText(value) {
   return String(value || "")
     .replace(/\s+/g, "")
@@ -186,6 +199,21 @@ function getJapaneseEntryMatchScore(item, inputText) {
     if (reading && reading === normalizedInput) return Math.max(bestScore, 3);
     return bestScore;
   }, 0);
+}
+
+function getPrimaryJapaneseEntry(item, inputText) {
+  const japaneseList = Array.isArray(item?.japanese) ? item.japanese : [];
+  const normalizedInput = normalizeJapaneseLookupText(inputText);
+  const exactEntry = japaneseList.find((jp) => {
+    const word = normalizeJapaneseLookupText(jp?.word);
+    const reading = normalizeJapaneseLookupText(jp?.reading);
+    return normalizedInput && (word === normalizedInput || reading === normalizedInput);
+  });
+  const primaryEntry = exactEntry || japaneseList.find((jp) => jp?.word || jp?.reading);
+  return {
+    resolvedWord: normalizeWordInput(primaryEntry?.word || primaryEntry?.reading),
+    reading: normalizeWordInput(primaryEntry?.reading),
+  };
 }
 
 function isLowValueJishoSense(sense) {
@@ -329,8 +357,8 @@ function extractJishoEnglishDefinitions(payload, inputText) {
   return rankAndDedupeCandidates(candidates, normalizedInput, { maxResults: 1 });
 }
 
-async function fetchJishoEnglishDefinitions(inputText) {
-  if (!isJapaneseText(inputText)) return [];
+async function fetchJishoEnglishDefinitionResult(inputText) {
+  if (!isJapaneseLookupText(inputText)) return { translations: [], resolvedWord: "", reading: "" };
   const response = await fetchWithRetry(
     `https://jisho.org/api/v1/search/words?keyword=${encodeURIComponent(inputText)}`,
     {
@@ -340,9 +368,30 @@ async function fetchJishoEnglishDefinitions(inputText) {
       },
     }
   );
-  if (!response.ok) return [];
+  if (!response.ok) return { translations: [], resolvedWord: "", reading: "" };
   const payload = await response.json().catch(() => null);
-  return extractJishoEnglishDefinitions(payload, inputText);
+  const items = Array.isArray(payload?.data) ? payload.data : [];
+  const rankedItems = items.slice(0, 12).map((item, itemIndex) => ({
+    item,
+    itemIndex,
+    matchScore: getJapaneseEntryMatchScore(item, inputText),
+  }));
+  const exactItems = rankedItems.filter((entry) => entry.matchScore > 0);
+  const commonItems = rankedItems.filter((entry) => Boolean(entry.item?.is_common));
+  const selectedItems = [...(exactItems.length ? exactItems : commonItems.length ? commonItems : rankedItems)]
+    .sort(
+      (a, b) =>
+        b.matchScore - a.matchScore ||
+        Number(Boolean(b.item?.is_common)) - Number(Boolean(a.item?.is_common)) ||
+        a.itemIndex - b.itemIndex
+    );
+  const primaryJapanese = getPrimaryJapaneseEntry(selectedItems[0]?.item, inputText);
+
+  return {
+    translations: extractJishoEnglishDefinitions(payload, inputText),
+    resolvedWord: primaryJapanese.resolvedWord,
+    reading: primaryJapanese.reading,
+  };
 }
 
 async function readCachedTranslation(cacheKey) {
@@ -517,7 +566,7 @@ translateRouter.post("/ja-en", async (req, res) => {
     res.status(400).json({ error: "translation-text-required" });
     return;
   }
-  if (!isJapaneseText(text)) {
+  if (!isJapaneseLookupText(text)) {
     res.status(400).json({ error: "invalid-vocabulary-item" });
     return;
   }
@@ -546,25 +595,53 @@ translateRouter.post("/ja-en", async (req, res) => {
     let confidence = "";
     let partOfSpeech = "";
     let note = "";
+    let resolvedWord = "";
+    let reading = "";
 
-    try {
-      const openAiResult = await translateJapaneseToEnglishWithOpenAI(text);
-      if (openAiResult?.english) {
-        translations = [openAiResult.english];
-        provider = "openai";
-        confidence = openAiResult.confidence || "";
-        partOfSpeech = openAiResult.partOfSpeech || "";
-        note = openAiResult.note || "";
+    if (isRomanizedJapaneseText(text)) {
+      try {
+        const openAiResult = await translateJapaneseToEnglishWithOpenAI(text);
+        if (openAiResult?.english) {
+          translations = [openAiResult.english];
+          provider = "openai";
+          resolvedWord = openAiResult.resolvedJapanese || "";
+          reading = openAiResult.reading || "";
+          confidence = openAiResult.confidence || "";
+          partOfSpeech = openAiResult.partOfSpeech || "";
+          note = openAiResult.note || "";
+        }
+      } catch (error) {
+        console.error("OpenAI romaji Japanese to English translation failed", error);
+        translations = [];
+        provider = "jisho";
       }
-    } catch (error) {
-      console.error("OpenAI Japanese to English translation failed", error);
-      translations = [];
-      provider = "jisho";
+    }
+
+    if (!translations.length && !isRomanizedJapaneseText(text)) {
+      try {
+        const openAiResult = await translateJapaneseToEnglishWithOpenAI(text);
+        if (openAiResult?.english) {
+          translations = [openAiResult.english];
+          provider = "openai";
+          resolvedWord = openAiResult.resolvedJapanese || resolvedWord;
+          reading = openAiResult.reading || reading;
+          confidence = openAiResult.confidence || "";
+          partOfSpeech = openAiResult.partOfSpeech || "";
+          note = openAiResult.note || "";
+        }
+      } catch (error) {
+        console.error("OpenAI Japanese to English translation failed", error);
+        translations = [];
+        provider = "jisho";
+      }
     }
 
     if (!translations.length) {
       try {
-        translations = await fetchJishoEnglishDefinitions(text);
+        const jishoResult = await fetchJishoEnglishDefinitionResult(text);
+        translations = jishoResult.translations;
+        resolvedWord = jishoResult.resolvedWord;
+        reading = jishoResult.reading;
       } catch {
         translations = [];
       }
@@ -604,6 +681,8 @@ translateRouter.post("/ja-en", async (req, res) => {
       translations,
       cached: false,
       provider,
+      resolvedWord,
+      reading,
       confidence,
       partOfSpeech,
       note,

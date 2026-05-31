@@ -47,9 +47,9 @@ const BOOK_LANGUAGE_MODE_OPTIONS = [
     shortLabel: "JA -> EN",
     sourceLabel: "Japanese",
     targetLabel: "English",
-    addWordPlaceholder: "Add Japanese word...",
+    addWordPlaceholder: "Add Japanese word or romaji...",
     attribution: "Translation data is fetched from Jisho (jisho.org) for Japanese-to-English learning.",
-    emptyHint: "Add a Japanese word above and Vocalibry will fetch English meanings for this book's flashcards and quizzes.",
+    emptyHint: "Add a Japanese word or romaji above and Vocalibry will fetch English meanings for this book's flashcards and quizzes.",
   },
 ];
 const BOOK_LANGUAGE_MODE_VALUE_SET = new Set(BOOK_LANGUAGE_MODE_OPTIONS.map((option) => option.value));
@@ -113,6 +113,12 @@ function hasJapaneseVocabularyCharacters(value) {
 
 function hasEnglishVocabularyCharacters(value) {
   return /[a-z]/i.test(String(value || ""));
+}
+
+function isRomanizedJapaneseVocabularyInput(value) {
+  const input = normalizeVocabularyInput(value);
+  if (!input || hasJapaneseVocabularyCharacters(input)) return false;
+  return /^[a-z][a-z0-9' -]{1,63}$/i.test(input);
 }
 
 function getAdaptiveReviewItemKey(item) {
@@ -852,6 +858,7 @@ async function fetchJapaneseToEnglishTranslations(word) {
   const input = String(word || "").trim();
   if (!input) return { translations: [], provider: "", error: "" };
   const hasJapanese = (value) => /[\u3040-\u30ff\u3400-\u9fff]/.test(String(value || ""));
+  const isJishoCompatibleRomajiInput = (value) => /^[a-z][a-z0-9' -]{1,63}$/i.test(String(value || "").trim());
 
   const normalize = (values) => {
     const seen = new Set();
@@ -885,6 +892,20 @@ async function fetchJapaneseToEnglishTranslations(word) {
     }, 0);
   };
 
+  const getPrimaryJapaneseEntry = (item) => {
+    const japaneseList = Array.isArray(item?.japanese) ? item.japanese : [];
+    const exactEntry = japaneseList.find((jpEntry) => {
+      const word = normalizeJapaneseLookupText(jpEntry?.word);
+      const reading = normalizeJapaneseLookupText(jpEntry?.reading);
+      const normalizedInput = normalizeJapaneseLookupText(input);
+      return normalizedInput && (word === normalizedInput || reading === normalizedInput);
+    });
+    const primaryEntry = exactEntry || japaneseList.find((jpEntry) => jpEntry?.word || jpEntry?.reading);
+    const resolvedWord = String(primaryEntry?.word || primaryEntry?.reading || "").trim();
+    const reading = String(primaryEntry?.reading || "").trim();
+    return { resolvedWord, reading };
+  };
+
   const isLowValueJishoSense = (sense) => {
     const parts = Array.isArray(sense?.parts_of_speech) ? sense.parts_of_speech : [];
     const tags = Array.isArray(sense?.tags) ? sense.tags : [];
@@ -894,7 +915,7 @@ async function fetchJapaneseToEnglishTranslations(word) {
   };
 
   const fetchJishoDirect = async () => {
-    if (!hasJapanese(input)) {
+    if (!hasJapanese(input) && !isJishoCompatibleRomajiInput(input)) {
       return { translations: [], provider: "jisho-direct", error: "jisho-word-not-available" };
     }
 
@@ -930,6 +951,8 @@ async function fetchJapaneseToEnglishTranslations(word) {
         )
         .slice(0, 4);
 
+      const primaryJapanese = getPrimaryJapaneseEntry(selectedItems[0]?.item);
+
       selectedItems.forEach(({ item }) => {
         const senses = Array.isArray(item?.senses) ? item.senses : [];
         const usefulSenses = senses.filter((sense) => !isLowValueJishoSense(sense));
@@ -946,7 +969,13 @@ async function fetchJapaneseToEnglishTranslations(word) {
       if (!translations.length) {
         return { translations: [], provider: "jisho-direct", error: "jisho-word-not-available" };
       }
-      return { translations, provider: "jisho-direct", error: "" };
+      return {
+        translations,
+        provider: "jisho-direct",
+        resolvedWord: primaryJapanese.resolvedWord,
+        reading: primaryJapanese.reading,
+        error: "",
+      };
     } catch {
       return { translations: [], provider: "jisho-direct", error: "translation-provider-failed" };
     }
@@ -983,6 +1012,8 @@ async function fetchJapaneseToEnglishTranslations(word) {
           return {
             translations: normalized,
             provider: String(payload?.provider || "backend").trim().toLowerCase() || "backend",
+            resolvedWord: String(payload?.resolvedWord || payload?.sourceText || "").trim(),
+            reading: String(payload?.reading || "").trim(),
             confidence: String(payload?.confidence || "").trim().toLowerCase(),
             partOfSpeech: String(payload?.partOfSpeech || "").trim(),
             note: String(payload?.note || "").trim(),
@@ -995,7 +1026,7 @@ async function fetchJapaneseToEnglishTranslations(word) {
       if (errorCode === "jisho-word-not-available") {
         return { translations: [], provider: "jisho", error: errorCode };
       }
-      if (errorCode === "invalid-vocabulary-item") {
+      if (errorCode === "invalid-vocabulary-item" && !isJishoCompatibleRomajiInput(input)) {
         return { translations: [], provider: "backend", error: errorCode };
       }
       if (errorCode === "translation-provider-failed") {
@@ -2803,7 +2834,7 @@ export default function App() {
   }, [authToken, isProPlan, loadAdaptiveReviewSummary]);
 
   function renderWithSidebar(content) {
-    const isGuidedModalOpen = Boolean(guidedTourStep && noticeModal);
+    const isGuidedModalOpen = Boolean(guidedTourStep && (noticeModal || isAddBookModalOpen));
     const inDefinitions =
       screen === "definitions" || screen === "definitionsSelect" || screen === "chapters";
     const inFlashcards = screen === "flashcards" || screen === "flashcardsSelect";
@@ -2833,9 +2864,19 @@ export default function App() {
       </div>
     ) : content;
 
+    const stopGuidedTourForSidebarNavigation = () => {
+      if (!guidedTourStep) return;
+      setGuidedTourStep("");
+      setIsGuidedTourDismissed(true);
+    };
+
     return (
       <div className={`appShell ${guidedTourStep && !isOnboardingTutorialOpen && !isOnboardingCloseConfirmOpen ? "isGuidedLocked" : ""} ${isGuidedModalOpen ? "hasGuidedModalOpen" : ""}`}>
-        <aside ref={sidebarRef} className={`sidebar ${isSidebarHidden ? "isCollapsed" : ""}`}>
+        <aside
+          ref={sidebarRef}
+          className={`sidebar ${isSidebarHidden ? "isCollapsed" : ""}`}
+          onClickCapture={stopGuidedTourForSidebarNavigation}
+        >
           <div className="sidebarTopRow">
             {!isSidebarHidden && (
               <div className="sidebarBrandWrap">
@@ -4203,6 +4244,14 @@ export default function App() {
     }
   }
 
+  function closeAddBookModal() {
+    setIsAddBookModalOpen(false);
+    if (guidedTourStep === "book-name" || guidedTourStep === "book-create") {
+      setGuidedTourStep("");
+      setIsGuidedTourDismissed(true);
+    }
+  }
+
   function createBook() {
     const name = newBookName.trim();
     if (!name) return;
@@ -5022,7 +5071,7 @@ export default function App() {
 
     if (isAddBookModalOpen) {
       return (
-        <div className="modalOverlay" onClick={() => setIsAddBookModalOpen(false)}>
+        <div className="modalOverlay" onClick={closeAddBookModal}>
           <div
             className="modalCard createBookModalCard"
             ref={modalRef}
@@ -5071,7 +5120,7 @@ export default function App() {
             </p>
             {renderGuidedTourCoach("inline", "book-name")}
             <div className="modalActions">
-              <button type="button" className="modalBtn ghost" onClick={() => setIsAddBookModalOpen(false)}>
+              <button type="button" className="modalBtn ghost" onClick={closeAddBookModal}>
                 {tr("Cancel", "キャンセル")}
               </button>
               <button
@@ -5995,7 +6044,14 @@ export default function App() {
       openNoticeModal(uiText.wrongLanguageEnglishWord, uiText.invalidEnglishWordTitle);
       return;
     }
-    if (useJapaneseToEnglishDictionary && !hasJapaneseVocabularyCharacters(cleanWord) && hasEnglishVocabularyCharacters(cleanWord)) {
+    const isRomanizedJapaneseInput =
+      useJapaneseToEnglishDictionary && isRomanizedJapaneseVocabularyInput(cleanWord);
+    if (
+      useJapaneseToEnglishDictionary &&
+      !hasJapaneseVocabularyCharacters(cleanWord) &&
+      hasEnglishVocabularyCharacters(cleanWord) &&
+      !isRomanizedJapaneseInput
+    ) {
       openNoticeModal(uiText.wrongLanguageJapaneseWord, uiText.invalidEnglishWordTitle);
       return;
     }
@@ -6021,6 +6077,8 @@ export default function App() {
     }
 
     setLoading(true);
+    let lookupSucceeded = false;
+    let savedWordForLastAdded = cleanWord;
     try {
       let definitions = [];
       let pronunciation = "";
@@ -6030,6 +6088,7 @@ export default function App() {
       let translationConfidence = "";
       let translationPartOfSpeech = "";
       let translationNote = "";
+      let savedWord = cleanWord;
 
       if (useEnglishToJapaneseDictionary) {
         const translationResult = await fetchJapaneseTranslations(cleanWord);
@@ -6066,6 +6125,11 @@ export default function App() {
         translationConfidence = String(translationResult?.confidence || "").trim().toLowerCase();
         translationPartOfSpeech = String(translationResult?.partOfSpeech || "").trim();
         translationNote = String(translationResult?.note || "").trim();
+        const resolvedJapaneseWord = String(translationResult?.resolvedWord || "").trim();
+        if (isRomanizedJapaneseInput && resolvedJapaneseWord && hasJapaneseVocabularyCharacters(resolvedJapaneseWord)) {
+          savedWord = resolvedJapaneseWord;
+        }
+        pronunciation = String(translationResult?.reading || "").trim();
         if (!definitions.length) {
           if (translationErrorCode === "invalid-vocabulary-item") {
             openNoticeModal(uiText.invalidEnglishWord, uiText.invalidEnglishWordTitle);
@@ -6104,6 +6168,20 @@ export default function App() {
         openNoticeModal(uiText.definitionRequired, uiText.definitionRequiredTitle);
         return;
       }
+      lookupSucceeded = true;
+
+      const normalizedSavedWord = savedWord.toLowerCase();
+      const duplicateResolvedWord = savedWord !== cleanWord && currentBook.words.some(
+        (w) =>
+          w.word.trim().toLowerCase() === normalizedSavedWord &&
+          (w.chapterId || fallbackChapterId) === safeSelectedChapterIdForNewWords
+      );
+
+      if (duplicateResolvedWord) {
+        openNoticeModal(uiText.duplicateWord, uiText.duplicateWordTitle);
+        return;
+      }
+      savedWordForLastAdded = savedWord;
 
       const updatedBooks = books.map((book) =>
         book.id === currentBookId
@@ -6111,7 +6189,7 @@ export default function App() {
               ...book,
               words: [
                 {
-                  word: cleanWord,
+                  word: savedWord,
                   pronunciation,
                   definitions,
                   languageMode: currentBookLanguageMode,
@@ -6173,8 +6251,14 @@ export default function App() {
       );
       updateStreak();
       setInputWord("");
-      setLastAddedWord(cleanWord);
-    } catch {
+      setLastAddedWord(savedWordForLastAdded);
+    } catch (error) {
+      if (lookupSucceeded) {
+        console.warn("Word was added, but post-save bookkeeping failed.", error);
+        setInputWord("");
+        setLastAddedWord(savedWordForLastAdded);
+        return;
+      }
       openNoticeModal(
         useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
           ? uiText.translationNetworkError
@@ -7514,7 +7598,11 @@ export default function App() {
           </div>
           <h1>{currentBook?.name}</h1>
         </div>
-        <div className={`inputRow ${isGuidingWordInput || isGuidingAddButton || isGuidingSaving ? "guidedTargetRow" : ""}`}>
+        <div
+          className={`inputRow ${isGuidingWordInput || isGuidingAddButton || isGuidingSaving ? "guidedTargetRow" : ""} ${
+            isGuidingAddButton || isGuidingSaving ? "hasGuidedAddCoach" : ""
+          }`}
+        >
           <div className={`addWordFieldGroup ${isGuidingWordInput ? "guidedTarget" : ""}`}>
             <input
               value={inputWord}
@@ -7534,18 +7622,20 @@ export default function App() {
               disabled={loading}
             />
           </div>
-          <button
-            type="button"
-            className={`addWordBtn ${isGuidingAddButton ? "guidedTarget" : ""}`}
-            onClick={addWord}
-            disabled={loading || !inputWord.trim()}
-            aria-label={tr("Add word", "Add word")}
-          >
-            {loading ? "..." : "+"}
-          </button>
+          <div className="guidedControlAnchor addWordGuidedAnchor">
+            <button
+              type="button"
+              className={`addWordBtn ${isGuidingAddButton ? "guidedTarget" : ""}`}
+              onClick={addWord}
+              disabled={loading || !inputWord.trim()}
+              aria-label={tr("Add word", "Add word")}
+            >
+              {loading ? "..." : "+"}
+            </button>
+            {renderGuidedTourCoach("below", "word-add")}
+            {renderGuidedTourCoach("below", "word-saving")}
+          </div>
           {renderGuidedTourCoach("inline", "word-type")}
-          {renderGuidedTourCoach("inlineRight", "word-add")}
-          {renderGuidedTourCoach("inlineRight", "word-saving")}
         </div>
         <p className="definitionAttributionNote">
           {currentBookLanguageModeMeta.attribution ||
@@ -8295,25 +8385,6 @@ export default function App() {
           <h1>{tr("Select Review Book", "復習するブックを選択")}</h1>
         </div>
         <div className="analyticsSection">
-          <div className="analyticsCard adaptiveReviewHeroCard">
-            <div className="adaptiveReviewHeroCopy">
-              <h3>{tr("Adaptive Review", "適応型復習")}</h3>
-              <p className="settingsHint">
-                {tr("Choose one book so your spaced repetition stays focused.", "1つのブックを選んで、復習内容を集中させます。")}
-              </p>
-            </div>
-            <div className="adaptiveReviewStatsRow" aria-label="Adaptive review stats">
-              <div className="adaptiveReviewStatPill">
-                <span>{tr("Due", "期限")}</span>
-                <strong>{adaptiveReviewStats.dueNow}</strong>
-              </div>
-              <div className="adaptiveReviewStatPill isOverdue">
-                <span>{tr("Overdue", "期限超過")}</span>
-                <strong>{adaptiveReviewStats.overdue}</strong>
-              </div>
-            </div>
-          </div>
-
           {adaptiveReviewLoading ? (
             <div className="analyticsCard adaptiveReviewStateCard">
               <h3>{tr("Loading review books...", "復習ブックを読み込み中...")}</h3>

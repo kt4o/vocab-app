@@ -116,8 +116,12 @@ textarea {
 
 .appShell.isGuidedLocked .guidedTarget,
 .appShell.isGuidedLocked .guidedTarget *,
+.appShell.isGuidedLocked .guidedTargetRow,
+.appShell.isGuidedLocked .guidedTargetRow *,
 .appShell.isGuidedLocked .guidedCoach,
-.appShell.isGuidedLocked .guidedCoach * {
+.appShell.isGuidedLocked .guidedCoach *,
+.appShell.isGuidedLocked .sidebar,
+.appShell.isGuidedLocked .sidebar * {
   pointer-events: auto;
 }
 
@@ -3020,6 +3024,27 @@ body.theme-dark .modalBtn.primary {
 
 .bookModeGrid > .guidedControlAnchor {
   display: flex;
+}
+
+.addWordGuidedAnchor {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.addWordGuidedAnchor .guidedCoach-below {
+  top: calc(100% + 14px);
+  left: auto;
+  right: -8px;
+}
+
+.addWordGuidedAnchor .guidedCoach-below::before {
+  left: auto;
+  right: 22px;
+}
+
+.addWordGuidedAnchor .guidedCoach-below::after {
+  left: auto;
+  right: 23px;
 }
 
 .guidedCoach {
@@ -8786,6 +8811,22 @@ body.theme-dark .recentSquare.isPinned {
     right: auto;
     width: min(330px, calc(100vw - 28px));
     top: calc(100% + 10px);
+  }
+
+  .addWordGuidedAnchor .guidedCoach-below {
+    left: auto;
+    right: 0;
+    width: min(330px, calc(100vw - 28px));
+  }
+
+  .addWordGuidedAnchor .guidedCoach-below::before {
+    left: auto;
+    right: 22px;
+  }
+
+  .addWordGuidedAnchor .guidedCoach-below::after {
+    left: auto;
+    right: 23px;
   }
 
   .recentBar:has(.hasGuidedCoach) {
