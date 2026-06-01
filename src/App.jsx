@@ -118,6 +118,13 @@ function hasEnglishVocabularyCharacters(value) {
   return /[a-z]/i.test(String(value || ""));
 }
 
+function normalizeResolvedJapaneseWord(value) {
+  return String(value || "")
+    .split(/\s*[/／,，、]\s*/)
+    .map((part) => part.trim())
+    .find((part) => hasJapaneseVocabularyCharacters(part)) || "";
+}
+
 function isRomanizedJapaneseVocabularyInput(value) {
   const input = normalizeVocabularyInput(value);
   if (!input || hasJapaneseVocabularyCharacters(input)) return false;
@@ -922,8 +929,8 @@ async function fetchJapaneseToEnglishTranslations(word) {
       return normalizedInput && (word === normalizedInput || reading === normalizedInput);
     });
     const primaryEntry = exactEntry || japaneseList.find((jpEntry) => jpEntry?.word || jpEntry?.reading);
-    const resolvedWord = String(primaryEntry?.word || primaryEntry?.reading || "").trim();
-    const reading = String(primaryEntry?.reading || "").trim();
+    const resolvedWord = normalizeResolvedJapaneseWord(primaryEntry?.word || primaryEntry?.reading);
+    const reading = normalizeResolvedJapaneseWord(primaryEntry?.reading);
     return { resolvedWord, reading };
   };
 
@@ -6204,11 +6211,11 @@ export default function App() {
         translationConfidence = String(translationResult?.confidence || "").trim().toLowerCase();
         translationPartOfSpeech = String(translationResult?.partOfSpeech || "").trim();
         translationNote = String(translationResult?.note || "").trim();
-        const resolvedJapaneseWord = String(translationResult?.resolvedWord || "").trim();
+        const resolvedJapaneseWord = normalizeResolvedJapaneseWord(translationResult?.resolvedWord);
         if (isRomanizedJapaneseInput && resolvedJapaneseWord && hasJapaneseVocabularyCharacters(resolvedJapaneseWord)) {
           savedWord = resolvedJapaneseWord;
         }
-        pronunciation = String(translationResult?.reading || "").trim();
+        pronunciation = normalizeResolvedJapaneseWord(translationResult?.reading);
         japaneseReading = pronunciation;
         japaneseRomaji = japaneseReading ? kanaToRomaji(japaneseReading) : "";
         if (!definitions.length) {

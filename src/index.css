@@ -4059,7 +4059,7 @@ body.theme-dark .inputRow .addWordBtn {
 .japaneseWordDisplay {
   display: inline-flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
   max-width: 100%;
   vertical-align: middle;
 }
@@ -4077,6 +4077,13 @@ body.theme-dark .inputRow .addWordBtn {
   font-size: 0.5em;
   font-weight: 600;
   line-height: 1;
+}
+.japaneseRomajiText {
+  color: color-mix(in srgb, var(--muted) 82%, var(--surface) 18%);
+  font-size: 0.72em;
+  font-weight: 600;
+  line-height: 1.2;
+  transform: translateY(-1px);
 }
 .wordRow p {
   font-size: 14px;

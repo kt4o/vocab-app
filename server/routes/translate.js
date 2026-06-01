@@ -26,6 +26,13 @@ function normalizeWordInput(value) {
     .trim();
 }
 
+function normalizeResolvedJapaneseWord(value) {
+  return String(value || "")
+    .split(/\s*[/／,，、]\s*/)
+    .map((part) => normalizeWordInput(part))
+    .find((part) => hasJapaneseCharacters(part)) || "";
+}
+
 function buildCacheKey({ sourceLang, targetLang, text }) {
   const normalizedText = normalizeWordInput(text).toLowerCase();
   return `${String(sourceLang || "").toLowerCase()}:${String(targetLang || "").toLowerCase()}:${normalizedText}`;
@@ -211,8 +218,8 @@ function getPrimaryJapaneseEntry(item, inputText) {
   });
   const primaryEntry = exactEntry || japaneseList.find((jp) => jp?.word || jp?.reading);
   return {
-    resolvedWord: normalizeWordInput(primaryEntry?.word || primaryEntry?.reading),
-    reading: normalizeWordInput(primaryEntry?.reading),
+    resolvedWord: normalizeResolvedJapaneseWord(primaryEntry?.word || primaryEntry?.reading),
+    reading: normalizeResolvedJapaneseWord(primaryEntry?.reading),
   };
 }
 
@@ -604,8 +611,8 @@ translateRouter.post("/ja-en", async (req, res) => {
         if (openAiResult?.english) {
           translations = [openAiResult.english];
           provider = "openai";
-          resolvedWord = openAiResult.resolvedJapanese || "";
-          reading = openAiResult.reading || "";
+          resolvedWord = normalizeResolvedJapaneseWord(openAiResult.resolvedJapanese);
+          reading = normalizeResolvedJapaneseWord(openAiResult.reading);
           confidence = openAiResult.confidence || "";
           partOfSpeech = openAiResult.partOfSpeech || "";
           note = openAiResult.note || "";
@@ -623,8 +630,8 @@ translateRouter.post("/ja-en", async (req, res) => {
         if (openAiResult?.english) {
           translations = [openAiResult.english];
           provider = "openai";
-          resolvedWord = openAiResult.resolvedJapanese || resolvedWord;
-          reading = openAiResult.reading || reading;
+          resolvedWord = normalizeResolvedJapaneseWord(openAiResult.resolvedJapanese) || resolvedWord;
+          reading = normalizeResolvedJapaneseWord(openAiResult.reading) || reading;
           confidence = openAiResult.confidence || "";
           partOfSpeech = openAiResult.partOfSpeech || "";
           note = openAiResult.note || "";

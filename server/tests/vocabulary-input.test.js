@@ -130,6 +130,29 @@ describe("vocabulary input validation", () => {
     expect(openAiMocks.translateJapaneseToEnglishWithOpenAI).toHaveBeenCalledWith("kiiro");
   });
 
+  it("keeps only one resolved Japanese spelling when OpenAI returns alternatives", async () => {
+    openAiMocks.translateJapaneseToEnglishWithOpenAI.mockResolvedValue({
+      english: "reply; answer",
+      resolvedJapanese: "\u8fd4\u4e8b / \u8fd4\u7b54",
+      reading: "\u3078\u3093\u3058 / \u3078\u3093\u3068\u3046",
+      confidence: "medium",
+      partOfSpeech: "noun",
+      note: "",
+    });
+
+    const { translateRouter } = await import("../routes/translate.js");
+    const app = createTestApp("/api/translate", translateRouter);
+
+    const response = await request(app).post("/api/translate/ja-en").send({
+      text: "henji",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.translations).toEqual(["reply; answer"]);
+    expect(response.body.resolvedWord).toBe("\u8fd4\u4e8b");
+    expect(response.body.reading).toBe("\u3078\u3093\u3058");
+  });
+
   it("uses OpenAI for romaji when Jisho has no result", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue({
