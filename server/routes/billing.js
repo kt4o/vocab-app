@@ -122,6 +122,7 @@ async function findUserBillingInfoById(userId) {
         username,
         plan,
         lifetime_pro,
+        referral_code,
         stripe_customer_id,
         stripe_subscription_id,
         subscription_status,
@@ -327,6 +328,7 @@ billingRouter.post("/checkout-session", async (req, res) => {
         name: row.username || undefined,
         metadata: {
           userId: String(row.id),
+          referralCode: String(row.referral_code || ""),
         },
       });
       customerId = customer.id;
@@ -348,6 +350,7 @@ billingRouter.post("/checkout-session", async (req, res) => {
       client_reference_id: String(row.id),
       metadata: {
         userId: String(row.id),
+        referralCode: String(row.referral_code || ""),
       },
       allow_promotion_codes: true,
       ...(shouldApplyTrial

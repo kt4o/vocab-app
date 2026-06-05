@@ -1730,10 +1730,6 @@ body.theme-dark .accountFoundingBadge {
   color: var(--text);
 }
 
-.adaptiveReviewStatPill.isOverdue strong {
-  color: var(--text);
-}
-
 .adaptiveReviewStateCard {
   max-width: 100%;
 }
@@ -1760,6 +1756,15 @@ body.theme-dark .accountFoundingBadge {
 .adaptiveReviewBookCard:hover {
   border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
   background: var(--surface-alt);
+}
+
+.adaptiveReviewBookCard.isEmpty {
+  opacity: 0.72;
+}
+
+.adaptiveReviewBookCard.isEmpty:hover {
+  background: var(--surface);
+  border-color: var(--border);
 }
 
 .adaptiveReviewBookStats {
@@ -5078,6 +5083,11 @@ body.theme-dark .quizResultProgressFill {
   color: var(--muted);
 }
 
+.definitionAttributionNote.isWarning {
+  color: var(--warning, #b45309);
+  font-weight: 700;
+}
+
 .quizResultMotivation {
   color: var(--muted);
   margin-bottom: 14px;
@@ -7005,6 +7015,11 @@ body.theme-dark .recentSquare.isPinned {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
+}
+
+.optionalLabel {
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .publicAuthInput {

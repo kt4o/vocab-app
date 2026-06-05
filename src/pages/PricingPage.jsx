@@ -3,6 +3,7 @@ import { Check, X } from "lucide-react";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const PLAN_PRICE = "A$6/month";
+const TRIAL_NOTE = "Checkout may include a free trial when eligible. Subscriptions renew monthly unless canceled.";
 
 const FEATURES = [
   {
@@ -16,20 +17,20 @@ const FEATURES = [
     pro: true,
   },
   {
-    name: "Unlimited word adding",
+    name: "Saved words",
     free: true,
-    freeNote: "Included",
+    freeNote: "Up to 100 total words",
     pro: true,
-    proNote: "Included",
+    proNote: "Unlimited",
   },
   {
     name: "Smart Review queue",
-    free: false,
+    free: true,
     pro: true,
   },
   {
     name: "Weak-Words Lab + CSV export",
-    free: false,
+    free: true,
     pro: true,
   },
   {
@@ -51,7 +52,7 @@ export function PricingPage() {
           <p className="heroEyebrow">Pricing</p>
           <h1 className="mb-2 text-3xl font-semibold text-foreground">Choose the plan that fits your learning pace</h1>
           <p className="heroCopy text-muted-foreground">
-            Start free, then upgrade to Pro when you want deeper review tools and an ad-free experience.
+            Start free with every learning tool, then upgrade to Pro when you need unlimited saved words and an ad-free experience.
           </p>
         </section>
 
@@ -60,7 +61,7 @@ export function PricingPage() {
             <div className="mb-8">
               <h2 className="mb-2 text-2xl font-semibold text-foreground">Free</h2>
               <p className="mb-3 text-5xl font-bold leading-none text-foreground">A$0</p>
-              <p className="text-accent">Good for getting started.</p>
+              <p className="text-accent">Every feature, capped at 100 saved words.</p>
             </div>
 
             <a
@@ -97,9 +98,12 @@ export function PricingPage() {
               </p>
               <p className="text-primary">
                 {PREMIUM_UPGRADE_ENABLED
-                  ? "Upgrade when you are ready for unlimited premium review."
+                  ? "Upgrade when you are ready for unlimited saved words."
                   : "Pro coming soon."}
               </p>
+              {PREMIUM_UPGRADE_ENABLED ? (
+                <p className="mt-3 text-sm text-muted-foreground">{TRIAL_NOTE}</p>
+              ) : null}
             </div>
             {PREMIUM_UPGRADE_ENABLED ? (
               <a
@@ -144,6 +148,11 @@ export function PricingPage() {
             </a>{" "}
             explains the daily routine behind effective vocabulary growth, including context, retrieval practice,
             spaced repetition, and active use.
+          </p>
+          <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
+            Prices are shown in AUD unless checkout states otherwise. Taxes may apply. Manage cancellation
+            through account billing; refunds are handled case-by-case and subject to applicable law and payment
+            processor rules.
           </p>
         </section>
       </main>

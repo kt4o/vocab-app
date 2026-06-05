@@ -117,17 +117,17 @@ const GUIDES = [
 const FREE_PLAN = [
   { type: "check", text: "Word tracking, chapters, and definitions" },
   { type: "check", text: "Flashcards and quiz practice" },
-  { type: "check", text: "Unlimited word adding" },
+  { type: "check", text: "Up to 100 saved words" },
   { type: "check", text: "Unlimited word testing", note: "Included", muted: true },
-  { type: "x", text: "Smart Review queue", muted: true },
-  { type: "x", text: "Weak-Words Lab + CSV export", muted: true },
+  { type: "check", text: "Smart Review queue" },
+  { type: "check", text: "Weak-Words Lab + CSV export" },
   { type: "x", text: "Ads", note: "May be introduced later", muted: true },
 ];
 
 const PRO_PLAN = [
   { type: "check", text: "Word tracking, chapters, and definitions" },
   { type: "check", text: "Flashcards and quiz practice" },
-  { type: "check", text: "Unlimited word adding", note: "Included" },
+  { type: "check", text: "Unlimited saved words", note: "Included" },
   { type: "check", text: "Smart Review queue" },
   { type: "check", text: "Weak-Words Lab + CSV export" },
   { type: "check", text: "Ads", note: "Ad-free" },
@@ -151,7 +151,7 @@ const FAQ = [
   {
     question: "Is Vocalibry free to use?",
     answer:
-      "Yes. You can start with the Free plan and access core features like word tracking, flashcards, and quiz practice.",
+      "Yes. You can start with the Free plan, use every learning feature, and save up to 100 total words.",
     href: "#pricing",
     label: "See pricing",
   },
@@ -405,7 +405,7 @@ export function LandingPage() {
                   <h3 className="mb-4 text-[22px] font-semibold text-foreground">Pro</h3>
                   <div className="mb-3 text-[56px] font-bold leading-none text-foreground">A$6</div>
                   <p className="mb-2 text-[15px] font-medium text-[#6F92E8]">per month</p>
-                  <p className="text-[14px] text-muted-foreground">Advanced review tools for faster vocabulary retention.</p>
+                  <p className="text-[14px] text-muted-foreground">Unlimited saved words and an ad-free experience.</p>
                 </div>
                 <a
                   href="/register"

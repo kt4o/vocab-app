@@ -14,8 +14,7 @@ const PRO_DAILY_GOAL_DEFAULT = 30;
 const PRO_DAILY_GOAL_MIN = 10;
 const PRO_DAILY_GOAL_MAX = 120;
 const PRO_DAILY_GOAL_STEP = 5;
-const FREE_DAILY_TYPING_LIMIT = 3;
-const FREE_DAILY_MISTAKE_REVIEW_LIMIT = 3;
+const FREE_WORD_LIMIT = 100;
 const WEAK_WORDS_RECENT_DAY_WINDOW = 21;
 const WEAK_WORDS_RECENT_QUESTION_WINDOW = 120;
 const DEFAULT_CHAPTER_ID = "general";
@@ -2188,6 +2187,7 @@ export default function App() {
     username: "",
     password: "",
     confirmPassword: "",
+    referralCode: "",
     preferredLanguage,
     dictionaryPreference,
     acceptedLegal: false,
@@ -2217,9 +2217,7 @@ export default function App() {
     resetEmail: "",
     deletePassword: "",
   });
-  const [schoolCodeInput, setSchoolCodeInput] = useState("");
   const [accountActionError, setAccountActionError] = useState("");
-  const [isSchoolCodeRedeeming, setIsSchoolCodeRedeeming] = useState(false);
   const [isPasswordChangeSubmitting, setIsPasswordChangeSubmitting] = useState(false);
   const [isLogoutAllSubmitting, setIsLogoutAllSubmitting] = useState(false);
   const [isDeleteAccountSubmitting, setIsDeleteAccountSubmitting] = useState(false);
@@ -2229,7 +2227,7 @@ export default function App() {
   const [isCloudStateHydrated, setIsCloudStateHydrated] = useState(false);
   const [isLocalPersistencePaused, setIsLocalPersistencePaused] = useState(false);
   const [adaptiveReviewItems, setAdaptiveReviewItems] = useState([]);
-  const [adaptiveReviewStats, setAdaptiveReviewStats] = useState({ dueNow: 0, overdue: 0 });
+  const [adaptiveReviewStats, setAdaptiveReviewStats] = useState({ dueNow: 0 });
   const [adaptiveReviewBookSummaries, setAdaptiveReviewBookSummaries] = useState([]);
   const [selectedAdaptiveReviewBookId, setSelectedAdaptiveReviewBookId] = useState("");
   const [adaptiveReviewBackScreen, setAdaptiveReviewBackScreen] = useState("adaptiveReviewSelect");
@@ -2285,9 +2283,11 @@ export default function App() {
   const activityWeeklyStats = getWeekTotals(activityHistory);
   const activityMonthlyStats = getMonthTotals(activityHistory);
   const activityTotalStats = sumActivityHistory(activityHistory);
-  const currentFreeDailyUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
   const isAccountDataHydrating = Boolean(authToken) && !isCloudStateHydrated;
   const isProPlan = billingPlan === "pro";
+  const totalSavedWordCount = countStoredWords(books);
+  const freeWordLimitRemaining = Math.max(0, FREE_WORD_LIMIT - totalSavedWordCount);
+  const isFreeWordLimitReached = !isProPlan && totalSavedWordCount >= FREE_WORD_LIMIT;
   const weakWordCandidates = buildWeakWordCandidates(books);
   const smartReviewWords = weakWordCandidates.slice(0, 20).map((entry) => ({
     ...entry,
@@ -2392,24 +2392,6 @@ export default function App() {
       return;
     }
 
-    if (!isProPlan && selectedMode === "typing") {
-      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-      if (safeUsage.typingAttempts >= FREE_DAILY_TYPING_LIMIT) {
-        openNoticeModal(
-          `Free plan limit reached: ${FREE_DAILY_TYPING_LIMIT} typing quiz starts per day.`,
-          "Daily Limit"
-        );
-        return;
-      }
-      setFreeDailyUsage((prev) => {
-        const current = ensureCurrentFreeDailyUsage(prev);
-        return {
-          ...current,
-          typingAttempts: current.typingAttempts + 1,
-        };
-      });
-    }
-
     const nextTitle =
       selection.bookIds.length === 1
         ? books.find((book) => String(book.id) === selection.bookIds[0])?.name || "Quiz"
@@ -2456,9 +2438,6 @@ export default function App() {
   }
 
   function exportWeakWordsCsv() {
-    if (!isProPlan) {
-      return;
-    }
     if (!weakWordCandidates.length) {
       openNoticeModal("No weak-word data yet. Complete some quizzes first.", "No Data");
       return;
@@ -2514,17 +2493,6 @@ export default function App() {
   }
 
   const startMistakeReviewSession = useCallback((source = "global") => {
-    if (!isProPlan) {
-      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-      if (safeUsage.mistakeReviewAttempts >= FREE_DAILY_MISTAKE_REVIEW_LIMIT) {
-        openNoticeModal(
-          `Free plan limit reached: ${FREE_DAILY_MISTAKE_REVIEW_LIMIT} mistake review starts per day.`,
-          "Daily Limit"
-        );
-        return;
-      }
-    }
-
     const isBookSource = source === "book";
     const targetBookId = isBookSource ? String(currentBookId ?? "") : "";
     const scopedKeys = isBookSource
@@ -2554,77 +2522,23 @@ export default function App() {
     setActiveQuizTitle(nextTitle);
     setActiveQuizMode(reviewMode);
     setActiveQuizIsMistakeReview(true);
-    if (!isProPlan) {
-      setFreeDailyUsage((prev) => {
-        const current = ensureCurrentFreeDailyUsage(prev);
-        return {
-          ...current,
-          mistakeReviewAttempts: current.mistakeReviewAttempts + 1,
-        };
-      });
-    }
     pendingMistakeReviewSourceRef.current = null;
     setScreen("mistakeReview");
-  }, [books, currentBookId, freeDailyUsage, isProPlan, lastQuizMistakeKeysByBook, lastQuizMistakeKeys, lastQuizMistakeModeByBook, lastQuizMistakeMode]);
+  }, [books, currentBookId, lastQuizMistakeKeysByBook, lastQuizMistakeKeys, lastQuizMistakeModeByBook, lastQuizMistakeMode]);
 
   const requestMistakeReview = useCallback((source = "global") => {
     pendingMistakeReviewSourceRef.current = source;
     startMistakeReviewSession(source);
   }, [startMistakeReviewSession]);
 
-  const handleQuizTryAgain = useCallback(() => {
-    if (isProPlan) {
-      return true;
-    }
-
-    if (activeQuizMode === "typing") {
-      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-      if (safeUsage.typingAttempts >= FREE_DAILY_TYPING_LIMIT) {
-        openNoticeModal(
-          `Free plan limit reached: ${FREE_DAILY_TYPING_LIMIT} typing quiz starts per day.`,
-          "Daily Limit"
-        );
-        return false;
-      }
-
-      setFreeDailyUsage((prev) => {
-        const current = ensureCurrentFreeDailyUsage(prev);
-        return {
-          ...current,
-          typingAttempts: current.typingAttempts + 1,
-        };
-      });
-      return true;
-    }
-
-    if (activeQuizIsMistakeReview || activeQuizMode === "mistake") {
-      const safeUsage = ensureCurrentFreeDailyUsage(freeDailyUsage);
-      if (safeUsage.mistakeReviewAttempts >= FREE_DAILY_MISTAKE_REVIEW_LIMIT) {
-        openNoticeModal(
-          `Free plan limit reached: ${FREE_DAILY_MISTAKE_REVIEW_LIMIT} mistake review starts per day.`,
-          "Daily Limit"
-        );
-        return false;
-      }
-
-      setFreeDailyUsage((prev) => {
-        const current = ensureCurrentFreeDailyUsage(prev);
-        return {
-          ...current,
-          mistakeReviewAttempts: current.mistakeReviewAttempts + 1,
-        };
-      });
-    }
-
-    return true;
-  }, [activeQuizIsMistakeReview, activeQuizMode, freeDailyUsage, isProPlan]);
+  const handleQuizTryAgain = useCallback(() => true, []);
 
   const loadAdaptiveReviewSummary = useCallback(async (options = {}) => {
     const showLoading = !options?.silent;
 
-    if (!authToken || !isProPlan) {
+    if (!authToken) {
       setAdaptiveReviewBookSummaries([]);
-      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewStats({ dueNow: 0 });
       setAdaptiveReviewError("");
       return { ok: false, skipped: true };
     }
@@ -2649,15 +2563,46 @@ export default function App() {
         throw new Error(errorMessage);
       }
 
-      setAdaptiveReviewBookSummaries(Array.isArray(payload?.books) ? payload.books : []);
+      const rawBookSummaries = Array.isArray(payload?.books) ? payload.books : [];
+      const bookSummaries = await Promise.all(
+        rawBookSummaries.map(async (summary) => {
+          const totalWords = Math.max(0, Math.floor(Number(summary?.totalWords) || 0));
+          const rawDueNow = Math.max(0, Math.floor(Number(summary?.dueNow) || 0));
+          const clampedDueNow = Math.min(rawDueNow, totalWords);
+          const bookId = String(summary?.bookId || "").trim();
+
+          if (!bookId || clampedDueNow <= 0) {
+            return { ...summary, totalWords, dueNow: clampedDueNow };
+          }
+
+          try {
+            const dueParams = new URLSearchParams();
+            dueParams.set("limit", "1");
+            dueParams.set("bookId", bookId);
+            const dueResponse = await fetchWithRetry(`${REVIEW_API_PATH}/due?${dueParams.toString()}`, {
+              credentials: "include",
+              headers: buildAuthHeaders(authToken),
+            });
+            const duePayload = await dueResponse.json().catch(() => ({}));
+            if (!dueResponse.ok) {
+              return { ...summary, totalWords, dueNow: clampedDueNow };
+            }
+            const reconciledDueNow = Math.max(0, Math.floor(Number(duePayload?.stats?.dueNow) || 0));
+            return { ...summary, totalWords, dueNow: Math.min(reconciledDueNow, totalWords) };
+          } catch {
+            return { ...summary, totalWords, dueNow: clampedDueNow };
+          }
+        })
+      );
+
+      setAdaptiveReviewBookSummaries(bookSummaries);
       setAdaptiveReviewStats({
-        dueNow: Math.max(0, Math.floor(Number(payload?.stats?.dueNow) || 0)),
-        overdue: Math.max(0, Math.floor(Number(payload?.stats?.overdue) || 0)),
+        dueNow: bookSummaries.reduce((total, summary) => total + Math.max(0, Math.floor(Number(summary?.dueNow) || 0)), 0),
       });
-      return { ok: true, payload };
+      return { ok: true, payload: { ...payload, books: bookSummaries } };
     } catch (error) {
       setAdaptiveReviewBookSummaries([]);
-      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewStats({ dueNow: 0 });
       setAdaptiveReviewError(
         isAbortLikeError(error)
           ? "Adaptive Review took too long to load. Please try again."
@@ -2671,15 +2616,15 @@ export default function App() {
         setAdaptiveReviewLoading(false);
       }
     }
-  }, [authToken, isProPlan]);
+  }, [authToken]);
 
   const loadAdaptiveReviewQueue = useCallback(async (limit = 20, options = {}) => {
     const showLoading = !options?.silent;
     const bookId = String(options?.bookId ?? selectedAdaptiveReviewBookId ?? "").trim();
 
-    if (!authToken || !isProPlan) {
+    if (!authToken) {
       setAdaptiveReviewItems([]);
-      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewStats({ dueNow: 0 });
       setAdaptiveReviewError("");
       setAdaptiveReviewPendingRating("");
       return { ok: false, skipped: true };
@@ -2710,17 +2655,18 @@ export default function App() {
       }
 
       const items = Array.isArray(payload?.items) ? payload.items : [];
-      setAdaptiveReviewItems(
-        items.filter((item) => !adaptiveReviewRatingInFlightRef.current.has(getAdaptiveReviewItemKey(item)))
+      const visibleItems = items.filter(
+        (item) => !adaptiveReviewRatingInFlightRef.current.has(getAdaptiveReviewItemKey(item))
       );
+      const dueNow = Math.max(0, Math.floor(Number(payload?.stats?.dueNow) || 0));
+      setAdaptiveReviewItems(visibleItems);
       setAdaptiveReviewStats({
-        dueNow: Math.max(0, Math.floor(Number(payload?.stats?.dueNow) || 0)),
-        overdue: Math.max(0, Math.floor(Number(payload?.stats?.overdue) || 0)),
+        dueNow: visibleItems.length > 0 ? Math.max(dueNow, visibleItems.length) : 0,
       });
       return { ok: true, payload };
     } catch (error) {
       setAdaptiveReviewItems([]);
-      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewStats({ dueNow: 0 });
       setAdaptiveReviewError(
         isAbortLikeError(error)
           ? "Adaptive Review took too long to load. Please try again."
@@ -2734,32 +2680,16 @@ export default function App() {
         setAdaptiveReviewLoading(false);
       }
     }
-  }, [authToken, isProPlan, selectedAdaptiveReviewBookId]);
+  }, [authToken, selectedAdaptiveReviewBookId]);
 
   const openAdaptiveReviewSelect = useCallback(async () => {
-    if (!isProPlan) {
-      openNoticeModal(
-        "Adaptive Review is available on Vocalibry Pro. Upgrade to unlock spaced repetition.",
-        "Pro Feature"
-      );
-      return;
-    }
-
     setSelectedAdaptiveReviewBookId("");
     setAdaptiveReviewBackScreen("adaptiveReviewSelect");
     setScreen("adaptiveReviewSelect");
     await loadAdaptiveReviewSummary();
-  }, [isProPlan, loadAdaptiveReviewSummary]);
+  }, [loadAdaptiveReviewSummary]);
 
   const openAdaptiveReviewSession = useCallback(async (bookId, options = {}) => {
-    if (!isProPlan) {
-      openNoticeModal(
-        "Adaptive Review is available on Vocalibry Pro. Upgrade to unlock spaced repetition.",
-        "Pro Feature"
-      );
-      return;
-    }
-
     const safeBookId = String(bookId || "").trim();
     if (!safeBookId) {
       await openAdaptiveReviewSelect();
@@ -2774,10 +2704,9 @@ export default function App() {
       trackEvent("adaptive_review_started", {
         book_id: safeBookId,
         due_now: Math.max(0, Math.floor(Number(result?.payload?.stats?.dueNow) || 0)),
-        overdue: Math.max(0, Math.floor(Number(result?.payload?.stats?.overdue) || 0)),
       });
     }
-  }, [isProPlan, loadAdaptiveReviewQueue, openAdaptiveReviewSelect]);
+  }, [loadAdaptiveReviewQueue, openAdaptiveReviewSelect]);
 
   function openPracticeQuizForBook(bookId) {
     const safeBookId = String(bookId || "").trim();
@@ -2813,7 +2742,6 @@ export default function App() {
     });
     setAdaptiveReviewStats((prev) => ({
       dueNow: Math.max(0, (Number(prev?.dueNow) || 0) - 1),
-      overdue: Math.max(0, Number(prev?.overdue) || 0),
     }));
 
     try {
@@ -2858,9 +2786,9 @@ export default function App() {
   }, [adaptiveReviewItems, authToken, loadAdaptiveReviewQueue]);
 
   useEffect(() => {
-    if (!authToken || !isProPlan) {
+    if (!authToken) {
       setAdaptiveReviewItems([]);
-      setAdaptiveReviewStats({ dueNow: 0, overdue: 0 });
+      setAdaptiveReviewStats({ dueNow: 0 });
       setAdaptiveReviewBookSummaries([]);
       setSelectedAdaptiveReviewBookId("");
       setAdaptiveReviewLoading(false);
@@ -2870,7 +2798,7 @@ export default function App() {
     }
 
     loadAdaptiveReviewSummary({ silent: true });
-  }, [authToken, isProPlan, loadAdaptiveReviewSummary]);
+  }, [authToken, loadAdaptiveReviewSummary]);
 
   function renderWithSidebar(content) {
     const isGuidedModalOpen = Boolean(guidedTourStep && (noticeModal || isAddBookModalOpen));
@@ -3145,6 +3073,7 @@ export default function App() {
       .toLowerCase();
     const password = String(authForm.password || "");
     const confirmPassword = String(authForm.confirmPassword || "");
+    const referralCode = String(authForm.referralCode || "").trim().toUpperCase().replace(/\s+/g, "");
     const registerPreferredLanguage = parseStoredUiLanguage(
       authForm.preferredLanguage,
       preferredLanguage
@@ -3202,6 +3131,7 @@ export default function App() {
                 email,
                 username,
                 password,
+                referralCode,
                 preferredLanguage: registerPreferredLanguage,
                 dictionaryPreference: registerDictionaryPreference,
                 marketingOptIn: Boolean(authForm.marketingOptIn),
@@ -3224,6 +3154,8 @@ export default function App() {
                 ? "Verify your email on the Register page before creating an account."
                 : backendError === "legal-not-accepted"
                   ? "Please accept Terms, Privacy Policy, and Disclaimer."
+                : backendError === "invalid-referral-code"
+                  ? "That referral code is not active. Check the code and try again."
                 : backendError === "invalid-username"
                   ? SIGNUP_USERNAME_MESSAGE
                   : backendError === "inappropriate-username"
@@ -3266,6 +3198,7 @@ export default function App() {
         username: "",
         password: "",
         confirmPassword: "",
+        referralCode: "",
         preferredLanguage: registerPreferredLanguage,
         dictionaryPreference: registerDictionaryPreference,
         acceptedLegal: false,
@@ -3327,6 +3260,7 @@ export default function App() {
       username: "",
       password: "",
       confirmPassword: "",
+      referralCode: "",
       preferredLanguage,
       dictionaryPreference,
       acceptedLegal: false,
@@ -3336,7 +3270,6 @@ export default function App() {
       resetEmail: "",
       deletePassword: "",
     });
-    setSchoolCodeInput("");
     setIsCloudStateHydrated(false);
     setIsDeleteAccountConfirmOpen(false);
     navigateTo("/login");
@@ -3569,67 +3502,10 @@ export default function App() {
     if (backendError === "pro-subscription-active") {
       return "Cancel your Pro subscription first. Account deletion is available only after status is canceled.";
     }
-    if (backendError === "invalid-school-code") return "Enter a valid school code.";
-    if (backendError === "school-code-not-found") return "School code not found.";
-    if (backendError === "school-code-inactive") return "This school code is inactive.";
-    if (backendError === "school-code-expired") return "This school code has expired.";
-    if (backendError === "school-code-limit-reached") return "This school code has reached its activation limit.";
-    if (backendError === "school-code-already-redeemed") return "A school code was already used on this account.";
     if (backendError === "missing-auth-token" || backendError === "invalid-auth-token") {
       return "Your session expired. Please log in again.";
     }
     return fallbackMessage;
-  }
-
-  async function redeemSchoolCode() {
-    if (!authToken || isSchoolCodeRedeeming) return;
-    const normalizedCode = String(schoolCodeInput || "").trim().toUpperCase().replace(/\s+/g, "");
-    if (!normalizedCode) {
-      setAccountActionError("Enter your school code.");
-      return;
-    }
-
-    setIsSchoolCodeRedeeming(true);
-    setAccountActionError("");
-    try {
-      const response = await fetch(`${AUTH_API_PATH}/account/redeem-school-code`, {
-        method: "POST",
-        credentials: "include",
-        headers: buildAuthHeaders(authToken, {
-          "Content-Type": "application/json",
-        }),
-        body: JSON.stringify({ code: normalizedCode }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (response.status === 401) {
-        logoutAccount();
-        setAuthError("Your session expired. Please log in again.");
-        return;
-      }
-      if (!response.ok) {
-        setAccountActionError(
-          mapAccountApiError(payload, "Could not redeem school code. Please try again.")
-        );
-        return;
-      }
-
-      const nextPlan = String(payload?.plan || "free").trim().toLowerCase() === "pro" ? "pro" : "free";
-      const nextIsLifetimePro = Boolean(payload?.isLifetimePro);
-      setBillingPlan(nextIsLifetimePro ? "pro" : nextPlan);
-      setIsLifetimePro(nextIsLifetimePro);
-      setSchoolCodeInput("");
-      const schoolName = String(payload?.schoolName || "").trim();
-      openNoticeModal(
-        schoolName
-          ? `School code applied for ${schoolName}. Your plan is now Pro.`
-          : "School code applied. Your plan is now Pro.",
-        "Plan Updated"
-      );
-    } catch {
-      setAccountActionError("Could not redeem school code. Please check your connection and try again.");
-    } finally {
-      setIsSchoolCodeRedeeming(false);
-    }
   }
 
   async function changeAccountPassword() {
@@ -5391,33 +5267,6 @@ export default function App() {
                 {billingPeriodEndLabel ? (
                   <p className="settingsHint">{tr("Current period ends", "現在の期間終了日")}: {billingPeriodEndLabel}</p>
                 ) : null}
-                <div className="settingsRow">
-                  <span>{tr("School code", "スクールコード")}</span>
-                  <input
-                    className="settingsInput"
-                    type="text"
-                    value={schoolCodeInput}
-                    onChange={(event) => {
-                      setSchoolCodeInput(event.target.value.toUpperCase());
-                      if (accountActionError) setAccountActionError("");
-                    }}
-                    placeholder={tr("Enter school code", "スクールコードを入力")}
-                    autoComplete="off"
-                    maxLength={64}
-                    disabled={isSchoolCodeRedeeming}
-                  />
-                </div>
-                <div className="settingsRow">
-                  <span>{tr("Apply school access", "スクールアクセスを適用")}</span>
-                  <button
-                    type="button"
-                    className="primaryBtn"
-                    onClick={redeemSchoolCode}
-                    disabled={isSchoolCodeRedeeming || !String(schoolCodeInput || "").trim()}
-                  >
-                    {isSchoolCodeRedeeming ? tr("Applying...", "適用中...") : tr("Redeem Code", "コードを適用")}
-                  </button>
-                </div>
                 {!isStripeBillingConfigured ? (
                   <p className="settingsHint">
                     {tr("Stripe billing is not configured yet. Add Stripe env vars on the backend.", "Stripe請求が未設定です。バックエンドで環境変数を設定してください。")}
@@ -5692,52 +5541,40 @@ export default function App() {
                 <small>{tr("Weak words prioritized by your recent performance.", "最近の成績に基づいて弱点単語を優先表示します。")}</small>
               </div>
             </div>
-            {isProPlan ? (
-              <div className="modalActions">
-                <button
-                  type="button"
-                  className="modalBtn ghost"
-                  onClick={() =>
-                    setProDailyGoalQuestions((prev) =>
-                      parseDailyGoalTarget(Math.max(PRO_DAILY_GOAL_MIN, prev - PRO_DAILY_GOAL_STEP))
-                    )
-                  }
-                >
-                  {tr("Goal -5", "目標 -5")}
-                </button>
-                <button
-                  type="button"
-                  className="modalBtn ghost"
-                  onClick={() =>
-                    setProDailyGoalQuestions((prev) =>
-                      parseDailyGoalTarget(Math.min(PRO_DAILY_GOAL_MAX, prev + PRO_DAILY_GOAL_STEP))
-                    )
-                  }
-                >
-                  {tr("Goal +5", "目標 +5")}
-                </button>
-                <button
-                  type="button"
-                  className="modalBtn primary"
-                  onClick={() => {
-                    setIsDailyGoalModalOpen(false);
-                    openQuizSetup();
-                  }}
-                >
-                  {tr("Open Quiz Setup", "クイズ設定を開く")}
-                </button>
-              </div>
-            ) : (
-              <div className="modalActions">
-                <button
-                  type="button"
-                  className="modalBtn primary"
-                  onClick={() => setIsDailyGoalModalOpen(false)}
-                >
-                  {tr("Close", "閉じる")}
-                </button>
-              </div>
-            )}
+            <div className="modalActions">
+              <button
+                type="button"
+                className="modalBtn ghost"
+                onClick={() =>
+                  setProDailyGoalQuestions((prev) =>
+                    parseDailyGoalTarget(Math.max(PRO_DAILY_GOAL_MIN, prev - PRO_DAILY_GOAL_STEP))
+                  )
+                }
+              >
+                {tr("Goal -5", "目標 -5")}
+              </button>
+              <button
+                type="button"
+                className="modalBtn ghost"
+                onClick={() =>
+                  setProDailyGoalQuestions((prev) =>
+                    parseDailyGoalTarget(Math.min(PRO_DAILY_GOAL_MAX, prev + PRO_DAILY_GOAL_STEP))
+                  )
+                }
+              >
+                {tr("Goal +5", "目標 +5")}
+              </button>
+              <button
+                type="button"
+                className="modalBtn primary"
+                onClick={() => {
+                  setIsDailyGoalModalOpen(false);
+                  openQuizSetup();
+                }}
+              >
+                {tr("Open Quiz Setup", "クイズ設定を開く")}
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -6157,6 +5994,17 @@ export default function App() {
 
     if (duplicateWord) {
       openNoticeModal(uiText.duplicateWord, uiText.duplicateWordTitle);
+      return;
+    }
+
+    if (isFreeWordLimitReached) {
+      const upgradeCopy = PREMIUM_UPGRADE_ENABLED
+        ? "Upgrade to Pro to keep adding new words."
+        : "Pro removes this cap when upgrades are enabled.";
+      openNoticeModal(
+        `The Free plan includes up to ${FREE_WORD_LIMIT} saved words. ${upgradeCopy} You can still review, edit, delete, and export your existing words.`,
+        "Word Limit Reached"
+      );
       return;
     }
 
@@ -6743,7 +6591,7 @@ export default function App() {
               <strong className="weeklyOverviewValue">{currentWeekStats.wordsAdded}</strong>
             </div>
           </div>
-          {isProPlan && isDailyGoalsEnabled ? (
+          {isDailyGoalsEnabled ? (
             <>
               <div className="weeklyDailyDivider" aria-hidden="true" />
               <button
@@ -6796,21 +6644,19 @@ export default function App() {
         </div>
         </div>
         <div className="panelGrid dashboardPanelGrid">
-          {isProPlan ? (
-            <button
-              type="button"
-              className="panelCard wide"
-              style={{ gridColumn: "1", gridRow: "2" }}
-              onClick={openAdaptiveReviewSelect}
-            >
-              <span>
-                {"\uD83E\uDDE0"} {tr("Adaptive Review", "é©å¿œåž‹å¾©ç¿’")}
-              </span>
-              <small className="settingsHint">
-                {tr("Due now", "ä»Šã™ãå¾©ç¿’")}: {adaptiveReviewStats.dueNow}
-              </small>
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="panelCard wide"
+            style={{ gridColumn: "1", gridRow: "2" }}
+            onClick={openAdaptiveReviewSelect}
+          >
+            <span>
+              {"\uD83E\uDDE0"} {tr("Adaptive Review", "é©å¿œåž‹å¾©ç¿’")}
+            </span>
+            <small className="settingsHint">
+              {tr("Due now", "ä»Šã™ãå¾©ç¿’")}: {adaptiveReviewStats.dueNow}
+            </small>
+          </button>
           <button
             type="button"
             className="panelCard wide"
@@ -7152,6 +6998,19 @@ export default function App() {
                     </div>
                   ) : null}
                   {authMode === "register" ? (
+                    <input
+                      className="settingsInput"
+                      value={authForm.referralCode}
+                      onChange={(event) => {
+                        setAuthForm((prev) => ({ ...prev, referralCode: event.target.value.toUpperCase() }));
+                        if (authError) setAuthError("");
+                      }}
+                      placeholder={tr("referral code (optional)", "紹介コード（任意）")}
+                      autoComplete="off"
+                      maxLength={64}
+                    />
+                  ) : null}
+                  {authMode === "register" ? (
                     <>
                       <label className="settingsCheckRow">
                         <input
@@ -7441,8 +7300,7 @@ export default function App() {
             </div>
           </div>
 
-          {isProPlan ? (
-            <div className="analyticsCard premiumDataCard">
+          <div className="analyticsCard premiumDataCard">
               <div className="premiumFocusHeader">
                 <h3>{tr("Weak-Words Lab", "弱点単語ラボ")}</h3>
               </div>
@@ -7490,7 +7348,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-          ) : null}
 
           <div className="analyticsCard backupRestoreCard">
             <h3>{tr("Backup & Restore", "バックアップと復元")}</h3>
@@ -7592,17 +7449,15 @@ export default function App() {
             <strong>{tr("Flashcards", "フラッシュカード")}</strong>
             <p>{tr("Drill recall quickly with focused review sessions.", "集中復習で素早く記憶を強化します。")}</p>
           </button>
-          {isProPlan ? (
-            <button
-              type="button"
-              className="panelCard bookModeCard"
-              onClick={() => openAdaptiveReviewSession(currentBook?.id, { backScreen: "bookMenu" })}
-            >
-              <span className="bookModeIcon" aria-hidden="true">{"\uD83E\uDDE0"}</span>
-              <strong>{tr("Adaptive Review", "適応型復習")}</strong>
-              <p>{tr("Review only the due words from this book.", "このブックの復習期限が来た単語だけを練習します。")}</p>
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="panelCard bookModeCard"
+            onClick={() => openAdaptiveReviewSession(currentBook?.id, { backScreen: "bookMenu" })}
+          >
+            <span className="bookModeIcon" aria-hidden="true">{"\uD83E\uDDE0"}</span>
+            <strong>{tr("Adaptive Review", "適応型復習")}</strong>
+            <p>{tr("Review only the due words from this book.", "このブックの復習期限が来た単語だけを練習します。")}</p>
+          </button>
           <div className="guidedControlAnchor">
             <button
               type="button"
@@ -7733,6 +7588,14 @@ export default function App() {
               ? uiText.definitionAttributionTranslator
               : uiText.definitionAttributionDictionary)}
         </p>
+        {!isProPlan ? (
+          <p className={`definitionAttributionNote ${isFreeWordLimitReached ? "isWarning" : ""}`}>
+            Free plan: {totalSavedWordCount} / {FREE_WORD_LIMIT} saved words
+            {isFreeWordLimitReached ? ". Delete words or go Pro to add more." : ` (${freeWordLimitRemaining} left).`}
+          </p>
+        ) : (
+          <p className="definitionAttributionNote">Pro plan: unlimited saved words.</p>
+        )}
         <div className="chapterControlsRow">
           <div className="chapterControlField">
             <span>{uiText.autoAssignChapters}</span>
@@ -8049,16 +7912,6 @@ export default function App() {
     const selectedChapterKeysSet = new Set(quizSetupSelection.chapterKeys);
     const selectedBookCount = quizSetupSelection.bookIds.length;
     const selectedChapterCount = quizSetupSelection.chapterKeys.length;
-    const freeTypingRemaining = Math.max(
-      0,
-      FREE_DAILY_TYPING_LIMIT - currentFreeDailyUsage.typingAttempts
-    );
-    const freeMistakeRemaining = Math.max(
-      0,
-      FREE_DAILY_MISTAKE_REVIEW_LIMIT - currentFreeDailyUsage.mistakeReviewAttempts
-    );
-    const isTypingLimitReached = !isProPlan && freeTypingRemaining <= 0;
-    const isMistakeLimitReached = !isProPlan && freeMistakeRemaining <= 0;
     const quizSetupChapterGroups = quizSetupBooks.map((book) => ({
       bookId: String(book.id),
       bookName: book.name,
@@ -8226,11 +8079,7 @@ export default function App() {
                 type="button"
                 className={`quizModeCard ${quizMode === "typing" ? "isActive" : ""}`}
                 onClick={() => setQuizMode("typing")}
-                disabled={isTypingLimitReached}
               >
-                {!isProPlan ? (
-                  <span className="quizLimitBadge">{freeTypingRemaining} left</span>
-                ) : null}
                 <span className="quizModeCardIcon" aria-hidden="true">{"\u2328"}</span>
                 <strong>{tr("Typing", "タイピング")}</strong>
                 <small>
@@ -8243,11 +8092,7 @@ export default function App() {
                 type="button"
                 className={`quizModeCard ${quizMode === "mistake" ? "isActive" : ""}`}
                 onClick={() => setQuizMode("mistake")}
-                disabled={isMistakeLimitReached}
               >
-                {!isProPlan ? (
-                  <span className="quizLimitBadge">{freeMistakeRemaining} left</span>
-                ) : null}
                 <span className="quizModeCardIcon" aria-hidden="true">{"\uD83D\uDD01"}</span>
                 <strong>{tr("Mistake Review", "ミス復習")}</strong>
                 <small>{tr("Practice only words you previously got wrong.", "以前間違えた単語だけを練習します。")}</small>
@@ -8507,31 +8352,44 @@ export default function App() {
 
           {!adaptiveReviewLoading && !adaptiveReviewError && reviewBookSummaries.length > 0 ? (
             <div className="adaptiveReviewBookGrid">
-              {reviewBookSummaries.map((summary) => (
-                <button
-                  key={summary.bookId}
-                  type="button"
-                  className="analyticsCard adaptiveReviewBookCard"
-                  onClick={() => openAdaptiveReviewSession(summary.bookId, { backScreen: "adaptiveReviewSelect" })}
-                >
-                  <div>
-                    <h3>{summary.bookName}</h3>
-                    <p className="settingsHint">
-                      {Math.max(0, Math.floor(Number(summary.totalWords) || 0))} {tr("tracked words", "学習単語")}
-                    </p>
-                  </div>
-                  <div className="adaptiveReviewBookStats">
-                    <span>
-                      <strong>{Math.max(0, Math.floor(Number(summary.dueNow) || 0))}</strong>
-                      {tr("due", "期限")}
-                    </span>
-                    <span>
-                      <strong>{Math.max(0, Math.floor(Number(summary.overdue) || 0))}</strong>
-                      {tr("overdue", "期限超過")}
-                    </span>
-                  </div>
-                </button>
-              ))}
+              {reviewBookSummaries.map((summary) => {
+                const totalWords = Math.max(0, Math.floor(Number(summary.totalWords) || 0));
+                const dueNow = Math.min(
+                  Math.max(0, Math.floor(Number(summary.dueNow) || 0)),
+                  totalWords
+                );
+
+                return (
+                  <button
+                    key={summary.bookId}
+                    type="button"
+                    className={`analyticsCard adaptiveReviewBookCard ${dueNow <= 0 ? "isEmpty" : ""}`}
+                    onClick={() => {
+                      if (dueNow <= 0) {
+                        openNoticeModal(
+                          tr("This book has no words due right now.", "このブックには現在復習期限の単語がありません。"),
+                          tr("No Words Due", "復習なし")
+                        );
+                        return;
+                      }
+                      openAdaptiveReviewSession(summary.bookId, { backScreen: "adaptiveReviewSelect" });
+                    }}
+                  >
+                    <div>
+                      <h3>{summary.bookName}</h3>
+                      <p className="settingsHint">
+                        {totalWords} {tr("tracked words", "学習単語")}
+                      </p>
+                    </div>
+                    <div className="adaptiveReviewBookStats">
+                      <span>
+                        <strong>{dueNow}</strong>
+                        {tr("due", "期限")}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : null}
         </div>

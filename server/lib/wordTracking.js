@@ -81,3 +81,7 @@ export function getAddedWordsFromStateDiff(previousState, nextState) {
     .filter(([key]) => !previousMap.has(key))
     .map(([, value]) => value);
 }
+
+export function countWordsInState(rawState) {
+  return buildWordMembershipMap(rawState).size;
+}

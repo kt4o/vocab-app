@@ -1,6 +1,6 @@
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
-const LAST_UPDATED = "April 8, 2026";
+const LAST_UPDATED = "June 5, 2026";
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function PrivacyPage() {
@@ -16,7 +16,8 @@ export function PrivacyPage() {
           <h2>1. Information We Collect</h2>
           <p>
             We collect data you provide directly, such as account details (email, username), learning content
-            (books, chapters, words, notes), and settings/preferences.
+            (books, chapters, words, notes), settings/preferences, and referral or creator codes you choose
+            to enter at signup.
           </p>
           <p>
             We also process operational data required to run the service, such as authentication/session data,
@@ -30,6 +31,12 @@ export function PrivacyPage() {
           <p>
             We use data to provide app functionality, account security, sync features, learning progress,
             diagnostics, abuse prevention, and product improvements.
+          </p>
+          <p>
+            When you request definitions, translations, or related language help, the words or short text you
+            submit may be sent to third-party language providers so they can return the requested result. This
+            may include OpenAI API services, Jisho, Free Dictionary API, Datamuse, or similar providers used
+            for dictionary and translation functionality.
           </p>
         </section>
 
@@ -51,29 +58,54 @@ export function PrivacyPage() {
           </p>
           <p>
             We aim to avoid capturing sensitive inputs in session replay by using masking/exclusion settings where
-            possible. Payment and authentication data should not be intentionally recorded in full.
+            possible. Payment and authentication data should not be intentionally recorded in full, and analytics
+            providers are loaded only after consent where our consent banner is shown.
           </p>
           <p>
-            You can limit analytics collection by blocking analytics scripts/cookies in your browser settings or
-            extensions. If your browser sends a Do Not Track signal, we attempt to honor it.
+            You can limit analytics collection by rejecting analytics consent, blocking analytics scripts/cookies
+            in your browser settings or extensions, or contacting us for help. If your browser sends a Do Not
+            Track signal, we attempt to honor it.
           </p>
         </section>
 
         <section>
-          <h2>4. School and Community Data</h2>
+          <h2>4. AI, Dictionary, and Translation Providers</h2>
           <p>
-            If you use school or classroom features, we process school codes, cohort membership, teacher
-            relationships, and learning activity summaries needed to support those workflows.
+            Language-provider requests may contain the word, phrase, or short text you entered and basic technical
+            metadata needed to complete the request. We do not intentionally send your password or payment details
+            to these providers.
           </p>
           <p>
-            If your account is connected to a school code or institutional cohort, authorized school or
-            teacher administrators may view vocabulary-learning analytics tied to that cohort, including words
-            added, difficulty/category patterns (for example CEFR level), and aggregate activity summaries.
+            Provider privacy and retention practices are governed by their own terms and policies. Where OpenAI API
+            services are used, OpenAI states that API data is not used to train OpenAI models by default unless the
+            API customer opts in. Provider policies may change, and we may change providers over time.
           </p>
         </section>
 
         <section>
-          <h2>5. Future Advertising and Cookies</h2>
+          <h2>5. Billing and Payment Data</h2>
+          <p>
+            Paid subscriptions are processed by Stripe or another payment processor if billing is enabled. We do not
+            intentionally store full card numbers in Vocalibry. We may store billing status, customer identifiers,
+            subscription identifiers, plan state, and renewal/cancellation metadata needed to operate paid features.
+          </p>
+          <p>
+            Payment processors may collect and process personal data according to their own privacy policies and
+            legal obligations, including fraud prevention, tax, chargeback, and compliance requirements.
+          </p>
+        </section>
+
+        <section>
+          <h2>6. Referral Codes and Creator Attribution</h2>
+          <p>
+            If you enter a referral or creator code, we may store that code with your account and share limited
+            attribution information with the relevant referral or creator partner, such as signup counts or paid
+            conversion counts. We do not share your password or full payment details with referral partners.
+          </p>
+        </section>
+
+        <section>
+          <h2>7. Future Advertising and Cookies</h2>
           <p>
             We may introduce ads in the future. If we do, ad technology partners may use cookies or similar
             identifiers to measure performance, prevent fraud, and personalize ad experience where legally
@@ -86,7 +118,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>6. Data Sharing</h2>
+          <h2>8. Data Sharing</h2>
           <p>
             We do not sell personal information. We may share data with service providers strictly as needed
             to operate, secure, and improve the platform.
@@ -94,7 +126,9 @@ export function PrivacyPage() {
           <p>
             This can include infrastructure, authentication/security tooling, email delivery providers, and
             payment processors for billing (for example Stripe, where enabled), and third-party dictionary
-            providers used to return definition content, and analytics providers used for product measurement.
+            providers used to return definition content, analytics providers used for product measurement,
+            AI/language providers used to return definitions or translations, and referral or creator partners
+            where needed to attribute signups.
           </p>
           <p>
             We may also disclose information if required by law, legal process, or valid government request.
@@ -102,7 +136,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>7. Security</h2>
+          <h2>9. Security</h2>
           <p>
             We use reasonable administrative and technical safeguards. No system can be guaranteed 100%
             secure, and you use the service at your own risk.
@@ -110,7 +144,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>8. Retention</h2>
+          <h2>10. Retention</h2>
           <p>
             We keep data while needed for service operation, security, legal compliance, and legitimate
             business purposes. Account deletion requests are handled according to applicable law and system
@@ -121,6 +155,10 @@ export function PrivacyPage() {
             before deletion can proceed.
           </p>
           <p>
+            Some records may be retained after account deletion when necessary for security, fraud prevention,
+            tax, accounting, dispute handling, legal compliance, backups, or legitimate business records.
+          </p>
+          <p>
             Analytics records, including session replay data where enabled, are retained only as needed for
             diagnostics, security, and product improvement, then deleted or anonymized according to provider and
             internal retention controls.
@@ -128,7 +166,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>9. Your Rights and Choices</h2>
+          <h2>11. Your Rights and Choices</h2>
           <p>
             Subject to local law, you may request access, correction, export, or deletion of personal data.
             You may also manage key account controls in-app.
@@ -143,7 +181,7 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>10. International Processing</h2>
+          <h2>12. International Processing</h2>
           <p>
             Your data may be processed in countries different from your own. By using the service, you
             understand that cross-border processing may occur.
@@ -151,22 +189,23 @@ export function PrivacyPage() {
         </section>
 
         <section>
-          <h2>11. Children&apos;s Privacy</h2>
+          <h2>13. Children&apos;s Privacy</h2>
           <p>
-            The service is not directed to children below the minimum legal age in their jurisdiction. If we
-            learn personal data was provided without required consent, we will take appropriate action.
+            The service is not directed to children below the minimum legal age in their jurisdiction, and it is
+            not currently offered as a school-managed or classroom-managed service. If we learn personal data was
+            provided without required consent, we will take appropriate action.
           </p>
         </section>
 
         <section>
-          <h2>12. Policy Updates</h2>
+          <h2>14. Policy Updates</h2>
           <p>
             We may update this Privacy Policy over time. The latest version will be posted on this page.
           </p>
         </section>
 
         <section>
-          <h2>13. Contact</h2>
+          <h2>15. Contact</h2>
           <p>
             Privacy questions or requests: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
           </p>

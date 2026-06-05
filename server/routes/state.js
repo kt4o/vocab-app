@@ -2,9 +2,10 @@ import { Router } from "express";
 import { query } from "../db/client.js";
 import { requireAuth } from "../middleware/auth.js";
 import { createUserSnapshot, listUserSnapshots, restoreUserSnapshot } from "../lib/snapshots.js";
-import { getAddedWordsFromStateDiff } from "../lib/wordTracking.js";
+import { countWordsInState, getAddedWordsFromStateDiff } from "../lib/wordTracking.js";
 
 export const stateRouter = Router();
+const FREE_WORD_LIMIT = 100;
 
 stateRouter.use(requireAuth);
 
@@ -132,6 +133,17 @@ stateRouter.put("/", async (req, res) => {
     const previousStateResult = await query("SELECT state_json FROM app_state WHERE user_id = $1", [userId]);
     const previousState = previousStateResult.rows[0]?.state_json || {};
     const addedWords = getAddedWordsFromStateDiff(previousState, appState);
+    const previousWordCount = countWordsInState(previousState);
+    const nextWordCount = countWordsInState(appState);
+
+    if (req.authUser?.plan !== "pro" && nextWordCount > FREE_WORD_LIMIT && nextWordCount > previousWordCount) {
+      res.status(403).json({
+        error: "free-word-limit-reached",
+        limit: FREE_WORD_LIMIT,
+        wordCount: nextWordCount,
+      });
+      return;
+    }
 
     await query(
       `
@@ -146,19 +158,11 @@ stateRouter.put("/", async (req, res) => {
 
     if (addedWords.length > 0) {
       try {
-        const codeResult = await query(
-          "SELECT code_id FROM school_code_redemptions WHERE user_id = $1 LIMIT 1",
-          [userId]
-        );
-        const codeIdRaw = codeResult.rows[0]?.code_id;
-        const codeId = Number.isFinite(Number(codeIdRaw)) ? Number(codeIdRaw) : null;
-
         for (const entry of addedWords) {
           await query(
             `
               INSERT INTO word_add_events (
                 user_id,
-                code_id,
                 word,
                 word_normalized,
                 cefr_level,
@@ -169,11 +173,10 @@ stateRouter.put("/", async (req, res) => {
                 source,
                 added_at
               )
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'state_sync', $10)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'state_sync', $9)
             `,
             [
               userId,
-              codeId,
               entry.word,
               entry.wordNormalized,
               entry.cefrLevel || null,

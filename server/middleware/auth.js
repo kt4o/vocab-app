@@ -8,7 +8,7 @@ const AUTH_TOKEN_MAX_AGE_DAYS = (() => {
   return floored > 0 ? floored : 30;
 })();
 const AUTH_TOKEN_MAX_AGE_MS = AUTH_TOKEN_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
-const VALID_ROLES = new Set(["student", "teacher", "admin"]);
+const VALID_ROLES = new Set(["user", "admin"]);
 
 function parseCookies(req) {
   const cookieHeader = String(req.headers.cookie || "");
@@ -53,7 +53,7 @@ function normalizeUserRole(value) {
   const normalized = String(value || "")
     .trim()
     .toLowerCase();
-  return VALID_ROLES.has(normalized) ? normalized : "student";
+  return VALID_ROLES.has(normalized) ? normalized : "user";
 }
 
 export async function requireAuth(req, res, next) {

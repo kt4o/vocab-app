@@ -88,7 +88,6 @@ function buildBookSummaryBase(wordCatalog) {
         bookName: item.bookName || "Book",
         totalWords: 0,
         dueNow: 0,
-        overdue: 0,
       });
     }
 
@@ -145,7 +144,7 @@ function toReviewItem(row, catalogItem) {
     bookName: catalogItem?.bookName || "Book",
     chapterId: row.chapter_id,
     chapterName: catalogItem?.chapterName || "Chapter",
-    word: row.word,
+    word: catalogItem?.word || row.word,
     selectedDefinition: catalogItem?.selectedDefinition || "",
     pronunciation: catalogItem?.pronunciation || "",
     japaneseReading: catalogItem?.japaneseReading || "",
@@ -161,17 +160,39 @@ function toReviewItem(row, catalogItem) {
   };
 }
 
+function getDueReviewRows(rows, wordCatalog) {
+  const dueRowsByCatalogKey = new Map();
+
+  rows.forEach((row) => {
+    const catalogKey = `${row.book_id}:${row.chapter_id}:${normalizeWordKey(row.word)}`;
+    if (!wordCatalog.has(catalogKey)) return;
+    const existingRow = dueRowsByCatalogKey.get(catalogKey);
+    if (!existingRow) {
+      dueRowsByCatalogKey.set(catalogKey, row);
+      return;
+    }
+
+    const existingNextReviewMs = Date.parse(existingRow.next_review_at || "");
+    const nextReviewMs = Date.parse(row.next_review_at || "");
+    const existingUpdatedMs = Date.parse(existingRow.updated_at || "");
+    const updatedMs = Date.parse(row.updated_at || "");
+    const shouldReplace =
+      (Number.isFinite(nextReviewMs) && (!Number.isFinite(existingNextReviewMs) || nextReviewMs < existingNextReviewMs)) ||
+      (nextReviewMs === existingNextReviewMs &&
+        Number.isFinite(updatedMs) &&
+        (!Number.isFinite(existingUpdatedMs) || updatedMs < existingUpdatedMs));
+
+    if (shouldReplace) {
+      dueRowsByCatalogKey.set(catalogKey, row);
+    }
+  });
+
+  return Array.from(dueRowsByCatalogKey.values());
+}
+
 export const reviewRouter = Router();
 
 reviewRouter.use(requireAuth);
-
-reviewRouter.use((req, res, next) => {
-  if (req.authUser?.plan !== "pro") {
-    res.status(403).json({ error: "pro-required" });
-    return;
-  }
-  next();
-});
 
 reviewRouter.get("/due", async (req, res) => {
   const userId = req.authUser.id;
@@ -183,7 +204,7 @@ reviewRouter.get("/due", async (req, res) => {
     const wordCatalog = await loadUserWordCatalog(userId);
     await ensureReviewStateRows(userId, wordCatalog, nowIso);
 
-    const dueRows = await query(
+    const dueRowsResult = await query(
       `
         SELECT *
         FROM word_review_state
@@ -191,35 +212,12 @@ reviewRouter.get("/due", async (req, res) => {
           AND next_review_at <= $2
           AND ($3 = '' OR book_id = $3)
         ORDER BY next_review_at ASC, lapse_count DESC, success_streak ASC, updated_at ASC
-        LIMIT $4
-      `,
-      [userId, nowIso, filterBookId, limit]
-    );
-
-    const dueCountResult = await query(
-      `
-        SELECT COUNT(*)::int AS count
-        FROM word_review_state
-        WHERE user_id = $1
-          AND next_review_at <= $2
-          AND ($3 = '' OR book_id = $3)
       `,
       [userId, nowIso, filterBookId]
     );
 
-    const overdueBeforeIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const overdueCountResult = await query(
-      `
-        SELECT COUNT(*)::int AS count
-        FROM word_review_state
-        WHERE user_id = $1
-          AND next_review_at <= $2
-          AND ($3 = '' OR book_id = $3)
-      `,
-      [userId, overdueBeforeIso, filterBookId]
-    );
-
-    const items = dueRows.rows
+    const dueRows = getDueReviewRows(dueRowsResult.rows, wordCatalog);
+    const dueItems = dueRows
       .map((row) => {
         const catalogKey = `${row.book_id}:${row.chapter_id}:${normalizeWordKey(row.word)}`;
         const catalogItem = wordCatalog.get(catalogKey);
@@ -227,12 +225,12 @@ reviewRouter.get("/due", async (req, res) => {
         return toReviewItem(row, catalogItem);
       })
       .filter(Boolean);
+    const items = dueItems.slice(0, limit);
 
     res.json({
       items,
       stats: {
-        dueNow: Math.max(0, Math.floor(Number(dueCountResult.rows[0]?.count) || 0)),
-        overdue: Math.max(0, Math.floor(Number(overdueCountResult.rows[0]?.count) || 0)),
+        dueNow: dueItems.length,
       },
     });
   } catch {
@@ -243,45 +241,48 @@ reviewRouter.get("/due", async (req, res) => {
 reviewRouter.get("/summary", async (req, res) => {
   const userId = req.authUser.id;
   const nowIso = new Date().toISOString();
-  const overdueBeforeIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   try {
     const wordCatalog = await loadUserWordCatalog(userId);
     await ensureReviewStateRows(userId, wordCatalog, nowIso);
 
     const summaries = buildBookSummaryBase(wordCatalog);
-    const countResult = await query(
+    const dueRowsResult = await query(
       `
-        SELECT
-          book_id,
-          COUNT(*) FILTER (WHERE next_review_at <= $2)::int AS due_now,
-          COUNT(*) FILTER (WHERE next_review_at <= $3)::int AS overdue
+        SELECT book_id, chapter_id, word, next_review_at, updated_at
         FROM word_review_state
         WHERE user_id = $1
-        GROUP BY book_id
+          AND next_review_at <= $2
       `,
-      [userId, nowIso, overdueBeforeIso]
+      [userId, nowIso]
     );
 
-    countResult.rows.forEach((row) => {
+    const dueRows = getDueReviewRows(dueRowsResult.rows, wordCatalog);
+
+    dueRows.forEach((row) => {
+      const catalogKey = `${row.book_id}:${row.chapter_id}:${normalizeWordKey(row.word)}`;
+      if (!wordCatalog.has(catalogKey)) return;
       const bookId = normalizeText(row.book_id);
       const summary = summaries.get(bookId);
       if (!summary) return;
-      summary.dueNow = Math.max(0, Math.floor(Number(row.due_now) || 0));
-      summary.overdue = Math.max(0, Math.floor(Number(row.overdue) || 0));
+      summary.dueNow += 1;
     });
 
     const books = Array.from(summaries.values()).sort((a, b) => {
       if (b.dueNow !== a.dueNow) return b.dueNow - a.dueNow;
-      if (b.overdue !== a.overdue) return b.overdue - a.overdue;
       return a.bookName.localeCompare(b.bookName);
-    });
+    }).map((book) => ({
+      ...book,
+      dueNow: Math.min(
+        Math.max(0, Math.floor(Number(book.dueNow) || 0)),
+        Math.max(0, Math.floor(Number(book.totalWords) || 0))
+      ),
+    }));
 
     res.json({
       books,
       stats: {
         dueNow: books.reduce((total, book) => total + book.dueNow, 0),
-        overdue: books.reduce((total, book) => total + book.overdue, 0),
       },
     });
   } catch {
@@ -336,7 +337,9 @@ reviewRouter.post("/rate", async (req, res) => {
       `
         SELECT ease_factor, interval_days, success_streak, lapse_count, due_count
         FROM word_review_state
-        WHERE user_id = $1 AND book_id = $2 AND chapter_id = $3 AND word = $4
+        WHERE user_id = $1 AND book_id = $2 AND chapter_id = $3 AND LOWER(word) = LOWER($4)
+        ORDER BY next_review_at ASC, updated_at ASC
+        LIMIT 1
       `,
       [userId, bookId, chapterId, word]
     );
@@ -365,7 +368,7 @@ reviewRouter.post("/rate", async (req, res) => {
             interval_days = $11,
             due_count = $12,
             updated_at = $13
-        WHERE user_id = $1 AND book_id = $2 AND chapter_id = $3 AND word = $4
+        WHERE user_id = $1 AND book_id = $2 AND chapter_id = $3 AND LOWER(word) = LOWER($4)
       `,
       [
         userId,

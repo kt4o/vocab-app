@@ -62,7 +62,7 @@ const FAQ_ENTRIES = [
   {
     question: "Can I organize vocabulary by class or textbook chapter?",
     answer:
-      "Yes. You can create books and chapters so your vocabulary lists match your school units, exam topics, or personal study plan.",
+      "Yes. You can create books and chapters so your vocabulary lists match your exam topics, reading projects, or personal study plan.",
   },
 ];
 

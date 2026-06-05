@@ -16,7 +16,6 @@ import { defineRouter } from "./routes/define.js";
 import { reviewRouter } from "./routes/review.js";
 import { consumeWriteRateLimit } from "./lib/rateLimit.js";
 import { adminRouter } from "./routes/admin.js";
-import { teacherRouter } from "./routes/teacher.js";
 import { createDailySnapshotsForAllUsers, getUtcDayKey } from "./lib/snapshots.js";
 import { createCookieOriginGuard } from "./middleware/originGuard.js";
 import { createWriteRateLimitMiddleware } from "./middleware/writeRateLimit.js";
@@ -237,7 +236,6 @@ app.use("/api/define", enforceWriteRateLimit, defineRouter);
 app.use("/api/review", enforceWriteRateLimit, reviewRouter);
 app.use("/api/billing", enforceWriteRateLimit, billingRouter);
 app.use("/api/admin", enforceWriteRateLimit, adminRouter);
-app.use("/api/teacher", enforceWriteRateLimit, teacherRouter);
 
 if (fs.existsSync(distIndexPath)) {
   app.use(express.static(distDir));

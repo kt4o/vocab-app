@@ -94,7 +94,39 @@ export async function initDb() {
 
   await query(`
     ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'student';
+    ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
+  `);
+
+  await query(`
+    ALTER TABLE users
+    ALTER COLUMN role SET DEFAULT 'user';
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS referral_codes (
+      id SERIAL PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      influencer_name TEXT NOT NULL,
+      notes TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS referral_code_id INTEGER REFERENCES referral_codes(id) ON DELETE SET NULL;
+  `);
+
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS referral_code TEXT;
+  `);
+
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS referred_at TEXT;
   `);
 
   await query(`
@@ -152,6 +184,16 @@ export async function initDb() {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_stripe_customer_unique
     ON users(stripe_customer_id)
     WHERE stripe_customer_id IS NOT NULL;
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_referral_codes_active_updated
+    ON referral_codes(is_active, updated_at DESC);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_users_referral_code_id
+    ON users(referral_code_id);
   `);
 
   await query(`
@@ -244,66 +286,9 @@ export async function initDb() {
   `);
 
   await query(`
-    CREATE TABLE IF NOT EXISTS school_access_codes (
-      id SERIAL PRIMARY KEY,
-      school_name TEXT NOT NULL,
-      code TEXT NOT NULL UNIQUE,
-      grants_lifetime_pro BOOLEAN NOT NULL DEFAULT TRUE,
-      max_activations INTEGER,
-      activation_count INTEGER NOT NULL DEFAULT 0,
-      is_active BOOLEAN NOT NULL DEFAULT TRUE,
-      expires_at TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-  `);
-
-  await query(`
-    CREATE TABLE IF NOT EXISTS school_code_redemptions (
-      id SERIAL PRIMARY KEY,
-      code_id INTEGER NOT NULL REFERENCES school_access_codes(id) ON DELETE CASCADE,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      redeemed_at TEXT NOT NULL,
-      UNIQUE(code_id, user_id),
-      UNIQUE(user_id)
-    );
-  `);
-
-  await query(`
-    CREATE INDEX IF NOT EXISTS idx_school_access_codes_active
-    ON school_access_codes(is_active, updated_at DESC);
-  `);
-
-  await query(`
-    CREATE INDEX IF NOT EXISTS idx_school_code_redemptions_user
-    ON school_code_redemptions(user_id);
-  `);
-
-  await query(`
-    CREATE TABLE IF NOT EXISTS school_teacher_assignments (
-      id SERIAL PRIMARY KEY,
-      code_id INTEGER NOT NULL REFERENCES school_access_codes(id) ON DELETE CASCADE,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      assigned_at TEXT NOT NULL,
-      UNIQUE(code_id, user_id)
-    );
-  `);
-
-  await query(`
-    CREATE INDEX IF NOT EXISTS idx_school_teacher_assignments_user
-    ON school_teacher_assignments(user_id);
-  `);
-
-  await query(`
-    CREATE INDEX IF NOT EXISTS idx_school_teacher_assignments_code
-    ON school_teacher_assignments(code_id);
-  `);
-
-  await query(`
     CREATE TABLE IF NOT EXISTS word_add_events (
       id BIGSERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      code_id INTEGER REFERENCES school_access_codes(id) ON DELETE SET NULL,
       word TEXT NOT NULL,
       word_normalized TEXT NOT NULL,
       cefr_level TEXT,
@@ -317,18 +302,8 @@ export async function initDb() {
   `);
 
   await query(`
-    CREATE INDEX IF NOT EXISTS idx_word_add_events_code_added
-    ON word_add_events(code_id, added_at DESC);
-  `);
-
-  await query(`
     CREATE INDEX IF NOT EXISTS idx_word_add_events_user_added
     ON word_add_events(user_id, added_at DESC);
-  `);
-
-  await query(`
-    CREATE INDEX IF NOT EXISTS idx_word_add_events_code_cefr
-    ON word_add_events(code_id, cefr_level);
   `);
 
   await query(`

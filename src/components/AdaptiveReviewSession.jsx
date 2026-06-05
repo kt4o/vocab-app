@@ -20,7 +20,7 @@ export function AdaptiveReviewSession({
   const currentItem = items[0] || null;
   const isSubmittingRating = Boolean(pendingRating);
   const dueNowCount = Math.max(0, Math.floor(Number(stats?.dueNow) || 0));
-  const overdueCount = Math.max(0, Math.floor(Number(stats?.overdue) || 0));
+  const displayedDueNowCount = currentItem ? dueNowCount : 0;
   const selectedDefinition = useMemo(
     () => currentItem?.selectedDefinition || "No definition available.",
     [currentItem]
@@ -61,11 +61,7 @@ export function AdaptiveReviewSession({
           <div className="adaptiveReviewStatsRow" aria-label="Adaptive review stats">
             <div className="adaptiveReviewStatPill">
               <span>Due</span>
-              <strong>{dueNowCount}</strong>
-            </div>
-            <div className="adaptiveReviewStatPill isOverdue">
-              <span>Overdue</span>
-              <strong>{overdueCount}</strong>
+              <strong>{displayedDueNowCount}</strong>
             </div>
           </div>
         </div>

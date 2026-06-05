@@ -361,14 +361,6 @@ function normalizeEmail(value) {
     .toLowerCase();
 }
 
-function normalizeSchoolCode(value) {
-  return String(value || "")
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "")
-    .slice(0, 64);
-}
-
 function normalizePlan(value) {
   return String(value || "")
     .trim()
@@ -377,12 +369,20 @@ function normalizePlan(value) {
     : "free";
 }
 
+function normalizeReferralCode(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .slice(0, 64);
+}
+
 function normalizeRole(value) {
   const normalized = String(value || "")
     .trim()
     .toLowerCase();
-  if (normalized === "teacher" || normalized === "admin") return normalized;
-  return "student";
+  if (normalized === "admin") return normalized;
+  return "user";
 }
 
 function normalizeSubscriptionStatus(value) {
@@ -398,6 +398,10 @@ function isCanceledSubscriptionStatus(value) {
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isValidReferralCode(value) {
+  return /^[A-Z0-9_-]{3,64}$/.test(String(value || ""));
 }
 
 function hashEmailVerificationCode(email, code) {
@@ -642,6 +646,7 @@ authRouter.post("/register", async (req, res) => {
   const acceptedLegal = Boolean(req.body?.acceptedLegal);
   const legalVersionRaw = String(req.body?.legalVersion || DEFAULT_LEGAL_VERSION).trim();
   const legalVersion = (legalVersionRaw || DEFAULT_LEGAL_VERSION).slice(0, 64);
+  const referralCode = normalizeReferralCode(req.body?.referralCode);
 
   if (!isValidEmail(email)) {
     res.status(400).json({ error: "invalid-email" });
@@ -665,6 +670,10 @@ authRouter.post("/register", async (req, res) => {
   }
   if (!verifiedEmailToken) {
     res.status(400).json({ error: "email-not-verified" });
+    return;
+  }
+  if (referralCode && !isValidReferralCode(referralCode)) {
+    res.status(400).json({ error: "invalid-referral-code" });
     return;
   }
 
@@ -712,6 +721,25 @@ authRouter.post("/register", async (req, res) => {
       return;
     }
 
+    let referralCodeRow = null;
+    if (referralCode) {
+      const referralResult = await client.query(
+        `
+          SELECT id, code
+          FROM referral_codes
+          WHERE code = $1 AND is_active = TRUE
+          LIMIT 1
+        `,
+        [referralCode]
+      );
+      referralCodeRow = referralResult.rows[0] || null;
+      if (!referralCodeRow) {
+        await client.query("ROLLBACK");
+        res.status(400).json({ error: "invalid-referral-code" });
+        return;
+      }
+    }
+
     const userInsert = await client.query(
       `
         INSERT INTO users (
@@ -726,9 +754,12 @@ authRouter.post("/register", async (req, res) => {
           legal_accepted_at,
           legal_version,
           lifetime_pro,
-          plan
+          plan,
+          referral_code_id,
+          referral_code,
+          referred_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING id, plan, lifetime_pro
       `,
       [
@@ -744,6 +775,9 @@ authRouter.post("/register", async (req, res) => {
         legalVersion,
         false,
         "free",
+        referralCodeRow ? Number(referralCodeRow.id) : null,
+        referralCodeRow ? String(referralCodeRow.code || referralCode) : null,
+        referralCodeRow ? now : null,
       ]
     );
     const userId = Number(userInsert.rows[0].id);
@@ -767,10 +801,13 @@ authRouter.post("/register", async (req, res) => {
 
     await client.query("DELETE FROM email_verifications WHERE email = $1", [email]);
     await client.query("COMMIT");
-    await trackRetentionEvent(userId, "register", { source: "auth/register" });
+    await trackRetentionEvent(userId, "register", {
+      source: "auth/register",
+      referralCode: referralCodeRow ? String(referralCodeRow.code || referralCode) : "",
+    });
     await trackRetentionEvent(userId, "session_start", { source: "auth/register" });
     setSessionCookie(req, res, token);
-    res.status(201).json({ userId, username, role: "student", authToken: token, plan, isLifetimePro });
+    res.status(201).json({ userId, username, role: "user", authToken: token, plan, isLifetimePro });
   } catch (error) {
     await client.query("ROLLBACK");
     if (error?.code === "23505") {
@@ -1069,131 +1106,6 @@ authRouter.get("/account", requireAuth, async (req, res) => {
     });
   } catch {
     res.status(500).json({ error: "account-query-failed" });
-  }
-});
-
-authRouter.post("/account/redeem-school-code", requireAuth, async (req, res) => {
-  if (!enforceRateLimit(req, res, { bucket: "account-redeem-school-code", maxAttempts: 20, windowMs: 10 * 60 * 1000 })) {
-    return;
-  }
-
-  const userId = Number(req.authUser?.id || 0);
-  const code = normalizeSchoolCode(req.body?.code);
-
-  if (!code || !/^[A-Z0-9_-]{4,64}$/.test(code)) {
-    res.status(400).json({ error: "invalid-school-code" });
-    return;
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-
-    const alreadyRedeemedResult = await client.query(
-      "SELECT code_id FROM school_code_redemptions WHERE user_id = $1",
-      [userId]
-    );
-    if (alreadyRedeemedResult.rows[0]) {
-      await client.query("ROLLBACK");
-      res.status(409).json({ error: "school-code-already-redeemed" });
-      return;
-    }
-
-    const codeResult = await client.query(
-      `
-        SELECT
-          id,
-          school_name,
-          grants_lifetime_pro,
-          max_activations,
-          activation_count,
-          is_active,
-          expires_at
-        FROM school_access_codes
-        WHERE code = $1
-        FOR UPDATE
-      `,
-      [code]
-    );
-    const codeRow = codeResult.rows[0];
-    if (!codeRow) {
-      await client.query("ROLLBACK");
-      res.status(404).json({ error: "school-code-not-found" });
-      return;
-    }
-    if (!codeRow.is_active) {
-      await client.query("ROLLBACK");
-      res.status(409).json({ error: "school-code-inactive" });
-      return;
-    }
-    if (codeRow.expires_at && !isIsoDateInFuture(codeRow.expires_at)) {
-      await client.query("ROLLBACK");
-      res.status(409).json({ error: "school-code-expired" });
-      return;
-    }
-
-    const maxActivations = Number(codeRow.max_activations);
-    const activationCount = Number(codeRow.activation_count);
-    if (
-      Number.isFinite(maxActivations) &&
-      maxActivations > 0 &&
-      Number.isFinite(activationCount) &&
-      activationCount >= maxActivations
-    ) {
-      await client.query("ROLLBACK");
-      res.status(409).json({ error: "school-code-limit-reached" });
-      return;
-    }
-
-    const now = new Date().toISOString();
-    await client.query(
-      `
-        INSERT INTO school_code_redemptions (code_id, user_id, redeemed_at)
-        VALUES ($1, $2, $3)
-      `,
-      [Number(codeRow.id), userId, now]
-    );
-    await client.query(
-      `
-        UPDATE school_access_codes
-        SET activation_count = activation_count + 1, updated_at = $2
-        WHERE id = $1
-      `,
-      [Number(codeRow.id), now]
-    );
-
-    let plan = "free";
-    let isLifetimePro = false;
-    if (codeRow.grants_lifetime_pro) {
-      const userUpdate = await client.query(
-        `
-          UPDATE users
-          SET lifetime_pro = TRUE, plan = 'pro'
-          WHERE id = $1
-          RETURNING plan, lifetime_pro
-        `,
-        [userId]
-      );
-      plan = normalizePlan(userUpdate.rows[0]?.plan);
-      isLifetimePro = Boolean(userUpdate.rows[0]?.lifetime_pro);
-    } else {
-      const currentUser = await client.query("SELECT plan, lifetime_pro FROM users WHERE id = $1", [userId]);
-      plan = normalizePlan(currentUser.rows[0]?.plan);
-      isLifetimePro = Boolean(currentUser.rows[0]?.lifetime_pro);
-    }
-
-    await client.query("COMMIT");
-    res.json({
-      ok: true,
-      schoolName: String(codeRow.school_name || ""),
-      plan: isLifetimePro ? "pro" : plan,
-      isLifetimePro,
-    });
-  } catch {
-    await client.query("ROLLBACK");
-    res.status(500).json({ error: "school-code-redeem-failed" });
-  } finally {
-    client.release();
   }
 });
 

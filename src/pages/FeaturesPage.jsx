@@ -6,7 +6,7 @@ const FEATURE_SECTIONS = [
     icon: BookOpen,
     title: "Word Tracking and Organization",
     description:
-      "Create books, group words by chapter, and keep your vocabulary aligned with school units, exams, or personal goals.",
+      "Create books, group words by chapter, and keep your vocabulary aligned with exams, reading projects, or personal goals.",
   },
   {
     icon: Zap,

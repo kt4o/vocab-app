@@ -57,6 +57,7 @@ export function LoginPage({ initialMode = "login" }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,6 +122,7 @@ export function LoginPage({ initialMode = "login" }) {
     setUsername("");
     setPassword("");
     setConfirmPassword("");
+    setReferralCode("");
     setAcceptedLegal(false);
     setMarketingOptIn(false);
     setError("");
@@ -282,6 +284,7 @@ export function LoginPage({ initialMode = "login" }) {
       setError("Please accept Terms, Privacy Policy, and Disclaimer.");
       return;
     }
+    const normalizedReferralCode = String(referralCode || "").trim().toUpperCase().replace(/\s+/g, "");
 
     setIsSubmitting(true);
     setError("");
@@ -299,6 +302,7 @@ export function LoginPage({ initialMode = "login" }) {
                 verifiedEmailToken,
                 username: normalizedUsername,
                 password,
+                referralCode: normalizedReferralCode,
                 marketingOptIn,
                 acceptedLegal,
                 legalVersion: LEGAL_VERSION,
@@ -319,6 +323,8 @@ export function LoginPage({ initialMode = "login" }) {
                 ? "Verify your email before creating an account."
               : backendError === "legal-not-accepted"
                 ? "Please accept Terms, Privacy Policy, and Disclaimer."
+              : backendError === "invalid-referral-code"
+                ? "That referral code is not active. Check the code and try again."
               :
           backendError === "invalid-username"
             ? SIGNUP_USERNAME_MESSAGE
@@ -608,6 +614,23 @@ export function LoginPage({ initialMode = "login" }) {
                   }}
                   autoComplete="new-password"
                   placeholder="confirm password"
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="auth-referral-code" className="publicAuthLabel">
+                  Referral code <span className="optionalLabel">(optional)</span>
+                </label>
+                <input
+                  id="auth-referral-code"
+                  type="text"
+                  className="publicAuthInput"
+                  value={referralCode}
+                  onChange={(event) => {
+                    setReferralCode(event.target.value.toUpperCase());
+                    if (error) setError("");
+                  }}
+                  autoComplete="off"
+                  placeholder="creator code"
+                  maxLength={64}
                   disabled={isSubmitting}
                 />
                 <label className="publicAuthCheckRow">
