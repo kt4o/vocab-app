@@ -56,7 +56,6 @@
 - `POST /api/auth/account/change-password` with `Authorization: Bearer <token>` body: `{"currentPassword":"oldpass123","newPassword":"newpass123"}`
 - `POST /api/auth/account/logout-all` with `Authorization: Bearer <token>`
 - `DELETE /api/auth/account` with `Authorization: Bearer <token>` body: `{"password":"yourpass123"}`
-- `GET /api/words?difficulty=a1&q=ab`
 - `GET /api/progress` with `Authorization: Bearer <token>`
 - `PUT /api/progress` with `Authorization: Bearer <token>` and JSON body:
   `{"totalXp":120,"coins":18,"streakCount":3,"learnedWords":["adapt"]}`

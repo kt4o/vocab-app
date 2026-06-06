@@ -282,9 +282,7 @@ export function Quiz({
         setBestAnswerStreak((prevBest) => Math.max(prevBest, next));
         return next;
       });
-      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId, {
-        awardMastery: !isMistakeReview,
-      });
+      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId);
     } else {
       setAnswerStreak(0);
       setMistakeReviewItems((prev) => [
@@ -330,9 +328,7 @@ export function Quiz({
         setBestAnswerStreak((prevBest) => Math.max(prevBest, next));
         return next;
       });
-      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId, {
-        awardMastery: !isMistakeReview,
-      });
+      onResolveMistake?.(current.word, current.sourceBookId, current.chapterId);
     } else {
       setAnswerStreak(0);
       setMistakeReviewItems((prev) => [

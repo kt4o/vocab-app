@@ -26,12 +26,6 @@ async function run() {
   assert(ready.payload?.db === "up", "Readiness payload reports database is down.");
   console.log("[smoke] /api/ready ok");
 
-  const words = await requestJson("/api/words?difficulty=a1&q=ab");
-  assert(words.response.ok, "Words endpoint request failed.");
-  assert(Array.isArray(words.payload?.words), "Words payload is missing words array.");
-  assert(Number.isFinite(Number(words.payload?.count)), "Words payload is missing numeric count.");
-  console.log("[smoke] /api/words ok");
-
   console.log("[smoke] passed");
 }
 

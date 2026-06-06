@@ -748,33 +748,6 @@ body.theme-dark .xpBarFill {
   color: var(--text);
 }
 
-.selectBookMasteryCount {
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
-.selectBookMasteryCount.isActive {
-  color: #f7d354;
-  text-shadow:
-    0 0 6px rgba(247, 211, 84, 0.55),
-    0 0 14px rgba(247, 211, 84, 0.35);
-  animation: masteryShine 2.2s ease-in-out infinite;
-}
-
-@keyframes masteryShine {
-  0%,
-  100% {
-    text-shadow:
-      0 0 4px rgba(247, 211, 84, 0.45),
-      0 0 10px rgba(247, 211, 84, 0.25);
-  }
-  50% {
-    text-shadow:
-      0 0 10px rgba(247, 211, 84, 0.85),
-      0 0 20px rgba(247, 211, 84, 0.45);
-  }
-}
-
 .settingsCard {
   max-width: 420px;
   display: flex;
@@ -2026,60 +1999,6 @@ body.theme-dark .trendBar.isQuestions {
   color: var(--muted);
   font-size: 10px;
   text-align: center;
-}
-
-.difficultyChart {
-  height: 190px;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-  align-items: end;
-  position: relative;
-  z-index: 1;
-}
-
-.difficultyChartCol {
-  height: 100%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.difficultyChartCol strong {
-  font-size: 12px;
-}
-
-.difficultyChartBar {
-  width: 68%;
-  margin: 0 auto;
-  border-radius: 4px 4px 1px 1px;
-  transition: opacity 0.2s ease;
-  background: #ff9f43;
-}
-
-body.theme-dark .difficultyChartBar {
-  background: #ffb86a;
-}
-
-.difficultyChartCol span {
-  color: var(--muted);
-  font-size: 10px;
-  text-align: center;
-}
-
-.masteryChart {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.difficultyChartBar.isMastery {
-  background: #2faa6f;
-}
-
-body.theme-dark .difficultyChartBar.isMastery {
-  background: #78d9a9;
 }
 
 .bookCard,
@@ -4095,34 +4014,6 @@ body.theme-dark .inputRow .addWordBtn {
   color: var(--muted);
   margin-top: 6px;
 }
-.wordMasteryRow {
-  margin-top: 0;
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-}
-.wordMasteryLevel {
-  font-size: 12px;
-  color: var(--text);
-  font-weight: 600;
-}
-.wordMasteryBlocks {
-  font-size: 12px;
-  letter-spacing: 0.8px;
-  color: color-mix(in srgb, var(--text) 65%, var(--muted) 35%);
-}
-
-.wordMasteryBlocks.isMastered {
-  color: #d9a400;
-}
-
-body.theme-dark .wordMasteryBlocks.isMastered {
-  color: #ffd54f;
-}
 .wordChapterBadge {
   display: inline-flex;
   align-items: center;
@@ -4151,38 +4042,6 @@ body.theme-dark .wordMasteryBlocks.isMastered {
   text-transform: uppercase;
   line-height: 1;
 }
-.wordDifficultyBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--border) 60%, #2f9e44 40%);
-  background: color-mix(in srgb, var(--surface-alt) 75%, #2f9e44 25%);
-  color: var(--text);
-  border-radius: 999px;
-  height: 22px;
-  padding: 0 8px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
-  line-height: 1;
-  box-sizing: border-box;
-}
-.wordDifficultyBadgeBtn {
-  cursor: pointer;
-  margin: 0;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.wordChapterBadge.wordDifficultyBadgeBtn {
-  height: 22px;
-  padding: 0 8px;
-  line-height: 1;
-  box-sizing: border-box;
-  align-self: flex-end;
-}
-
 .wordChapterBadgeDropdown {
   min-width: 0;
   align-self: flex-end;
@@ -4235,25 +4094,6 @@ body.theme-dark .wordMasteryBlocks.isMastered {
 .inAppDropdownMenu.isCompact .inAppDropdownOption {
   padding: 8px;
   font-size: 12px;
-}
-.difficultyInfoPanel {
-  margin-top: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface-alt);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-.difficultyInfoPanel strong {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--text);
-  font-size: 13px;
-}
-.difficultyInfoPanel p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
 }
 .chapterEmptyText {
   color: var(--muted);
@@ -4367,6 +4207,10 @@ body.theme-dark .wordRow .deleteBtn {
   line-height: 1.5;
   padding-left: 10px;
   border-left: 2px solid var(--border);
+}
+.exampleTranslation {
+  color: color-mix(in srgb, var(--muted) 82%, var(--text) 18%);
+  font-size: 12px;
 }
 .definitionControls {
   display: inline-flex;
@@ -5647,11 +5491,6 @@ body.theme-dark .recentSquare.isPinned {
     padding: 0;
     font-size: 17px;
   }
-  .wordMasteryRow {
-    width: 100%;
-    margin-left: 0;
-    justify-content: flex-start;
-  }
   .xpCard {
     width: 100%;
     align-self: stretch;
@@ -6047,158 +5886,6 @@ body.theme-dark .recentSquare.isPinned {
 
 .landingImageShowcase {
   margin-top: 34px;
-}
-
-.masteryFlowSection {
-  margin-top: 38px;
-}
-
-.masteryFlowWrap {
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 16px;
-  background: var(--surface);
-  box-shadow: var(--shadow-soft);
-}
-
-.masteryFlowGrid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.masteryFlowCard {
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--surface-alt);
-  padding: 14px;
-  position: relative;
-  opacity: 0;
-  transform: translateY(10px);
-  transition:
-    opacity 420ms ease,
-    transform 520ms ease;
-  transition-delay: var(--flow-delay, 0ms);
-}
-
-.masteryFlowCard::after {
-  content: "->";
-  position: absolute;
-  right: -12px;
-  top: 24px;
-  color: #7f8ba0;
-  font-weight: 700;
-  font-size: 14px;
-  opacity: 0.25;
-  transform: translateX(-3px);
-  transition:
-    opacity 360ms ease,
-    transform 420ms ease;
-  transition-delay: calc(var(--flow-delay, 0ms) + 120ms);
-}
-
-.masteryFlowCard:last-child::after {
-  display: none;
-}
-
-.masteryFlowTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.masteryFlowIndex {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-}
-
-.masteryFlowIcon {
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--border) 68%, var(--accent) 32%);
-  background: color-mix(in srgb, var(--surface) 76%, var(--accent) 24%);
-  color: #1d4f8f;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.masteryFlowStage {
-  margin: 10px 0 4px;
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-}
-
-.masteryFlowCard h3 {
-  margin: 0 0 6px;
-  color: var(--text);
-  font-size: 16px;
-  line-height: 1.3;
-}
-
-.masteryFlowCard p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.masteryFlowMeter {
-  margin-top: 12px;
-  height: 8px;
-  border-radius: 999px;
-  background: #e2e9f3;
-  border: 1px solid #d3ddea;
-  overflow: hidden;
-}
-
-.masteryFlowMeter span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #1e518e, #6ca5df);
-  width: 0;
-  transition: width 760ms cubic-bezier(0.22, 1, 0.36, 1);
-  transition-delay: calc(var(--flow-delay, 0ms) + 180ms);
-}
-
-.masteryFlowSection.isVisible .masteryFlowCard {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.masteryFlowSection.isVisible .masteryFlowCard::after {
-  opacity: 0.85;
-  transform: translateX(0);
-}
-
-.masteryFlowSection.isVisible .masteryFlowMeter span {
-  width: var(--meter-target, 100%);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .masteryFlowCard,
-  .masteryFlowCard::after,
-  .masteryFlowMeter span {
-    transition: none;
-  }
 }
 
 .landingScreenGrid {
@@ -6870,25 +6557,6 @@ body.theme-dark .recentSquare.isPinned {
   gap: 16px;
 }
 
-.publicLanding .masteryFlowWrap {
-  border-color: #d0def0;
-  border-radius: 20px;
-  background: #ffffff;
-  box-shadow:
-    0 1px 2px rgba(10, 25, 48, 0.06),
-    0 18px 40px rgba(10, 25, 48, 0.08);
-}
-
-.publicLanding .masteryFlowCard {
-  background: #f7faff;
-  border-color: #d5e2f2;
-}
-
-.publicLanding .masteryFlowMeter {
-  background: #e8eff8;
-  border-color: #d6e2f1;
-}
-
 .publicLanding .landingFinalCta {
   background:
     radial-gradient(
@@ -7114,14 +6782,6 @@ body.theme-dark .recentSquare.isPinned {
     grid-template-columns: 1fr;
   }
 
-  .masteryFlowGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .masteryFlowCard::after {
-    display: none;
-  }
-
   .landingScreenGrid {
     grid-template-columns: 1fr;
   }
@@ -7137,10 +6797,6 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 @media (max-width: 540px) {
-  .masteryFlowGrid {
-    grid-template-columns: 1fr;
-  }
-
   .heroFloatCard {
     position: static;
     width: 100%;
@@ -8002,195 +7658,6 @@ body.theme-dark .recentSquare.isPinned {
   font-style: normal;
 }
 
-.landingV2Mastery {
-  margin-top: 44px;
-  border-radius: 14px;
-  padding: 24px;
-  background: #ffffff;
-  border: 1px solid var(--landing-border);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-}
-
-.landingV2MasteryHead p {
-  margin: 0;
-  color: var(--landing-accent);
-  font-size: 12px;
-  letter-spacing: 0.75px;
-  text-transform: uppercase;
-  font-weight: 700;
-}
-
-.landingV2MasteryHead h2 {
-  margin: 8px 0 0;
-  color: var(--landing-text);
-  font-size: clamp(27px, 3.1vw, 46px);
-  line-height: 1.08;
-  letter-spacing: -0.6px;
-  max-width: 760px;
-}
-
-.landingV2MasteryLead {
-  display: block;
-  margin-top: 14px;
-  max-width: 620px;
-  color: var(--landing-muted);
-  font-size: clamp(15px, 1vw, 18px);
-  line-height: 1.5;
-}
-
-.landingV2MasteryFlow {
-  list-style: none;
-  margin: 28px 0 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 22px;
-  align-items: stretch;
-}
-
-.landingV2MasteryStep {
-  position: relative;
-  display: block;
-  min-width: 0;
-}
-
-.landingV2MasteryCard {
-  height: 100%;
-  border-radius: 18px;
-  padding: 18px;
-  background:
-    radial-gradient(circle at top right, rgba(143, 176, 255, 0.16), transparent 40%),
-    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  border: 1px solid var(--landing-border);
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    0 14px 30px rgba(15, 23, 42, 0.05);
-  transition:
-    border-color 180ms ease,
-    transform 180ms ease,
-    box-shadow 180ms ease;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.landingV2MasteryCard:hover {
-  border-color: rgba(29, 79, 143, 0.28);
-  transform: translateY(-3px);
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    0 18px 36px rgba(15, 23, 42, 0.08);
-}
-
-.landingV2MasteryCardTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.landingV2MasteryIndex {
-  color: var(--landing-accent);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.7px;
-  text-transform: uppercase;
-  border-radius: 999px;
-  padding: 5px 10px;
-  background: var(--landing-accent-soft);
-}
-
-.landingV2MasteryCount {
-  color: rgba(17, 17, 17, 0.15);
-  font-size: clamp(24px, 1.9vw, 34px);
-  line-height: 1;
-  letter-spacing: -1px;
-}
-
-.landingV2MasteryIconWrap {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.landingV2MasteryIcon {
-  width: 58px;
-  height: 58px;
-  border-radius: 18px;
-  background: linear-gradient(145deg, #eff5ff 0%, #dce8ff 100%);
-  color: #1d4f8f;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-.landingV2MasteryIcon svg {
-  width: 28px;
-  height: 28px;
-  display: block;
-}
-
-.landingV2MasteryCard h3 {
-  margin: 0;
-  color: var(--landing-text);
-  font-size: clamp(18px, 1.15vw, 22px);
-  line-height: 1.2;
-  letter-spacing: -0.35px;
-}
-
-.landingV2MasteryCard p {
-  margin: 0;
-  color: var(--landing-muted);
-  font-size: clamp(14px, 0.9vw, 16px);
-  line-height: 1.5;
-  min-height: 0;
-  flex: 1;
-}
-
-.landingV2MasteryFooter {
-  display: grid;
-  gap: 10px;
-}
-
-.landingV2MasteryCue {
-  color: var(--landing-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.7px;
-  text-transform: uppercase;
-}
-
-.landingV2MasteryMeter {
-  height: 7px;
-  border-radius: 999px;
-  background: #dce7f6;
-  overflow: hidden;
-}
-
-.landingV2MasteryMeter span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--landing-accent);
-  box-shadow: none;
-}
-
-.landingV2MasteryConnector {
-  position: absolute;
-  top: 108px;
-  right: -26px;
-  width: 34px;
-  color: rgba(29, 79, 143, 0.4);
-  pointer-events: none;
-}
-
-.landingV2MasteryConnector svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
 .landingV2Notion .publicFooter {
   width: min(1400px, calc(100% - 56px));
   border-top: 1px solid var(--landing-border);
@@ -8220,17 +7687,6 @@ body.theme-dark .recentSquare.isPinned {
     padding-top: 34px;
   }
 
-  .landingV2MasteryHead h2 {
-    max-width: 100%;
-  }
-
-  .landingV2MasteryFlow {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .landingV2MasteryConnector {
-    display: none;
-  }
 }
 
 @media (max-width: 720px) {
@@ -8311,22 +7767,6 @@ body.theme-dark .recentSquare.isPinned {
     margin-top: 28px;
   }
 
-  .landingV2Mastery {
-    margin-top: 30px;
-    padding: 18px;
-  }
-
-  .landingV2MasteryFlow {
-    grid-template-columns: 1fr;
-  }
-
-  .landingV2MasteryCard {
-    padding: 16px;
-  }
-
-  .landingV2MasteryCard p {
-    min-height: 0;
-  }
 }
 
 /* Public pages (non-app, non-landing) themed to match landing style */

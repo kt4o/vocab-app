@@ -6,13 +6,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { closeDb, initDb, query } from "./db/client.js";
 import { authRouter } from "./routes/auth.js";
-import { wordsRouter } from "./routes/words.js";
 import { progressRouter } from "./routes/progress.js";
 import { stateRouter } from "./routes/state.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { billingRouter, billingWebhookRouter } from "./routes/billing.js";
 import { translateRouter } from "./routes/translate.js";
 import { defineRouter } from "./routes/define.js";
+import { examplesRouter } from "./routes/examples.js";
 import { reviewRouter } from "./routes/review.js";
 import { consumeWriteRateLimit } from "./lib/rateLimit.js";
 import { adminRouter } from "./routes/admin.js";
@@ -227,12 +227,12 @@ app.get("/api/ready", async (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
-app.use("/api/words", wordsRouter);
 app.use("/api/progress", enforceWriteRateLimit, progressRouter);
 app.use("/api/state", enforceWriteRateLimit, stateRouter);
 app.use("/api/analytics", enforceWriteRateLimit, analyticsRouter);
 app.use("/api/translate", enforceWriteRateLimit, translateRouter);
 app.use("/api/define", enforceWriteRateLimit, defineRouter);
+app.use("/api/examples", enforceWriteRateLimit, examplesRouter);
 app.use("/api/review", enforceWriteRateLimit, reviewRouter);
 app.use("/api/billing", enforceWriteRateLimit, billingRouter);
 app.use("/api/admin", enforceWriteRateLimit, adminRouter);

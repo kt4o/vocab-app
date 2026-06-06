@@ -27,9 +27,12 @@ function getSelectedDefinition(wordEntry) {
 }
 
 function getBooksFromAppState(appState) {
-  const data = appState?.data;
-  const books = Array.isArray(data?.books) ? data.books : [];
-  return books.filter((book) => book && typeof book === "object");
+  const state =
+    appState?.data && typeof appState.data === "object" && !Array.isArray(appState.data)
+      ? appState.data
+      : appState;
+  const books = Array.isArray(state?.books) ? state.books : [];
+  return books.filter((book) => book && typeof book === "object" && !Array.isArray(book));
 }
 
 function buildWordCatalog(appState) {

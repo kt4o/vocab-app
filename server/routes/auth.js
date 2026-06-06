@@ -1197,7 +1197,7 @@ authRouter.post("/login", async (req, res) => {
       return;
     }
     const userResult = await query(
-      "SELECT id, username, password_hash, role FROM users WHERE username = $1 OR email = $2",
+      "SELECT id, username, password_hash, plan, lifetime_pro, role FROM users WHERE username = $1 OR email = $2",
       [username, email]
     );
     const user = userResult.rows[0];
@@ -1235,11 +1235,15 @@ authRouter.post("/login", async (req, res) => {
     await trackRetentionEvent(user.id, "session_start", { source: "auth/login" });
 
     setSessionCookie(req, res, token);
+    const isLifetimePro = Boolean(user.lifetime_pro);
+    const plan = isLifetimePro ? "pro" : normalizePlan(user.plan);
     res.json({
       userId: Number(user.id),
       username: user.username,
       role: normalizeRole(user.role),
       authToken: token,
+      plan,
+      isLifetimePro,
     });
   } catch {
     res.status(500).json({ error: "login-failed" });

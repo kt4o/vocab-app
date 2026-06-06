@@ -1,5 +1,4 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
-import { CEFR_WORDLIST } from "./data/cefrWordlist";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { AdaptiveReviewSession } from "./components/AdaptiveReviewSession";
@@ -18,8 +17,6 @@ const FREE_WORD_LIMIT = 100;
 const WEAK_WORDS_RECENT_DAY_WINDOW = 21;
 const WEAK_WORDS_RECENT_QUESTION_WINDOW = 120;
 const DEFAULT_CHAPTER_ID = "general";
-const WORD_MASTERY_MAX_XP = 10;
-const WORD_MASTERY_BAR_STEPS = 5;
 const DEFAULT_BOOK_LANGUAGE_MODE = "en_en";
 const BOOK_LANGUAGE_MODE_OPTIONS = [
   {
@@ -63,6 +60,7 @@ const BILLING_API_PATH = `${API_BASE_URL}/api/billing`;
 const ANALYTICS_API_PATH = `${API_BASE_URL}/api/analytics`;
 const TRANSLATION_API_PATH = `${API_BASE_URL}/api/translate`;
 const DEFINITION_API_PATH = `${API_BASE_URL}/api/define`;
+const EXAMPLE_API_PATH = `${API_BASE_URL}/api/examples`;
 const REVIEW_API_PATH = `${API_BASE_URL}/api/review`;
 const CLOUD_STATE_SYNC_DEBOUNCE_MS = 900;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
@@ -289,25 +287,6 @@ const APP_TEXT = {
     networkErrorTitle: "通信エラー",
   },
 };
-const WORD_DIFFICULTY_OPTIONS = [
-  { value: "a1", label: "A1" },
-  { value: "a2", label: "A2" },
-  { value: "b1", label: "B1" },
-  { value: "b2", label: "B2" },
-  { value: "c1", label: "C1" },
-  { value: "c2", label: "C2" },
-];
-const WORD_DIFFICULTY_VALUE_SET = new Set(WORD_DIFFICULTY_OPTIONS.map((option) => option.value));
-const ALL_QUIZ_DIFFICULTY_KEYS = ["unassigned", ...WORD_DIFFICULTY_OPTIONS.map((option) => option.value)];
-const CEFR_WORDLIST_LEVEL_MAP = [
-  { key: "A1", value: "a1" },
-  { key: "A2", value: "a2" },
-  { key: "B1", value: "b1" },
-  { key: "B2", value: "b2" },
-  { key: "C1", value: "c1" },
-  { key: "C2", value: "c2" },
-];
-
 function isBearerAuthToken(value) {
   return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
 }
@@ -451,59 +430,6 @@ function getMistakeCount(wordEntry) {
   const count = Number(wordEntry?.mistakeCount ?? 0);
   if (!Number.isFinite(count)) return 0;
   return Math.max(0, Math.floor(count));
-}
-
-function getWordMasteryXp(wordEntry) {
-  const xp = Number(wordEntry?.masteryXp ?? 0);
-  if (!Number.isFinite(xp)) return 0;
-  return Math.max(0, Math.min(Math.floor(xp), WORD_MASTERY_MAX_XP));
-}
-
-function getWordMasteryMeta(wordEntry) {
-  const masteryXp = getWordMasteryXp(wordEntry);
-
-  if (masteryXp >= 9) {
-    return {
-      level: 4,
-      label: "Mastered",
-      masteryXp,
-      nextLevelXp: WORD_MASTERY_MAX_XP,
-    };
-  }
-  if (masteryXp >= 6) {
-    return {
-      level: 3,
-      label: "Strong",
-      masteryXp,
-      nextLevelXp: 9,
-    };
-  }
-  if (masteryXp >= 3) {
-    return {
-      level: 2,
-      label: "Familiar",
-      masteryXp,
-      nextLevelXp: 6,
-    };
-  }
-  return {
-    level: 1,
-    label: "Learned",
-    masteryXp,
-    nextLevelXp: 3,
-  };
-}
-
-function getWordMasteryBarFillCount(wordEntry) {
-  const masteryXp = getWordMasteryXp(wordEntry);
-  if (masteryXp <= 0) return 0;
-  return Math.min(WORD_MASTERY_BAR_STEPS, Math.ceil((masteryXp / WORD_MASTERY_MAX_XP) * WORD_MASTERY_BAR_STEPS));
-}
-
-function getWordMasteryBlocks(wordEntry) {
-  const filled = getWordMasteryBarFillCount(wordEntry);
-  const empty = Math.max(WORD_MASTERY_BAR_STEPS - filled, 0);
-  return `${"█".repeat(filled)}${"░".repeat(empty)}`;
 }
 
 function extractDictionaryApiDefinitions(payload) {
@@ -1078,6 +1004,53 @@ async function fetchJapaneseToEnglishTranslations(word) {
   return directResult;
 }
 
+async function fetchExampleSentence({ word, definitions, languageMode }) {
+  const input = String(word || "").trim();
+  if (!input) return null;
+
+  const endpointCandidates = [`${EXAMPLE_API_PATH}/sentence`];
+  const onLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  if (!API_BASE_URL && onLocalhost) {
+    endpointCandidates.push("http://localhost:4000/api/examples/sentence");
+  }
+
+  const triedEndpoints = new Set();
+  for (const endpoint of endpointCandidates) {
+    const normalizedEndpoint = String(endpoint || "").trim();
+    if (!normalizedEndpoint || triedEndpoints.has(normalizedEndpoint)) continue;
+    triedEndpoints.add(normalizedEndpoint);
+
+    try {
+      const res = await fetchWithRetry(normalizedEndpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          word: input,
+          definitions: Array.isArray(definitions) ? definitions.slice(0, 3) : [],
+          languageMode: parseBookLanguageMode(languageMode, DEFAULT_BOOK_LANGUAGE_MODE),
+        }),
+        timeoutMs: 14000,
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) continue;
+      const sentence = String(payload?.sentence || "").trim();
+      if (!sentence) continue;
+      return {
+        sentence,
+        translation: String(payload?.translation || "").trim(),
+        provider: String(payload?.provider || "openai").trim().toLowerCase() || "openai",
+      };
+    } catch {
+      // Example sentences are enrichment; saving the word should still succeed.
+    }
+  }
+
+  return null;
+}
+
 function parseJsonSafely(rawValue, fallbackValue) {
   if (!rawValue) return fallbackValue;
   try {
@@ -1145,9 +1118,6 @@ function parseStoredQuizSetup(rawValue) {
   const chapterKeys = Array.isArray(parsed.chapterKeys)
     ? Array.from(new Set(parsed.chapterKeys.map((key) => String(key)).filter(Boolean)))
     : [];
-  const difficultyKeys = Array.isArray(parsed.difficultyKeys)
-    ? Array.from(new Set(parsed.difficultyKeys.map((key) => String(key)).filter(Boolean)))
-    : [...ALL_QUIZ_DIFFICULTY_KEYS];
   const mode = normalizeQuizMode(parsed.mode, "normal");
 
   if (bookIds.length === 0 || chapterKeys.length === 0) return null;
@@ -1156,7 +1126,6 @@ function parseStoredQuizSetup(rawValue) {
     mode,
     bookIds,
     chapterKeys,
-    difficultyKeys,
   };
 }
 
@@ -1291,23 +1260,7 @@ function buildWeakWordCandidates(books) {
         .filter((wordEntry) => getWordDefinitions(wordEntry).length > 0)
         .map((wordEntry) => {
           const mistakeCount = getMistakeCount(wordEntry);
-          const masteryXp = getWordMasteryXp(wordEntry);
           const performance = getWordQuizPerformanceStats(wordEntry?.quizPerformanceHistory);
-          const normalizedDifficulty = normalizeWordDifficulty(wordEntry?.difficulty);
-          const difficultyWeight =
-            normalizedDifficulty === "c2"
-              ? 3
-              : normalizedDifficulty === "c1"
-                ? 2.5
-                : normalizedDifficulty === "b2"
-                  ? 2
-                  : normalizedDifficulty === "b1"
-                    ? 1.5
-                    : normalizedDifficulty === "a2"
-                      ? 1
-                      : normalizedDifficulty === "a1"
-                      ? 0.5
-                      : 1;
           const recentAccuracyPenalty = performance.attempts
             ? (100 - (performance.accuracyPercent || 0)) / 10
             : 0;
@@ -1317,8 +1270,6 @@ function buildWeakWordCandidates(books) {
           ) * 0.12;
           const weaknessScore =
             mistakeCount * 4 +
-            (WORD_MASTERY_MAX_XP - masteryXp) * 1.8 +
-            difficultyWeight +
             recentAccuracyPenalty * 3 +
             recentAttemptSignal;
 
@@ -1327,7 +1278,6 @@ function buildWeakWordCandidates(books) {
             sourceBookId: book.id,
             sourceBookName: String(book?.name || "Book"),
             mistakeCount,
-            masteryXp,
             recentAttempts: performance.attempts,
             recentCorrect: performance.correct,
             recentAccuracyPercent: performance.accuracyPercent,
@@ -1748,8 +1698,9 @@ function ensureBookChapters(book) {
       chapterId: safeChapterId,
       japaneseReading,
       japaneseRomaji: String(wordEntry?.japaneseRomaji || (japaneseReading ? kanaToRomaji(japaneseReading) : "")).trim(),
-      difficulty: normalizeWordDifficulty(wordEntry?.difficulty),
-      masteryXp: getWordMasteryXp(wordEntry),
+      exampleSentence: String(wordEntry?.exampleSentence || "").trim(),
+      exampleTranslation: String(wordEntry?.exampleTranslation || "").trim(),
+      exampleProvider: String(wordEntry?.exampleProvider || "").trim().toLowerCase(),
       quizPerformanceHistory: sanitizeWordQuizPerformanceHistory(wordEntry?.quizPerformanceHistory),
     };
   });
@@ -1769,94 +1720,6 @@ function normalizeBooksData(rawBooks) {
 
 function getBookChapterList(book) {
   return ensureBookChapters(book || {}).chapters;
-}
-
-function normalizeWordDifficulty(value) {
-  const normalized = String(value || "")
-    .trim()
-    .toLowerCase();
-  return WORD_DIFFICULTY_VALUE_SET.has(normalized) ? normalized : "";
-}
-
-function getDifficultyLabel(value) {
-  const normalized = normalizeWordDifficulty(value);
-  if (!normalized) return "Unassigned";
-  const match = WORD_DIFFICULTY_OPTIONS.find((option) => option.value === normalized);
-  return match?.label || "Unassigned";
-}
-
-function getDifficultyExplanation(value) {
-  const normalized = normalizeWordDifficulty(value);
-  switch (normalized) {
-    case "a1":
-      return "A1: beginner vocabulary used in very simple everyday situations.";
-    case "a2":
-      return "A2: basic vocabulary for routine tasks and short conversations.";
-    case "b1":
-      return "B1: intermediate vocabulary for familiar topics and practical communication.";
-    case "b2":
-      return "B2: upper-intermediate vocabulary for more detailed and abstract discussion.";
-    case "c1":
-      return "C1: advanced vocabulary used flexibly in academic and professional contexts.";
-    case "c2":
-      return "C2: near-native level vocabulary with nuanced and precise meaning.";
-    default:
-      return "No CEFR level assigned yet.";
-  }
-}
-
-function getCefrFromWordlist(word) {
-  const cleaned = String(word || "")
-    .trim()
-    .toLowerCase();
-  if (!cleaned) return "";
-
-  for (const level of CEFR_WORDLIST_LEVEL_MAP) {
-    const levelSet = CEFR_WORDLIST?.[level.key];
-    if (levelSet?.has(cleaned)) return level.value;
-  }
-
-  return "";
-}
-
-function estimateCefrLevel(word) {
-  const exactMatchLevel = getCefrFromWordlist(word);
-  if (exactMatchLevel) return exactMatchLevel;
-
-  const cleaned = String(word || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z]/g, "");
-  if (!cleaned) return "";
-
-  let score = 0;
-  const length = cleaned.length;
-
-  if (length >= 12) score += 5;
-  else if (length >= 10) score += 4;
-  else if (length >= 8) score += 3;
-  else if (length >= 6) score += 2;
-  else if (length >= 5) score += 1;
-
-  if (/(tion|sion|ment|ness|ance|ence|ality|ically|ology|phobia|tarian)$/.test(cleaned)) {
-    score += 2;
-  }
-  if (/(sub|inter|trans|over|under|anti|counter)/.test(cleaned)) {
-    score += 1;
-  }
-  if (/(ough|eigh|ph|rh|ps|gn|mn)/.test(cleaned)) {
-    score += 1;
-  }
-  if (/(.)\1\1/.test(cleaned)) {
-    score += 1;
-  }
-
-  if (score <= 1) return "a1";
-  if (score === 2) return "a2";
-  if (score === 3) return "b1";
-  if (score === 4) return "b2";
-  if (score === 5) return "c1";
-  return "c2";
 }
 
 function areStringArraysEqual(left, right) {
@@ -2022,7 +1885,7 @@ const ONBOARDING_TUTORIAL_SLIDES = [
   },
   {
     title: "Analyze your learning",
-    body: "Check your data to see words added, questions completed, time studied, and mastery progress.",
+    body: "Check your data to see words added, questions completed, and time studied.",
     image: "/landing/tutorial-4-data.png",
     alt: "Data screen showing learning progress charts and summary stats",
   },
@@ -2079,7 +1942,6 @@ export default function App() {
   const [renamedBookName, setRenamedBookName] = useState("");
   const [bookPendingDelete, setBookPendingDelete] = useState(null);
   const [chapterPendingDelete, setChapterPendingDelete] = useState(null);
-  const [wordPendingDelete, setWordPendingDelete] = useState(null);
   const [noticeModal, setNoticeModal] = useState(null);
   const [isOnboardingTutorialOpen, setIsOnboardingTutorialOpen] = useState(false);
   const [isOnboardingCloseConfirmOpen, setIsOnboardingCloseConfirmOpen] = useState(false);
@@ -2093,7 +1955,6 @@ export default function App() {
   const [quizSetupSelection, setQuizSetupSelection] = useState({
     bookIds: [],
     chapterKeys: [],
-    difficultyKeys: [],
   });
   const [lastQuizSetup, setLastQuizSetup] = useState(() =>
     parseStoredQuizSetup(localStorage.getItem("vocab_last_quiz_setup"))
@@ -2150,7 +2011,6 @@ export default function App() {
   });
   const [editingDefinitionKey, setEditingDefinitionKey] = useState("");
   const [editingDefinitionDraft, setEditingDefinitionDraft] = useState("");
-  const [difficultyInfoWord, setDifficultyInfoWord] = useState("");
   const [selectedChapterIdForNewWords, setSelectedChapterIdForNewWords] = useState(DEFAULT_CHAPTER_ID);
   const [newChapterName, setNewChapterName] = useState("");
   const [isSidebarHidden, setIsSidebarHidden] = useState(() => {
@@ -2246,6 +2106,7 @@ export default function App() {
   const backupFileInputRef = useRef(null);
   const pronunciationFetchInFlightRef = useRef(new Set());
   const adaptiveReviewRatingInFlightRef = useRef(new Set());
+  const cloudStateSnapshotRef = useRef(null);
   const sessionStartedAtRef = useRef(Date.now());
   const lastUserActivityAtRef = useRef(Date.now());
   const pendingMistakeReviewSourceRef = useRef(null);
@@ -2310,38 +2171,28 @@ export default function App() {
   }));
   const maxTrendValue = Math.max(1, ...wordTrend.map((item) => item.value));
   const maxQuestionTrendValue = Math.max(1, ...questionTrend.map((item) => item.value));
-  const difficultyWordCounts = WORD_DIFFICULTY_OPTIONS.map((option) => ({
-    ...option,
-    count: books.reduce((total, book) => {
-      const words = Array.isArray(book.words) ? book.words : [];
-      const wordsForLevel = words.reduce((wordTotal, wordEntry) => {
-        if (normalizeWordDifficulty(wordEntry?.difficulty) !== option.value) return wordTotal;
-        return wordTotal + 1;
-      }, 0);
-      return total + wordsForLevel;
-    }, 0),
-  }));
-  const maxDifficultyWordCount = Math.max(
-    1,
-    ...difficultyWordCounts.map((item) => item.count)
-  );
-  const masteryLevelCounts = [
-    { level: 1, label: "Learned", count: 0 },
-    { level: 2, label: "Familiar", count: 0 },
-    { level: 3, label: "Strong", count: 0 },
-    { level: 4, label: "Mastered", count: 0 },
-  ].map((item) => ({
-    ...item,
-    count: books.reduce((total, book) => {
-      const words = Array.isArray(book.words) ? book.words : [];
-      const wordsForLevel = words.reduce((wordTotal, wordEntry) => {
-        if (getWordMasteryMeta(wordEntry).level !== item.level) return wordTotal;
-        return wordTotal + 1;
-      }, 0);
-      return total + wordsForLevel;
-    }, 0),
-  }));
-  const maxMasteryWordCount = Math.max(1, ...masteryLevelCounts.map((item) => item.count));
+  cloudStateSnapshotRef.current = {
+    backupVersion: 1,
+    exportedAt: new Date().toISOString(),
+    data: {
+      theme,
+      books,
+      streak,
+      isSidebarHidden,
+      weeklyStats,
+      activityHistory,
+      freeDailyUsage,
+      proDailyGoalQuestions,
+      isDailyGoalsEnabled,
+      preferredLanguage,
+      dictionaryPreference,
+      lastQuizMistakeKeys,
+      lastQuizMistakeKeysByBook,
+      lastQuizMistakeMode,
+      lastQuizMistakeModeByBook,
+      lastQuizSetup,
+    },
+  };
   const quizSetupBooks = books.filter((book) => quizSetupSelection.bookIds.includes(String(book.id)));
   const lastQuizMistakeKeySet = new Set(lastQuizMistakeKeys);
   function getQuizWordsForSetup(selection, mode) {
@@ -2377,7 +2228,6 @@ export default function App() {
       chapterKeys: eligibleBooks.flatMap((book) =>
         getBookChapterList(book).map((chapter) => `${book.id}:${chapter.id}`)
       ),
-      difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
     };
   }
 
@@ -2400,7 +2250,6 @@ export default function App() {
       mode: selectedMode,
       bookIds: [...selection.bookIds],
       chapterKeys: [...selection.chapterKeys],
-      difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
     };
     setQuizMode(selectedMode);
     setQuizSetupSelection(setupSnapshot);
@@ -2415,7 +2264,6 @@ export default function App() {
       word_count: nextWords.length,
       book_count: selection.bookIds.length,
       chapter_count: selection.chapterKeys.length,
-      difficulty_count: 0,
     });
     setScreen("quiz");
   }
@@ -2447,7 +2295,6 @@ export default function App() {
       "word",
       "book",
       "mistakes",
-      "masteryXp",
       "recentAttempts",
       "recentAccuracyPercent",
       "mcAccuracyPercent",
@@ -2458,7 +2305,6 @@ export default function App() {
       String(entry.word || ""),
       String(entry.sourceBookName || ""),
       String(entry.mistakeCount || 0),
-      String(entry.masteryXp || 0),
       String(entry.recentAttempts || 0),
       entry.recentAccuracyPercent === null || entry.recentAccuracyPercent === undefined
         ? ""
@@ -2533,6 +2379,95 @@ export default function App() {
 
   const handleQuizTryAgain = useCallback(() => true, []);
 
+  const flushCloudStateNow = useCallback(async () => {
+    if (!authToken || !isCloudStateHydrated) return { ok: false, skipped: true };
+    const appState = cloudStateSnapshotRef.current || buildBackupSnapshot();
+
+    try {
+      const response = await fetchWithRetry(STATE_API_PATH, {
+        method: "PUT",
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          appState,
+        }),
+      });
+
+      if (response.status === 401) {
+        setAuthToken("");
+        setAuthUsername("");
+        setAuthError("Your session expired. Please log in again.");
+        return { ok: false, unauthorized: true };
+      }
+
+      if (!response.ok) {
+        return { ok: false };
+      }
+
+      const payload = await response.json().catch(() => null);
+      const updatedAt = String(payload?.updatedAt || "").trim();
+      if (updatedAt) {
+        localStorage.setItem(LOCAL_STATE_UPDATED_AT_STORAGE_KEY, updatedAt);
+      }
+
+      return { ok: true };
+    } catch (error) {
+      console.warn("Immediate cloud state sync failed.", error);
+      return { ok: false, error };
+    }
+  }, [authToken, isCloudStateHydrated]);
+
+  const syncBooksForAdaptiveReview = useCallback(async (nextBooks) => {
+    if (!authToken || !isCloudStateHydrated || !Array.isArray(nextBooks)) return { ok: false, skipped: true };
+    const currentSnapshot = cloudStateSnapshotRef.current || buildBackupSnapshot();
+    const currentData =
+      currentSnapshot?.data && typeof currentSnapshot.data === "object" && !Array.isArray(currentSnapshot.data)
+        ? currentSnapshot.data
+        : {};
+    const appState = {
+      ...currentSnapshot,
+      backupVersion: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
+        ...currentData,
+        books: nextBooks,
+      },
+    };
+
+    try {
+      const response = await fetchWithRetry(STATE_API_PATH, {
+        method: "PUT",
+        credentials: "include",
+        headers: buildAuthHeaders(authToken, {
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({ appState }),
+      });
+
+      if (response.status === 401) {
+        setAuthToken("");
+        setAuthUsername("");
+        setAuthError("Your session expired. Please log in again.");
+        return { ok: false, unauthorized: true };
+      }
+
+      if (!response.ok) return { ok: false };
+
+      const payload = await response.json().catch(() => null);
+      const updatedAt = String(payload?.updatedAt || "").trim();
+      if (updatedAt) {
+        localStorage.setItem(LOCAL_STATE_UPDATED_AT_STORAGE_KEY, updatedAt);
+      }
+      cloudStateSnapshotRef.current = appState;
+      return { ok: true };
+    } catch (error) {
+      console.warn("Adaptive review word sync failed.", error);
+      return { ok: false, error };
+    }
+  }, [authToken, isCloudStateHydrated]);
+
   const loadAdaptiveReviewSummary = useCallback(async (options = {}) => {
     const showLoading = !options?.silent;
 
@@ -2549,6 +2484,7 @@ export default function App() {
     setAdaptiveReviewError("");
 
     try {
+      await flushCloudStateNow();
       const response = await fetchWithRetry(`${REVIEW_API_PATH}/summary`, {
         credentials: "include",
         headers: buildAuthHeaders(authToken),
@@ -2616,7 +2552,7 @@ export default function App() {
         setAdaptiveReviewLoading(false);
       }
     }
-  }, [authToken]);
+  }, [authToken, flushCloudStateNow]);
 
   const loadAdaptiveReviewQueue = useCallback(async (limit = 20, options = {}) => {
     const showLoading = !options?.silent;
@@ -2635,6 +2571,7 @@ export default function App() {
     }
     setAdaptiveReviewError("");
     try {
+      await flushCloudStateNow();
       const params = new URLSearchParams();
       params.set("limit", String(Math.max(1, Math.floor(Number(limit) || 20))));
       if (bookId) {
@@ -2680,7 +2617,7 @@ export default function App() {
         setAdaptiveReviewLoading(false);
       }
     }
-  }, [authToken, selectedAdaptiveReviewBookId]);
+  }, [authToken, flushCloudStateNow, selectedAdaptiveReviewBookId]);
 
   const openAdaptiveReviewSelect = useCallback(async () => {
     setSelectedAdaptiveReviewBookId("");
@@ -2720,7 +2657,6 @@ export default function App() {
     setQuizSetupSelection({
       bookIds: [String(book.id)],
       chapterKeys: getBookChapterList(book).map((chapter) => `${book.id}:${chapter.id}`),
-      difficultyKeys: [],
     });
     setScreen("quizSelect");
   }
@@ -2768,6 +2704,11 @@ export default function App() {
         throw new Error(errorMessage);
       }
 
+      recordQuizQuestionCompleted({
+        sourceBookId: currentItem.bookId,
+        sourceChapterId: currentItem.chapterId,
+        word: currentItem.word,
+      });
       trackEvent("adaptive_review_rated", {
         rating,
         remaining_count: remainingCount,
@@ -2783,7 +2724,7 @@ export default function App() {
       adaptiveReviewRatingInFlightRef.current.delete(itemKey);
       setAdaptiveReviewPendingRating("");
     }
-  }, [adaptiveReviewItems, authToken, loadAdaptiveReviewQueue]);
+  }, [adaptiveReviewItems, authToken, loadAdaptiveReviewQueue, recordQuizQuestionCompleted]);
 
   useEffect(() => {
     if (!authToken) {
@@ -4026,46 +3967,9 @@ export default function App() {
   useEffect(() => {
     setEditingDefinitionKey("");
     setEditingDefinitionDraft("");
-    setDifficultyInfoWord("");
     setNewChapterName("");
     setSelectedChapterIdForNewWords(fallbackChapterId);
   }, [currentBookId, screen, fallbackChapterId]);
-
-  useEffect(() => {
-    setBooks((prevBooks) => {
-      let hasChanges = false;
-
-      const nextBooks = prevBooks.map((book) => {
-        if (parseBookLanguageMode(book?.languageMode, DEFAULT_BOOK_LANGUAGE_MODE) !== "en_en") {
-          return book;
-        }
-
-        let bookChanged = false;
-        const nextWords = (book.words || []).map((wordEntry) => {
-          const currentDifficulty = normalizeWordDifficulty(wordEntry?.difficulty);
-          if (currentDifficulty) return wordEntry;
-
-          const estimatedDifficulty = estimateCefrLevel(wordEntry?.word);
-          if (!estimatedDifficulty) return wordEntry;
-
-          bookChanged = true;
-          hasChanges = true;
-          return {
-            ...wordEntry,
-            difficulty: estimatedDifficulty,
-          };
-        });
-
-        if (!bookChanged) return book;
-        return {
-          ...book,
-          words: nextWords,
-        };
-      });
-
-      return hasChanges ? nextBooks : prevBooks;
-    });
-  }, []);
 
   useEffect(() => {
     if (screen !== "quizSelect") return;
@@ -4089,7 +3993,6 @@ export default function App() {
       const finalSelection = {
         bookIds: nextBookIds,
         chapterKeys: nextChapterKeys,
-        difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
       };
 
       if (
@@ -4402,24 +4305,7 @@ export default function App() {
 
   function askDeleteWord(wordEntry, wordIndex) {
     if (!wordEntry || !Number.isInteger(wordIndex)) return;
-    const mastery = getWordMasteryMeta(wordEntry);
-    if (mastery.level <= 1) {
-      deleteWord(wordEntry.word, wordIndex);
-      return;
-    }
-
-    setWordPendingDelete({
-      word: wordEntry.word,
-      index: wordIndex,
-      level: mastery.level,
-      label: mastery.label,
-    });
-  }
-
-  function confirmDeleteWord() {
-    if (!wordPendingDelete) return;
-    deleteWord(wordPendingDelete.word, wordPendingDelete.index);
-    setWordPendingDelete(null);
+    deleteWord(wordEntry.word, wordIndex);
   }
 
   function openNoticeModal(message, title = "Notice") {
@@ -4811,7 +4697,6 @@ export default function App() {
       Boolean(bookPendingRename) ||
       Boolean(bookPendingDelete) ||
       Boolean(chapterPendingDelete) ||
-      Boolean(wordPendingDelete) ||
       Boolean(noticeModal);
     if (!isModalOpen) return;
 
@@ -4829,7 +4714,6 @@ export default function App() {
       if (bookPendingRename) setBookPendingRename(null);
       if (bookPendingDelete) setBookPendingDelete(null);
       if (chapterPendingDelete) setChapterPendingDelete(null);
-      if (wordPendingDelete) setWordPendingDelete(null);
       if (noticeModal) setNoticeModal(null);
     };
 
@@ -4872,7 +4756,6 @@ export default function App() {
     bookPendingRename,
     bookPendingDelete,
     chapterPendingDelete,
-    wordPendingDelete,
     isDeleteAccountConfirmOpen,
     noticeModal,
     completeOnboardingTutorial,
@@ -5632,34 +5515,6 @@ export default function App() {
       );
     }
 
-    if (wordPendingDelete) {
-      return (
-        <div className="modalOverlay" onClick={() => setWordPendingDelete(null)}>
-          <div
-            className="modalCard"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-word-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 id="delete-word-title">{tr("Delete Tracked Word?", "学習単語を削除しますか？")}</h3>
-            <p>
-              {tr(`"${wordPendingDelete.word}" is at mastery level ${wordPendingDelete.level} (${wordPendingDelete.label}). Deleting it will remove its progress history.`, `"${wordPendingDelete.word}" は習熟度レベル ${wordPendingDelete.level}（${wordPendingDelete.label}）です。削除すると進捗履歴も消えます。`)}
-            </p>
-            <div className="modalActions">
-              <button type="button" className="modalBtn ghost" onClick={() => setWordPendingDelete(null)}>
-                {tr("Cancel", "キャンセル")}
-              </button>
-              <button type="button" className="modalBtn danger" onClick={confirmDeleteWord}>
-                {tr("Delete Word", "単語を削除")}
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     if (noticeModal) {
       return (
         <div className="modalOverlay" onClick={() => setNoticeModal(null)}>
@@ -5691,8 +5546,6 @@ export default function App() {
     const languageModeMeta = getBookLanguageModeMeta(book?.languageMode);
     const questionsCompleted = Math.max(0, Math.floor(Number(book?.questionsCompleted) || 0));
     const chapterCount = getBookChapterList(book).length;
-    const masteredCount = words.filter((wordEntry) => getWordMasteryMeta(wordEntry).level >= 4).length;
-    const isFullyMasteredBook = words.length > 0 && masteredCount === words.length;
     const lastOpenedText = book?.lastOpened
       ? new Date(book.lastOpened).toLocaleDateString()
       : "Never";
@@ -5709,7 +5562,6 @@ export default function App() {
             <h3 className="selectBookTitle">
               {book.name}
             </h3>
-            {isFullyMasteredBook && <span className="selectBookMasteredBadge">Mastered</span>}
             <button
               type="button"
               className="bookRenameBtn"
@@ -5740,12 +5592,8 @@ export default function App() {
             <strong>{questionsCompleted}</strong>
           </div>
           <div className="selectBookStat">
-            <span>Mastered</span>
-            <strong
-              className={`selectBookMasteryCount ${masteredCount > 0 ? "isActive" : ""}`}
-            >
-              {masteredCount}
-            </strong>
+            <span>Mode</span>
+            <strong>{languageModeMeta.shortLabel}</strong>
           </div>
         </div>
       </button>
@@ -5768,8 +5616,6 @@ export default function App() {
     const languageModeMeta = getBookLanguageModeMeta(book?.languageMode);
     const questionsCompleted = Math.max(0, Math.floor(Number(book?.questionsCompleted) || 0));
     const chapterCount = getBookChapterList(book).length;
-    const masteredCount = words.filter((wordEntry) => getWordMasteryMeta(wordEntry).level >= 4).length;
-    const isFullyMasteredBook = words.length > 0 && masteredCount === words.length;
     const lastOpenedText = book?.lastOpened
       ? new Date(book.lastOpened).toLocaleDateString()
       : "Never";
@@ -5830,7 +5676,6 @@ export default function App() {
             <h3 className="selectBookTitle">
               {book.name}
             </h3>
-            {isFullyMasteredBook && <span className="selectBookMasteredBadge">Mastered</span>}
           </div>
           <p className="selectBookLastOpened">
             {languageModeMeta.shortLabel} | Last opened: {lastOpenedText}
@@ -5850,12 +5695,8 @@ export default function App() {
             <strong>{questionsCompleted}</strong>
           </div>
           <div className="selectBookStat">
-            <span>Mastered</span>
-            <strong
-              className={`selectBookMasteryCount ${masteredCount > 0 ? "isActive" : ""}`}
-            >
-              {masteredCount}
-            </strong>
+            <span>Mode</span>
+            <strong>{languageModeMeta.shortLabel}</strong>
           </div>
         </div>
       </div>
@@ -5898,7 +5739,6 @@ export default function App() {
     setQuizSetupSelection({
       bookIds: [],
       chapterKeys: [],
-      difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
     });
   }
 
@@ -5911,7 +5751,6 @@ export default function App() {
     setQuizSetupSelection({
       bookIds: [...(lastQuizSetup.bookIds || [])],
       chapterKeys: [...(lastQuizSetup.chapterKeys || [])],
-      difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
     });
     setIsQuickQuizSetupArmed(true);
     setQuizSetupStep(3);
@@ -6105,6 +5944,11 @@ export default function App() {
         return;
       }
       lookupSucceeded = true;
+      const exampleResult = await fetchExampleSentence({
+        word: savedWord,
+        definitions,
+        languageMode: currentBookLanguageMode,
+      });
 
       const normalizedSavedWord = savedWord.toLowerCase();
       const duplicateResolvedWord = savedWord !== cleanWord && currentBook.words.some(
@@ -6131,7 +5975,6 @@ export default function App() {
                   japaneseRomaji,
                   definitions,
                   languageMode: currentBookLanguageMode,
-                  masteryXp: 0,
                   currentDefinitionIndex: 0,
                   definition: definitions[0],
                   meaningSource: useEnglishToJapaneseDictionary
@@ -6159,8 +6002,10 @@ export default function App() {
                     useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
                       ? ""
                       : definitionProvider || "unknown",
+                  exampleSentence: exampleResult?.sentence || "",
+                  exampleTranslation: exampleResult?.translation || "",
+                  exampleProvider: exampleResult?.provider || "",
                   chapterId: safeSelectedChapterIdForNewWords,
-                  difficulty: currentBookLanguageMode === "en_en" ? estimateCefrLevel(cleanWord) : "",
                   quizPerformanceHistory: [],
                 },
                 ...book.words,
@@ -6190,6 +6035,11 @@ export default function App() {
       updateStreak();
       setInputWord("");
       setLastAddedWord(savedWordForLastAdded);
+      void syncBooksForAdaptiveReview(updatedBooks).then((result) => {
+        if (result?.ok) {
+          void loadAdaptiveReviewSummary({ silent: true });
+        }
+      });
     } catch (error) {
       if (lookupSucceeded) {
         console.warn("Word was added, but post-save bookkeeping failed.", error);
@@ -6399,10 +6249,8 @@ export default function App() {
   function resolveMistakeForWord(
     wordToUpdate,
     sourceBookId = currentBookId,
-    sourceChapterId = DEFAULT_CHAPTER_ID,
-    options = {}
+    sourceChapterId = DEFAULT_CHAPTER_ID
   ) {
-    const shouldAwardMastery = options?.awardMastery !== false;
     setBooks((prevBooks) =>
       prevBooks.map((book) => {
         if (book.id !== sourceBookId) return book;
@@ -6415,9 +6263,6 @@ export default function App() {
               ? {
                   ...wordEntry,
                   mistakeCount: Math.max(getMistakeCount(wordEntry) - 1, 0),
-                  masteryXp: shouldAwardMastery
-                    ? Math.min(getWordMasteryXp(wordEntry) + 1, WORD_MASTERY_MAX_XP)
-                    : getWordMasteryXp(wordEntry),
                 }
               : wordEntry
           ),
@@ -7086,13 +6931,6 @@ export default function App() {
     const questionTrendTicks = chartTickFractions.map((fraction, index) =>
       index === chartTickFractions.length - 1 ? 0 : Math.round(maxQuestionTrendValue * fraction)
     );
-    const difficultyTicks = chartTickFractions.map((fraction, index) =>
-      index === chartTickFractions.length - 1 ? 0 : Math.round(maxDifficultyWordCount * fraction)
-    );
-    const masteryTicks = chartTickFractions.map((fraction, index) =>
-      index === chartTickFractions.length - 1 ? 0 : Math.round(maxMasteryWordCount * fraction)
-    );
-
     return renderWithSidebar(
       <div className="page">
         <div className="pageHeader">
@@ -7231,73 +7069,6 @@ export default function App() {
               </div>
             </div>
 
-            <div className="analyticsCard">
-              <h3>{tr("Words by CEFR Level", "CEFRレベル別単語数")}</h3>
-              <div className="chartGridLayout">
-                <div className="chartYAxis" aria-hidden="true">
-                  {difficultyTicks.map((tick, index) => (
-                    <span key={`difficulty-tick-${index}`}>{tick}</span>
-                  ))}
-                </div>
-                <div className="chartPlot">
-                  <div className="chartGridLines" aria-hidden="true">
-                    {chartTickFractions.map((fraction, index) => (
-                      <span key={`difficulty-line-${index}`} style={{ bottom: `${fraction * 100}%` }} />
-                    ))}
-                  </div>
-                  <div className="difficultyChart" role="img" aria-label={tr("Word count by CEFR level", "CEFRレベル別単語数")}>
-                    {difficultyWordCounts.map((item) => {
-                      const heightPercent = Math.round((item.count / maxDifficultyWordCount) * 100);
-                      return (
-                        <div className="difficultyChartCol" key={item.value}>
-                          <strong>{item.label}</strong>
-                          <div
-                            className="difficultyChartBar"
-                            style={{ height: `${Math.max(heightPercent, item.count > 0 ? 6 : 0)}%` }}
-                            title={`${item.label}: ${item.count} words`}
-                          />
-                          <span>{item.count}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="analyticsCard">
-              <h3>{tr("Words by Mastery Level", "習熟度別単語数")}</h3>
-              <div className="chartGridLayout">
-                <div className="chartYAxis" aria-hidden="true">
-                  {masteryTicks.map((tick, index) => (
-                    <span key={`mastery-tick-${index}`}>{tick}</span>
-                  ))}
-                </div>
-                <div className="chartPlot">
-                  <div className="chartGridLines" aria-hidden="true">
-                    {chartTickFractions.map((fraction, index) => (
-                      <span key={`mastery-line-${index}`} style={{ bottom: `${fraction * 100}%` }} />
-                    ))}
-                  </div>
-                  <div className="difficultyChart masteryChart" role="img" aria-label={tr("Word count by mastery level", "習熟度別単語数")}>
-                    {masteryLevelCounts.map((item) => {
-                      const heightPercent = Math.round((item.count / maxMasteryWordCount) * 100);
-                      return (
-                        <div className="difficultyChartCol" key={item.level}>
-                          <strong>L{item.level}</strong>
-                          <div
-                            className="difficultyChartBar isMastery"
-                            style={{ height: `${Math.max(heightPercent, item.count > 0 ? 6 : 0)}%` }}
-                            title={`Level ${item.level} (${item.label}): ${item.count} words`}
-                          />
-                          <span>{item.count}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="analyticsCard premiumDataCard">
@@ -7632,13 +7403,13 @@ export default function App() {
         <div className="wordList">
           {currentBook?.words.map((w, i) => {
             const definitionVariants = getWordDefinitions(w);
-            const masteryMeta = getWordMasteryMeta(w);
-            const showDifficultyBadge = currentBookLanguageMode === "en_en";
             const totalDefinitionVariants = definitionVariants.length;
             const currentDefinitionVariant = Math.min(
               Math.max((w.currentDefinitionIndex ?? 0) + 1, 1),
               Math.max(totalDefinitionVariants, 1)
             );
+            const exampleSentence = String(w.exampleSentence || "").trim();
+            const exampleTranslation = String(w.exampleTranslation || "").trim();
 
             return (
               <div
@@ -7670,19 +7441,6 @@ export default function App() {
                         triggerClassName="asBadge"
                         menuClassName="isCompact"
                       />
-                      {showDifficultyBadge ? (
-                        <button
-                          type="button"
-                          className="wordChapterBadge wordDifficultyBadgeBtn"
-                          aria-expanded={difficultyInfoWord === w.word}
-                          aria-controls={`difficulty-info-${w.word}`}
-                          onClick={() =>
-                            setDifficultyInfoWord((prevWord) => (prevWord === w.word ? "" : w.word))
-                          }
-                        >
-                          {getDifficultyLabel(w.difficulty)}
-                        </button>
-                      ) : null}
                       {showLocalTranslationDebug &&
                       (String(
                         useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
@@ -7699,28 +7457,7 @@ export default function App() {
                       ) : null}
                       {isDefinitionEdited(w) && <span className="definitionEditedBadge">Edited</span>}
                     </div>
-                    <div className="wordMasteryRow">
-                      <span className="wordMasteryLevel">
-                        Level {masteryMeta.level} - {masteryMeta.label}
-                      </span>
-                      <span
-                        className={`wordMasteryBlocks ${masteryMeta.level === 4 ? "isMastered" : ""}`}
-                        aria-hidden="true"
-                      >
-                        {getWordMasteryBlocks(w)}
-                      </span>
-                    </div>
                   </div>
-                  {showDifficultyBadge && difficultyInfoWord === w.word && (
-                    <div className="difficultyInfoPanel" id={`difficulty-info-${w.word}`}>
-                      <strong>{getDifficultyLabel(w.difficulty)}</strong>
-                      <p>
-                        CEFR is the Common European Framework of Reference for languages.
-                        <br />
-                        {getDifficultyExplanation(w.difficulty)}
-                      </p>
-                    </div>
-                  )}
                   <div className="definitionRow">
                     {editingDefinitionKey === getDefinitionEditKey(w) ? (
                       <textarea
@@ -7803,6 +7540,14 @@ export default function App() {
                       )}
                     </div>
                   </div>
+                  {exampleSentence ? (
+                    <div className="exampleList">
+                      <p className="exampleItem">{exampleSentence}</p>
+                      {exampleTranslation ? (
+                        <p className="exampleItem exampleTranslation">{exampleTranslation}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );
@@ -8016,7 +7761,6 @@ export default function App() {
                   const selection = {
                     bookIds: [...(lastQuizSetup.bookIds || [])],
                     chapterKeys: [...(lastQuizSetup.chapterKeys || [])],
-                    difficultyKeys: [...ALL_QUIZ_DIFFICULTY_KEYS],
                   };
                   if (getQuizWordsForSetup(selection, normalizeQuizMode(lastQuizSetup.mode, "normal")).length >= 2) {
                     startQuizSessionWithSetup(selection, normalizeQuizMode(lastQuizSetup.mode, "normal"));
@@ -8430,8 +8174,6 @@ export default function App() {
         currentBook={currentBook}
         goBack={() => setScreen("bookMenu")}
         getBookChapterList={getBookChapterList}
-        normalizeWordDifficulty={normalizeWordDifficulty}
-        WORD_DIFFICULTY_OPTIONS={WORD_DIFFICULTY_OPTIONS}
         InAppDropdownComponent={InAppDropdown}
         getSelectedDefinition={getSelectedDefinition}
         locale={appLocale}

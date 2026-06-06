@@ -1,18 +1,10 @@
 const DEFAULT_CHAPTER_ID = "general";
-const VALID_CEFR_LEVELS = new Set(["a1", "a2", "b1", "b2", "c1", "c2"]);
 
 function normalizeWord(value) {
   return String(value || "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
-}
-
-function normalizeDifficulty(value) {
-  const normalized = String(value || "")
-    .trim()
-    .toLowerCase();
-  return VALID_CEFR_LEVELS.has(normalized) ? normalized : "";
 }
 
 function normalizeDefinitions(wordEntry) {
@@ -61,7 +53,6 @@ function buildWordMembershipMap(rawState) {
       map.set(key, {
         word: word.slice(0, 120),
         wordNormalized,
-        cefrLevel: normalizeDifficulty(wordEntry?.difficulty),
         chapterId: chapterId || DEFAULT_CHAPTER_ID,
         bookId: bookId.slice(0, 120),
         bookName: bookName || "Book",

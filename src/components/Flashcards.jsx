@@ -5,8 +5,6 @@ export function Flashcards({
   currentBook,
   goBack,
   getBookChapterList,
-  normalizeWordDifficulty,
-  WORD_DIFFICULTY_OPTIONS,
   InAppDropdownComponent,
   getSelectedDefinition,
   locale = "en",
@@ -17,7 +15,6 @@ export function Flashcards({
     en_ja: { source: "English", target: "Japanese" },
     ja_en: { source: "Japanese", target: "English" },
   }[languageMode] || { source: "Word", target: "Definition" };
-  const showDifficultyFilter = languageMode === "en_en";
   const copy = locale === "ja"
     ? {
         noDefinition: "意味がありません",
@@ -25,9 +22,6 @@ export function Flashcards({
         noWordsInChapter: "この章には単語がありません。",
         chapter: "章",
         allChapters: "すべての章",
-        level: "レベル",
-        allLevels: "すべてのレベル",
-        unassigned: "未設定",
         prompt: "表示形式",
         wordToDefinition: "単語 -> 意味",
         definitionToWord: "意味 -> 単語",
@@ -45,9 +39,6 @@ export function Flashcards({
         noWordsInChapter: "No words in this chapter yet.",
         chapter: "Chapter",
         allChapters: "All Chapters",
-        level: "Level",
-        allLevels: "All Levels",
-        unassigned: "Unassigned",
         prompt: "Prompt",
         wordToDefinition: "Word -> Definition",
         definitionToWord: "Definition -> Word",
@@ -64,7 +55,6 @@ export function Flashcards({
   const [showDef, setShowDef] = useState(false);
   const [showWordList, setShowWordList] = useState(false);
   const [selectedChapterId, setSelectedChapterId] = useState("all");
-  const [selectedDifficulty, setSelectedDifficulty] = useState("all");
   const [cardPromptMode, setCardPromptMode] = useState("word-to-definition");
   const words = currentBook?.words || [];
   const chapterList = getBookChapterList(currentBook);
@@ -72,14 +62,7 @@ export function Flashcards({
     selectedChapterId === "all"
       ? words
       : words.filter((wordEntry) => wordEntry.chapterId === selectedChapterId);
-  const filteredWords =
-    !showDifficultyFilter || selectedDifficulty === "all"
-      ? chapterFilteredWords
-      : selectedDifficulty === "unassigned"
-        ? chapterFilteredWords.filter((wordEntry) => !normalizeWordDifficulty(wordEntry.difficulty))
-        : chapterFilteredWords.filter(
-            (wordEntry) => normalizeWordDifficulty(wordEntry.difficulty) === selectedDifficulty
-          );
+  const filteredWords = chapterFilteredWords;
   const current = filteredWords[index];
   const filteredWordCount = filteredWords.length;
   const hasCards = filteredWordCount > 0;
@@ -122,7 +105,6 @@ export function Flashcards({
     setShowDef(false);
     setShowWordList(false);
     setSelectedChapterId("all");
-    setSelectedDifficulty("all");
     setCardPromptMode("word-to-definition");
   }, [currentBook?.id]);
 
@@ -212,30 +194,6 @@ export function Flashcards({
                 menuClassName="isFlashCompact"
               />
             </div>
-            {showDifficultyFilter ? (
-              <div className="chapterControlField flashChapterField">
-                <span>{copy.level}</span>
-                <Dropdown
-                  value={selectedDifficulty}
-                  options={[
-                    { value: "all", label: copy.allLevels },
-                    { value: "unassigned", label: copy.unassigned },
-                    ...WORD_DIFFICULTY_OPTIONS.map((option) => ({
-                      value: option.value,
-                      label: option.label,
-                    })),
-                  ]}
-                  onChange={(nextDifficulty) => {
-                    setSelectedDifficulty(nextDifficulty);
-                    setIndex(0);
-                    setShowDef(false);
-                  }}
-                  className="flashChapterDropdown"
-                  triggerClassName="isFlashCompact"
-                  menuClassName="isFlashCompact"
-                />
-              </div>
-            ) : null}
             <div className="chapterControlField flashChapterField">
               <span>{copy.prompt}</span>
               <Dropdown

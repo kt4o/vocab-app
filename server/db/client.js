@@ -291,7 +291,6 @@ export async function initDb() {
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       word TEXT NOT NULL,
       word_normalized TEXT NOT NULL,
-      cefr_level TEXT,
       book_id TEXT,
       book_name TEXT,
       chapter_id TEXT,

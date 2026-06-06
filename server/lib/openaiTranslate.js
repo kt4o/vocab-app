@@ -275,3 +275,87 @@ export async function defineEnglishWithOpenAI(inputText) {
     note: normalizeText(parsed?.note),
   };
 }
+
+function normalizeLanguageMode(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "en_ja" || normalized === "ja_en" || normalized === "en_en"
+    ? normalized
+    : "en_en";
+}
+
+export async function generateExampleSentenceWithOpenAI({ word, definitions, languageMode } = {}) {
+  const text = normalizeText(word);
+  if (!text || !isOpenAiTranslationEnabled()) return null;
+
+  const client = getOpenAiClient();
+  if (!client) return null;
+
+  const mode = normalizeLanguageMode(languageMode);
+  const definitionList = Array.isArray(definitions)
+    ? definitions.map((definition) => normalizeText(definition)).filter(Boolean).slice(0, 3)
+    : [];
+  const modeInstruction =
+    mode === "en_ja"
+      ? "Create one natural Japanese example sentence using the most likely Japanese translation. Also provide a concise English translation."
+      : mode === "ja_en"
+        ? "Create one natural Japanese example sentence using the Japanese vocabulary item. Also provide a concise English translation."
+        : "Create one natural English example sentence using the English vocabulary item. Leave translation empty.";
+
+  const response = await client.responses.create({
+    model: String(process.env.OPENAI_TRANSLATION_MODEL || DEFAULT_OPENAI_TRANSLATION_MODEL).trim() ||
+      DEFAULT_OPENAI_TRANSLATION_MODEL,
+    input: [
+      {
+        role: "system",
+        content:
+          "You create short learner-friendly vocabulary example sentences. Return exactly one natural sentence. Keep it suitable for general audiences, modern, and easy to understand. Do not mention that you are an AI.",
+      },
+      {
+        role: "user",
+        content: [
+          modeInstruction,
+          `Vocabulary item: ${text}`,
+          definitionList.length ? `Meanings/translations: ${definitionList.join("; ")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    ],
+    reasoning: {
+      effort: "minimal",
+    },
+    max_output_tokens: 500,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "vocab_example_sentence",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            sentence: {
+              type: "string",
+              description: "One example sentence using the vocabulary item or its translation.",
+            },
+            translation: {
+              type: "string",
+              description: "English translation if the example sentence is Japanese; otherwise empty string.",
+            },
+          },
+          required: ["sentence", "translation"],
+        },
+      },
+    },
+  });
+
+  const parsed = parseResponseJson(response);
+  const sentence = normalizeText(parsed?.sentence);
+  if (!sentence) return null;
+
+  return {
+    sentence,
+    translation: normalizeText(parsed?.translation),
+    provider: "openai",
+  };
+}

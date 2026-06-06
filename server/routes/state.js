@@ -165,7 +165,6 @@ stateRouter.put("/", async (req, res) => {
                 user_id,
                 word,
                 word_normalized,
-                cefr_level,
                 book_id,
                 book_name,
                 chapter_id,
@@ -173,13 +172,12 @@ stateRouter.put("/", async (req, res) => {
                 source,
                 added_at
               )
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'state_sync', $9)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, 'state_sync', $8)
             `,
             [
               userId,
               entry.word,
               entry.wordNormalized,
-              entry.cefrLevel || null,
               entry.bookId || null,
               entry.bookName || null,
               entry.chapterId || null,
