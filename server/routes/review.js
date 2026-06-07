@@ -135,7 +135,11 @@ async function ensureReviewStateRows(userId, wordCatalog, nowIso) {
         $5,
         $5
       FROM UNNEST($2::text[], $3::text[], $4::text[]) AS input(book_id, chapter_id, word)
-      ON CONFLICT(user_id, book_id, chapter_id, word) DO NOTHING
+      ON CONFLICT(user_id, book_id, chapter_id, word) DO UPDATE SET
+        next_review_at = excluded.next_review_at,
+        updated_at = excluded.updated_at
+      WHERE word_review_state.last_reviewed_at IS NULL
+        AND word_review_state.next_review_at > excluded.next_review_at
     `,
     [userId, bookIds, chapterIds, words, nowIso]
   );

@@ -2500,36 +2500,11 @@ export default function App() {
       }
 
       const rawBookSummaries = Array.isArray(payload?.books) ? payload.books : [];
-      const bookSummaries = await Promise.all(
-        rawBookSummaries.map(async (summary) => {
-          const totalWords = Math.max(0, Math.floor(Number(summary?.totalWords) || 0));
-          const rawDueNow = Math.max(0, Math.floor(Number(summary?.dueNow) || 0));
-          const clampedDueNow = Math.min(rawDueNow, totalWords);
-          const bookId = String(summary?.bookId || "").trim();
-
-          if (!bookId || clampedDueNow <= 0) {
-            return { ...summary, totalWords, dueNow: clampedDueNow };
-          }
-
-          try {
-            const dueParams = new URLSearchParams();
-            dueParams.set("limit", "1");
-            dueParams.set("bookId", bookId);
-            const dueResponse = await fetchWithRetry(`${REVIEW_API_PATH}/due?${dueParams.toString()}`, {
-              credentials: "include",
-              headers: buildAuthHeaders(authToken),
-            });
-            const duePayload = await dueResponse.json().catch(() => ({}));
-            if (!dueResponse.ok) {
-              return { ...summary, totalWords, dueNow: clampedDueNow };
-            }
-            const reconciledDueNow = Math.max(0, Math.floor(Number(duePayload?.stats?.dueNow) || 0));
-            return { ...summary, totalWords, dueNow: Math.min(reconciledDueNow, totalWords) };
-          } catch {
-            return { ...summary, totalWords, dueNow: clampedDueNow };
-          }
-        })
-      );
+      const bookSummaries = rawBookSummaries.map((summary) => {
+        const totalWords = Math.max(0, Math.floor(Number(summary?.totalWords) || 0));
+        const rawDueNow = Math.max(0, Math.floor(Number(summary?.dueNow) || 0));
+        return { ...summary, totalWords, dueNow: Math.min(rawDueNow, totalWords) };
+      });
 
       setAdaptiveReviewBookSummaries(bookSummaries);
       setAdaptiveReviewStats({

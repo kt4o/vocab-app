@@ -75,6 +75,8 @@ describe("GET /api/review/summary", () => {
       dueNow: 1,
     });
     expect(backfillCall).toBeTruthy();
+    expect(String(backfillCall[0])).toContain("DO UPDATE SET");
+    expect(String(backfillCall[0])).toContain("last_reviewed_at IS NULL");
     expect(backfillCall[1]).toEqual([
       101,
       ["book-1"],
