@@ -227,9 +227,7 @@ const APP_TEXT = {
     noBooksYet: "No books yet",
     settings: "Settings",
     myAccount: "My Account",
-    syncingAccount: "Syncing Account",
     loadingAccountData: "Loading your account data",
-    syncingSession: "Your books, progress, and account settings are syncing for this session.",
     settingsTitle: "Settings",
     appearance: "Appearance",
     theme: "Theme",
@@ -285,9 +283,7 @@ const APP_TEXT = {
     noBooksYet: "ブックがまだありません",
     settings: "設定",
     myAccount: "アカウント",
-    syncingAccount: "アカウント同期中",
     loadingAccountData: "アカウントデータを読み込み中",
-    syncingSession: "ブック、進捗、設定をこのセッションに同期しています。",
     settingsTitle: "設定",
     appearance: "表示",
     theme: "テーマ",
@@ -2937,19 +2933,13 @@ export default function App() {
       screen === "mistakeReview";
 
     const mainContent = isAccountDataHydrating ? (
-      <div className="page accountPage">
-        <div className="pageHeader">
-          <h1>{uiText.syncingAccount}</h1>
+      <div className="accountSyncScreen" role="status" aria-live="polite">
+        <div className="accountSyncLoader" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
         </div>
-        <div className="analyticsSection">
-          <div className="analyticsCard settingsCard accountSyncCard">
-            <div className="spinner" aria-hidden="true"></div>
-            <h3>{uiText.loadingAccountData}</h3>
-            <p className="settingsHint">
-              {uiText.syncingSession}
-            </p>
-          </div>
-        </div>
+        <p>{uiText.loadingAccountData}</p>
       </div>
     ) : content;
 

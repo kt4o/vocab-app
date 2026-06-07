@@ -5004,16 +5004,58 @@ body.theme-dark .quizResultProgressFill {
   margin: 20px 0;
 }
 
-.accountSyncCard {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  min-height: 220px;
+.accountSyncScreen {
+  min-height: min(560px, calc(100vh - 120px));
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  text-align: center;
 }
 
-.accountSyncCard .spinner {
-  margin-top: 0;
+.accountSyncScreen p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.accountSyncLoader {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: end;
+  gap: 6px;
+  height: 34px;
+}
+
+.accountSyncLoader span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
+  animation: accountSyncPulse 0.72s ease-in-out infinite;
+}
+
+.accountSyncLoader span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.accountSyncLoader span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes accountSyncPulse {
+  0%,
+  100% {
+    transform: translateY(0) scale(0.72);
+    opacity: 0.45;
+  }
+
+  50% {
+    transform: translateY(-12px) scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes spin {
