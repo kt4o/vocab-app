@@ -149,6 +149,17 @@ function countStoredWords(rawBooks) {
   }, 0);
 }
 
+function getCloudStateSyncErrorMessage(result, fallbackMessage) {
+  const errorCode = String(result?.error || "").trim();
+  if (errorCode === "free-word-limit-reached") {
+    return `Adaptive Review could not sync because this account is over the ${FREE_WORD_LIMIT}-word Free plan limit.`;
+  }
+  if (errorCode === "invalid-app-state") {
+    return "Adaptive Review could not sync your latest books. Please refresh and try again.";
+  }
+  return fallbackMessage;
+}
+
 const ACCOUNT_DATA_STORAGE_KEYS = [
   "vocab_books",
   "vocab_weekly_stats",
@@ -2106,6 +2117,7 @@ export default function App() {
   const backupFileInputRef = useRef(null);
   const pronunciationFetchInFlightRef = useRef(new Set());
   const adaptiveReviewRatingInFlightRef = useRef(new Set());
+  const latestBooksRef = useRef([]);
   const cloudStateSnapshotRef = useRef(null);
   const sessionStartedAtRef = useRef(Date.now());
   const lastUserActivityAtRef = useRef(Date.now());
@@ -2171,6 +2183,7 @@ export default function App() {
   }));
   const maxTrendValue = Math.max(1, ...wordTrend.map((item) => item.value));
   const maxQuestionTrendValue = Math.max(1, ...questionTrend.map((item) => item.value));
+  latestBooksRef.current = books;
   cloudStateSnapshotRef.current = {
     backupVersion: 1,
     exportedAt: new Date().toISOString(),
@@ -2403,7 +2416,12 @@ export default function App() {
       }
 
       if (!response.ok) {
-        return { ok: false };
+        const payload = await response.json().catch(() => ({}));
+        return {
+          ok: false,
+          status: response.status,
+          error: String(payload?.error || response.statusText || "cloud-state-save-failed").trim(),
+        };
       }
 
       const payload = await response.json().catch(() => null);
@@ -2411,6 +2429,7 @@ export default function App() {
       if (updatedAt) {
         localStorage.setItem(LOCAL_STATE_UPDATED_AT_STORAGE_KEY, updatedAt);
       }
+      cloudStateSnapshotRef.current = appState;
 
       return { ok: true };
     } catch (error) {
@@ -2453,7 +2472,14 @@ export default function App() {
         return { ok: false, unauthorized: true };
       }
 
-      if (!response.ok) return { ok: false };
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        return {
+          ok: false,
+          status: response.status,
+          error: String(payload?.error || response.statusText || "cloud-state-save-failed").trim(),
+        };
+      }
 
       const payload = await response.json().catch(() => null);
       const updatedAt = String(payload?.updatedAt || "").trim();
@@ -2484,7 +2510,15 @@ export default function App() {
     setAdaptiveReviewError("");
 
     try {
-      await flushCloudStateNow();
+      const syncResult = await syncBooksForAdaptiveReview(latestBooksRef.current);
+      if (!syncResult?.ok && !syncResult?.skipped) {
+        throw new Error(
+          getCloudStateSyncErrorMessage(
+            syncResult,
+            "Adaptive Review could not sync your latest books. Please try again."
+          )
+        );
+      }
       const response = await fetchWithRetry(`${REVIEW_API_PATH}/summary`, {
         credentials: "include",
         headers: buildAuthHeaders(authToken),
@@ -2527,7 +2561,7 @@ export default function App() {
         setAdaptiveReviewLoading(false);
       }
     }
-  }, [authToken, flushCloudStateNow]);
+  }, [authToken, syncBooksForAdaptiveReview]);
 
   const loadAdaptiveReviewQueue = useCallback(async (limit = 20, options = {}) => {
     const showLoading = !options?.silent;
@@ -2546,7 +2580,15 @@ export default function App() {
     }
     setAdaptiveReviewError("");
     try {
-      await flushCloudStateNow();
+      const syncResult = await syncBooksForAdaptiveReview(latestBooksRef.current);
+      if (!syncResult?.ok && !syncResult?.skipped) {
+        throw new Error(
+          getCloudStateSyncErrorMessage(
+            syncResult,
+            "Adaptive Review could not sync your latest words. Please try again."
+          )
+        );
+      }
       const params = new URLSearchParams();
       params.set("limit", String(Math.max(1, Math.floor(Number(limit) || 20))));
       if (bookId) {
@@ -2592,7 +2634,7 @@ export default function App() {
         setAdaptiveReviewLoading(false);
       }
     }
-  }, [authToken, flushCloudStateNow, selectedAdaptiveReviewBookId]);
+  }, [authToken, selectedAdaptiveReviewBookId, syncBooksForAdaptiveReview]);
 
   const openAdaptiveReviewSelect = useCallback(async () => {
     setSelectedAdaptiveReviewBookId("");
