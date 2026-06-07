@@ -159,6 +159,36 @@ stateRouter.put("/", async (req, res) => {
     if (addedWords.length > 0) {
       try {
         for (const entry of addedWords) {
+          if (!entry.bookId || !entry.word) {
+            continue;
+          }
+
+          await query(
+            `
+              INSERT INTO word_review_state (
+                user_id,
+                book_id,
+                chapter_id,
+                word,
+                next_review_at,
+                created_at,
+                updated_at
+              )
+              VALUES ($1, $2, $3, $4, $5, $5, $5)
+              ON CONFLICT(user_id, book_id, chapter_id, word) DO UPDATE SET
+                next_review_at = excluded.next_review_at,
+                updated_at = excluded.updated_at
+              WHERE word_review_state.next_review_at > excluded.next_review_at
+            `,
+            [userId, entry.bookId, entry.chapterId || "general", entry.word, now]
+          );
+        }
+      } catch {
+        // Adaptive review scheduling must never block state persistence.
+      }
+
+      try {
+        for (const entry of addedWords) {
           await query(
             `
               INSERT INTO word_add_events (

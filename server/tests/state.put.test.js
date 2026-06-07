@@ -76,4 +76,24 @@ describe("PUT /api/state", () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
     expect(mockCreateSnapshot).not.toHaveBeenCalled();
   });
+
+  it("queues newly added words for adaptive review when state is saved", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ state_json: createStateWithWordCount(0) }] });
+    mockQuery.mockResolvedValue({ rows: [] });
+    mockCreateSnapshot.mockResolvedValue({ ok: true });
+    const { stateRouter } = await import("../routes/state.js");
+    const app = createTestApp("/api/state", stateRouter);
+
+    const response = await request(app)
+      .put("/api/state")
+      .send({ appState: createStateWithWordCount(1) });
+
+    const reviewInsertCall = mockQuery.mock.calls.find(([sql]) =>
+      String(sql).includes("INSERT INTO word_review_state")
+    );
+
+    expect(response.status).toBe(200);
+    expect(reviewInsertCall).toBeTruthy();
+    expect(reviewInsertCall[1]).toEqual([101, "book-1", "general", "word-1", expect.any(String)]);
+  });
 });
