@@ -131,11 +131,9 @@ export function AdaptiveReviewSession({
                 role="button"
                 tabIndex={0}
                 onClick={() => {
-                  if (isSubmittingRating) return;
                   setShowAnswer((prev) => !prev);
                 }}
                 onKeyDown={(event) => {
-                  if (isSubmittingRating) return;
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     setShowAnswer((prev) => !prev);
@@ -168,7 +166,6 @@ export function AdaptiveReviewSession({
                     type="button"
                     className="modalBtn primary"
                     onClick={() => setShowAnswer(true)}
-                    disabled={isSubmittingRating}
                   >
                     Reveal answer
                   </button>
