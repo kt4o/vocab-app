@@ -2173,6 +2173,7 @@ export default function App() {
   const backupFileInputRef = useRef(null);
   const pronunciationFetchInFlightRef = useRef(new Set());
   const adaptiveReviewRatingInFlightRef = useRef(new Set());
+  const authTokenRef = useRef("");
   const latestBooksRef = useRef([]);
   const cloudStateSnapshotRef = useRef(null);
   const sessionStartedAtRef = useRef(Date.now());
@@ -2239,6 +2240,7 @@ export default function App() {
   }));
   const maxTrendValue = Math.max(1, ...wordTrend.map((item) => item.value));
   const maxQuestionTrendValue = Math.max(1, ...questionTrend.map((item) => item.value));
+  authTokenRef.current = authToken;
   latestBooksRef.current = books;
   cloudStateSnapshotRef.current = {
     backupVersion: 1,
@@ -2485,8 +2487,13 @@ export default function App() {
 
   const handleQuizTryAgain = useCallback(() => true, []);
 
+  function isCurrentAuthRequest(requestAuthToken) {
+    return String(authTokenRef.current || "") === String(requestAuthToken || "");
+  }
+
   const flushCloudStateNow = useCallback(async () => {
     if (!authToken || !isCloudStateHydrated) return { ok: false, skipped: true };
+    const requestAuthToken = authToken;
     const appState = cloudStateSnapshotRef.current || buildBackupSnapshot();
 
     try {
@@ -2502,6 +2509,9 @@ export default function App() {
       });
 
       if (response.status === 401) {
+        if (!isCurrentAuthRequest(requestAuthToken)) {
+          return { ok: false, unauthorized: true, stale: true };
+        }
         setAuthToken("");
         setAuthUsername("");
         setAuthError("Your session expired. Please log in again.");
@@ -2533,6 +2543,7 @@ export default function App() {
 
   const syncBooksForAdaptiveReview = useCallback(async (nextBooks) => {
     if (!authToken || !isCloudStateHydrated || !Array.isArray(nextBooks)) return { ok: false, skipped: true };
+    const requestAuthToken = authToken;
     const currentSnapshot = cloudStateSnapshotRef.current || buildBackupSnapshot();
     const currentData =
       currentSnapshot?.data && typeof currentSnapshot.data === "object" && !Array.isArray(currentSnapshot.data)
@@ -2559,6 +2570,9 @@ export default function App() {
       });
 
       if (response.status === 401) {
+        if (!isCurrentAuthRequest(requestAuthToken)) {
+          return { ok: false, unauthorized: true, stale: true };
+        }
         setAuthToken("");
         setAuthUsername("");
         setAuthError("Your session expired. Please log in again.");
@@ -3442,6 +3456,7 @@ export default function App() {
 
   const loadAccountProfile = useCallback(async () => {
     if (!authToken) return;
+    const requestAuthToken = authToken;
     setIsAccountProfileLoading(true);
     try {
       const response = await fetchWithRetry(`${AUTH_API_PATH}/account`, {
@@ -3450,6 +3465,7 @@ export default function App() {
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
+        if (!isCurrentAuthRequest(requestAuthToken)) return;
         logoutAccount();
         setAuthError("Your session expired. Please log in again.");
         return;
@@ -3498,6 +3514,7 @@ export default function App() {
 
   const loadBillingStatus = useCallback(async () => {
     if (!authToken) return;
+    const requestAuthToken = authToken;
     setIsBillingStatusLoading(true);
     try {
       const response = await fetchWithRetry(`${BILLING_API_PATH}/status`, {
@@ -3506,6 +3523,7 @@ export default function App() {
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
+        if (!isCurrentAuthRequest(requestAuthToken)) return;
         setAuthToken("");
         setAuthUsername("");
         setAuthError("Your session expired. Please log in again.");
@@ -3948,6 +3966,7 @@ export default function App() {
 
   useEffect(() => {
     if (!authToken || !isCloudStateHydrated) return undefined;
+    const requestAuthToken = authToken;
 
     const timeoutId = window.setTimeout(() => {
       fetchWithRetry(STATE_API_PATH, {
@@ -3996,6 +4015,7 @@ export default function App() {
         }
 
         if (response.status === 401) {
+          if (!isCurrentAuthRequest(requestAuthToken)) return;
           setAuthToken("");
           setAuthUsername("");
           setAuthError("Your session expired. Please log in again.");
