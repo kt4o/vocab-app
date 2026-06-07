@@ -1708,6 +1708,24 @@ function sanitizeChapterId(value) {
     .slice(0, 32);
 }
 
+function normalizeBookNameForComparison(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function makeUniqueBookName(name, usedNames) {
+  const baseName = String(name || "").trim().replace(/\s+/g, " ") || "Book";
+  let nextName = baseName;
+  let suffix = 2;
+
+  while (usedNames.has(normalizeBookNameForComparison(nextName))) {
+    nextName = `${baseName} ${suffix}`;
+    suffix += 1;
+  }
+
+  usedNames.add(normalizeBookNameForComparison(nextName));
+  return nextName;
+}
+
 function ensureBookChapters(book) {
   const languageMode = inferBookLanguageMode(book);
   const existingChapters = Array.isArray(book?.chapters) ? book.chapters : [];
@@ -1761,7 +1779,14 @@ function ensureBookChapters(book) {
 
 function normalizeBooksData(rawBooks) {
   const safeBooks = Array.isArray(rawBooks) ? rawBooks : [];
-  return safeBooks.map((book) => ensureBookChapters(book));
+  const usedNames = new Set();
+  return safeBooks.map((book) => {
+    const normalizedBook = ensureBookChapters(book);
+    return {
+      ...normalizedBook,
+      name: makeUniqueBookName(normalizedBook.name, usedNames),
+    };
+  });
 }
 
 function getBookChapterList(book) {
@@ -4274,6 +4299,16 @@ export default function App() {
   function createBook() {
     const name = newBookName.trim();
     if (!name) return;
+    const duplicateBookName = books.some(
+      (book) => normalizeBookNameForComparison(book?.name) === normalizeBookNameForComparison(name)
+    );
+    if (duplicateBookName) {
+      openNoticeModal(
+        tr("A book with that name already exists.", "同じ名前のブックが既にあります。"),
+        tr("Duplicate Book", "重複ブック")
+      );
+      return;
+    }
     const newBook = {
       id: Date.now(),
       name,
@@ -4399,6 +4434,18 @@ export default function App() {
     if (!bookPendingRename) return;
     const nextName = renamedBookName.trim();
     if (!nextName) return;
+    const duplicateBookName = books.some(
+      (book) =>
+        book.id !== bookPendingRename.id &&
+        normalizeBookNameForComparison(book?.name) === normalizeBookNameForComparison(nextName)
+    );
+    if (duplicateBookName) {
+      openNoticeModal(
+        tr("A book with that name already exists.", "同じ名前のブックが既にあります。"),
+        tr("Duplicate Book", "重複ブック")
+      );
+      return;
+    }
 
     setBooks((prevBooks) =>
       prevBooks.map((book) =>
