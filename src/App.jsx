@@ -149,6 +149,41 @@ function countStoredWords(rawBooks) {
   }, 0);
 }
 
+function buildLocalAdaptiveReviewSummaries(rawBooks) {
+  const books = Array.isArray(rawBooks) ? rawBooks : [];
+  return books
+    .map((book) => {
+      const bookId = String(book?.id || "").trim();
+      const words = Array.isArray(book?.words) ? book.words.filter((wordEntry) => String(wordEntry?.word || "").trim()) : [];
+      if (!bookId || words.length === 0) return null;
+      return {
+        bookId,
+        bookName: String(book?.name || "").trim() || "Book",
+        totalWords: words.length,
+        dueNow: words.length,
+        isLocalFallback: true,
+      };
+    })
+    .filter(Boolean);
+}
+
+function mergeAdaptiveReviewSummaries(apiSummaries, localSummaries) {
+  const merged = new Map();
+  (Array.isArray(apiSummaries) ? apiSummaries : []).forEach((summary) => {
+    const bookId = String(summary?.bookId || "").trim();
+    if (!bookId) return;
+    merged.set(bookId, { ...summary, bookId });
+  });
+
+  (Array.isArray(localSummaries) ? localSummaries : []).forEach((summary) => {
+    const bookId = String(summary?.bookId || "").trim();
+    if (!bookId || merged.has(bookId)) return;
+    merged.set(bookId, { ...summary, bookId });
+  });
+
+  return Array.from(merged.values());
+}
+
 function getCloudStateSyncErrorMessage(result, fallbackMessage) {
   const errorCode = String(result?.error || "").trim();
   if (errorCode === "free-word-limit-reached") {
@@ -2244,6 +2279,43 @@ export default function App() {
     };
   }
 
+  function buildLocalAdaptiveReviewItems(bookId, limit = 20) {
+    const safeBookId = String(bookId || "").trim();
+    const book = latestBooksRef.current.find((item) => String(item?.id) === safeBookId);
+    if (!book) return [];
+
+    const chapterNameById = new Map(
+      getBookChapterList(book).map((chapter) => [String(chapter.id), chapter.name || "Chapter"])
+    );
+    const maxItems = Math.max(1, Math.floor(Number(limit) || 20));
+
+    return (Array.isArray(book.words) ? book.words : [])
+      .filter((wordEntry) => String(wordEntry?.word || "").trim())
+      .slice(0, maxItems)
+      .map((wordEntry) => {
+        const chapterId = String(wordEntry?.chapterId || DEFAULT_CHAPTER_ID).trim() || DEFAULT_CHAPTER_ID;
+        const japaneseReading = String(
+          wordEntry?.japaneseReading ||
+            wordEntry?.reading ||
+            wordEntry?.pronunciation ||
+            wordEntry?.pronounciation ||
+            ""
+        ).trim();
+        return {
+          bookId: safeBookId,
+          bookName: String(book.name || "").trim() || "Book",
+          chapterId,
+          chapterName: chapterNameById.get(chapterId) || (chapterId === DEFAULT_CHAPTER_ID ? "General" : "Chapter"),
+          word: String(wordEntry.word || "").trim(),
+          selectedDefinition: getSelectedDefinition(wordEntry),
+          pronunciation: String(wordEntry?.pronunciation || wordEntry?.pronounciation || "").trim(),
+          japaneseReading,
+          japaneseRomaji: String(wordEntry?.japaneseRomaji || (japaneseReading ? kanaToRomaji(japaneseReading) : "")).trim(),
+          isLocalFallback: true,
+        };
+      });
+  }
+
   function startQuizSessionWithSetup(selection, modeOverride = quizMode) {
     const selectedMode = normalizeQuizMode(modeOverride, "normal");
     const nextWords = getQuizWordsForSetup(selection, selectedMode);
@@ -2498,10 +2570,16 @@ export default function App() {
     const showLoading = !options?.silent;
 
     if (!authToken) {
-      setAdaptiveReviewBookSummaries([]);
-      setAdaptiveReviewStats({ dueNow: 0 });
+      const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current);
+      setAdaptiveReviewBookSummaries(localBookSummaries);
+      setAdaptiveReviewStats({
+        dueNow: localBookSummaries.reduce(
+          (total, summary) => total + Math.max(0, Math.floor(Number(summary?.dueNow) || 0)),
+          0
+        ),
+      });
       setAdaptiveReviewError("");
-      return { ok: false, skipped: true };
+      return { ok: true, localFallback: true, skipped: true };
     }
 
     if (showLoading) {
@@ -2534,11 +2612,13 @@ export default function App() {
       }
 
       const rawBookSummaries = Array.isArray(payload?.books) ? payload.books : [];
-      const bookSummaries = rawBookSummaries.map((summary) => {
+      const apiBookSummaries = rawBookSummaries.map((summary) => {
         const totalWords = Math.max(0, Math.floor(Number(summary?.totalWords) || 0));
         const rawDueNow = Math.max(0, Math.floor(Number(summary?.dueNow) || 0));
         return { ...summary, totalWords, dueNow: Math.min(rawDueNow, totalWords) };
       });
+      const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current);
+      const bookSummaries = mergeAdaptiveReviewSummaries(apiBookSummaries, localBookSummaries);
 
       setAdaptiveReviewBookSummaries(bookSummaries);
       setAdaptiveReviewStats({
@@ -2546,6 +2626,19 @@ export default function App() {
       });
       return { ok: true, payload: { ...payload, books: bookSummaries } };
     } catch (error) {
+      const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current);
+      if (localBookSummaries.length > 0) {
+        setAdaptiveReviewBookSummaries(localBookSummaries);
+        setAdaptiveReviewStats({
+          dueNow: localBookSummaries.reduce(
+            (total, summary) => total + Math.max(0, Math.floor(Number(summary?.dueNow) || 0)),
+            0
+          ),
+        });
+        setAdaptiveReviewError("");
+        return { ok: true, localFallback: true, error };
+      }
+
       setAdaptiveReviewBookSummaries([]);
       setAdaptiveReviewStats({ dueNow: 0 });
       setAdaptiveReviewError(
@@ -2568,11 +2661,17 @@ export default function App() {
     const bookId = String(options?.bookId ?? selectedAdaptiveReviewBookId ?? "").trim();
 
     if (!authToken) {
-      setAdaptiveReviewItems([]);
-      setAdaptiveReviewStats({ dueNow: 0 });
+      const fallbackItems = bookId ? buildLocalAdaptiveReviewItems(bookId, limit) : [];
+      setAdaptiveReviewItems(fallbackItems);
+      setAdaptiveReviewStats({ dueNow: fallbackItems.length });
       setAdaptiveReviewError("");
       setAdaptiveReviewPendingRating("");
-      return { ok: false, skipped: true };
+      return {
+        ok: true,
+        localFallback: true,
+        skipped: true,
+        payload: { items: fallbackItems, stats: { dueNow: fallbackItems.length } },
+      };
     }
 
     if (showLoading) {
@@ -2608,7 +2707,10 @@ export default function App() {
         throw new Error(errorMessage);
       }
 
-      const items = Array.isArray(payload?.items) ? payload.items : [];
+      const apiItems = Array.isArray(payload?.items) ? payload.items : [];
+      const fallbackItems =
+        bookId && apiItems.length === 0 ? buildLocalAdaptiveReviewItems(bookId, limit) : [];
+      const items = apiItems.length > 0 ? apiItems : fallbackItems;
       const visibleItems = items.filter(
         (item) => !adaptiveReviewRatingInFlightRef.current.has(getAdaptiveReviewItemKey(item))
       );
@@ -2619,6 +2721,14 @@ export default function App() {
       });
       return { ok: true, payload };
     } catch (error) {
+      const fallbackItems = bookId ? buildLocalAdaptiveReviewItems(bookId, limit) : [];
+      if (fallbackItems.length > 0) {
+        setAdaptiveReviewItems(fallbackItems);
+        setAdaptiveReviewStats({ dueNow: fallbackItems.length });
+        setAdaptiveReviewError("");
+        return { ok: true, localFallback: true, error, payload: { items: fallbackItems, stats: { dueNow: fallbackItems.length } } };
+      }
+
       setAdaptiveReviewItems([]);
       setAdaptiveReviewStats({ dueNow: 0 });
       setAdaptiveReviewError(
@@ -2681,7 +2791,8 @@ export default function App() {
   const rateAdaptiveReviewWord = useCallback(async (rating) => {
     const currentItem = adaptiveReviewItems[0];
     const itemKey = getAdaptiveReviewItemKey(currentItem);
-    if (!currentItem || !authToken || adaptiveReviewRatingInFlightRef.current.has(itemKey)) return;
+    const isLocalFallbackItem = Boolean(currentItem?.isLocalFallback);
+    if (!currentItem || (!authToken && !isLocalFallbackItem) || adaptiveReviewRatingInFlightRef.current.has(itemKey)) return;
 
     adaptiveReviewRatingInFlightRef.current.add(itemKey);
     setAdaptiveReviewPendingRating(rating);
@@ -2698,6 +2809,20 @@ export default function App() {
     }));
 
     try {
+      if (!authToken && isLocalFallbackItem) {
+        recordQuizQuestionCompleted({
+          sourceBookId: currentItem.bookId,
+          sourceChapterId: currentItem.chapterId,
+          word: currentItem.word,
+        });
+        trackEvent("adaptive_review_rated", {
+          rating,
+          remaining_count: remainingCount,
+          source: "local_fallback",
+        });
+        return;
+      }
+
       const response = await fetch(`${REVIEW_API_PATH}/rate`, {
         method: "POST",
         credentials: "include",
@@ -2714,6 +2839,20 @@ export default function App() {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (isLocalFallbackItem) {
+          recordQuizQuestionCompleted({
+            sourceBookId: currentItem.bookId,
+            sourceChapterId: currentItem.chapterId,
+            word: currentItem.word,
+          });
+          trackEvent("adaptive_review_rated", {
+            rating,
+            remaining_count: remainingCount,
+            source: "local_fallback",
+          });
+          return;
+        }
+
         const errorMessage =
           typeof payload?.error === "string" && payload.error.trim()
             ? payload.error.trim()
@@ -2731,7 +2870,7 @@ export default function App() {
         remaining_count: remainingCount,
       });
 
-      if (shouldReloadQueueAfterSave) {
+      if (shouldReloadQueueAfterSave && !isLocalFallbackItem) {
         await loadAdaptiveReviewQueue(20, { silent: true, bookId: currentItem.bookId });
         trackEvent("adaptive_review_completed", {});
       }
