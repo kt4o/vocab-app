@@ -3297,10 +3297,14 @@ export default function App() {
       const nextAuthToken = String(payload?.authToken || "").trim();
       const safeUserId = Number(payload?.userId);
       if (isBearerAuthToken(nextAuthToken)) {
+        localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, nextAuthToken);
         setAuthToken(nextAuthToken);
       } else {
+        localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
         setAuthToken(COOKIE_SESSION_AUTH_MARKER);
       }
+      localStorage.setItem(AUTH_USERNAME_STORAGE_KEY, nextUsername);
+      setIsAuthSessionResolved(true);
       setAuthUsername(nextUsername);
       if (Number.isFinite(safeUserId) && safeUserId > 0) {
         identifyAnalyticsUser(safeUserId, {
@@ -3896,8 +3900,6 @@ export default function App() {
 
       setIsLocalPersistencePaused(true);
       setIsCloudStateHydrated(false);
-      let shouldResumePersistence = true;
-
       try {
         const response = await fetchWithRetry(STATE_API_PATH, {
           credentials: "include",
@@ -3905,14 +3907,6 @@ export default function App() {
         });
 
         if (response.status === 401) {
-          shouldResumePersistence = false;
-          if (!cancelled) {
-            setAuthToken("");
-            setAuthUsername("");
-            setAuthError("Your session expired. Please log in again.");
-            setIsLocalPersistencePaused(false);
-            setIsCloudStateHydrated(false);
-          }
           return;
         }
 
@@ -3948,7 +3942,7 @@ export default function App() {
       } catch {
         // Keep local state when cloud sync is unavailable.
       } finally {
-        if (!cancelled && shouldResumePersistence) {
+        if (!cancelled) {
           setIsCloudStateHydrated(true);
           setIsLocalPersistencePaused(false);
         }
