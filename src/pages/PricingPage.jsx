@@ -29,11 +29,6 @@ const FEATURES = [
     pro: true,
   },
   {
-    name: "Weak-Words Lab + CSV export",
-    free: true,
-    pro: true,
-  },
-  {
     name: "Ads",
     free: false,
     freeNote: "May be introduced later",

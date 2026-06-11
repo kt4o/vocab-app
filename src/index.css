@@ -950,6 +950,70 @@ body.theme-dark .accountLauncherAction {
   width: min(260px, 100%);
 }
 
+.settingsStepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  height: 46px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.settingsStepperBtn {
+  width: 46px;
+  height: 46px;
+  min-height: 46px;
+  border: 0;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 800;
+  border-radius: 0;
+}
+
+.settingsStepper .settingsStepperBtn {
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.settingsRow .settingsStepper .settingsStepperBtn {
+  width: 46px;
+}
+
+.settingsNumberInput {
+  width: 92px;
+  height: 46px;
+  min-height: 46px;
+  margin-top: 0;
+  border-top: 0;
+  padding: 0 10px;
+  text-align: center;
+  border-bottom: 0;
+  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  font-weight: 700;
+}
+
+.reviewLimitStepper .settingsStepperBtn:first-child {
+  border-radius: 0;
+}
+
+.reviewLimitStepper .settingsStepperBtn:last-child {
+  border-radius: 0;
+}
+
+.reviewLimitStepper .settingsNumberInput {
+  margin-top: 0;
+  border-radius: 0;
+}
+
 .inAppDropdownTrigger.isSettings {
   min-height: 42px;
   height: 42px;
@@ -1294,13 +1358,6 @@ body.theme-dark .accountFoundingBadge {
   margin-top: 18px;
 }
 
-.premiumFocusHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
 .premiumBadge {
   border: 1px solid #d9ac2b;
   background: #fff7de;
@@ -1404,49 +1461,9 @@ body.theme-dark .accountFoundingBadge {
   transition: width 0.24s ease;
 }
 
-.premiumActionRow {
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.premiumDataCard {
-  margin-top: 16px;
-}
-
-.premiumWeakList {
-  margin-top: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.premiumWeakRow {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) auto auto;
-  gap: 8px;
-  align-items: center;
-  border: 1px solid var(--border);
-  background: var(--surface-alt);
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.premiumWeakRow strong {
-  color: var(--text);
-  font-size: 14px;
-}
-
 @media (max-width: 720px) {
   .premiumFocusGrid {
     grid-template-columns: 1fr;
-  }
-
-  .premiumWeakRow {
-    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -1644,6 +1661,71 @@ body.theme-dark .accountFoundingBadge {
   color: var(--muted);
 }
 
+.starterBookImportCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.starterBookImportCard h3 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.starterBookEyebrow {
+  margin: 0 0 5px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.starterBookAttribution {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.starterBookAttribution a {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.starterBookAttribution a:hover {
+  text-decoration: underline;
+}
+
+.premadeBookGrid {
+  align-items: stretch;
+}
+
+.premadeBookTile {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 260px;
+}
+
+.premadeBookTile .settingsHint {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.premadeBookTile .starterBookAttribution {
+  margin-top: auto;
+}
+
+.premadeBookTile .primaryBtn {
+  width: 100%;
+}
+
 .adaptiveReviewSection {
   width: min(100%, 760px);
 }
@@ -1714,6 +1796,7 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewBookCard {
+  position: relative;
   width: 100%;
   color: var(--text);
   text-align: left;
@@ -1738,6 +1821,30 @@ body.theme-dark .accountFoundingBadge {
 .adaptiveReviewBookCard.isEmpty:hover {
   background: var(--surface);
   border-color: var(--border);
+}
+
+.adaptiveReviewBookSettingsBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.62;
+  transition: color 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.adaptiveReviewBookSettingsBtn:hover {
+  color: var(--text);
+  background: var(--surface-alt);
+  opacity: 1;
 }
 
 .adaptiveReviewBookStats {
@@ -1834,6 +1941,62 @@ body.theme-dark .accountFoundingBadge {
   text-align: center;
 }
 
+.adaptiveReviewDisplayRows {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.adaptiveReviewDisplayRow {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.adaptiveReviewDisplayLabel {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.adaptiveReviewDisplayValue {
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.45;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.adaptiveReviewDisplayValueWord .adaptiveReviewDisplayValue {
+  color: var(--text);
+  font-size: clamp(28px, 7vw, 48px);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.adaptiveReviewDisplayValueWord .japaneseWordDisplay rt,
+.adaptiveReviewDisplayValueWord .japaneseRomajiText {
+  color: currentColor;
+}
+
+.adaptiveReviewDisplayValueMeaning .adaptiveReviewDisplayValue,
+.adaptiveReviewDisplayValueExample .adaptiveReviewDisplayValue {
+  font-size: clamp(18px, 3vw, 26px);
+}
+
+.adaptiveReviewExampleWord {
+  background: transparent;
+  color: inherit;
+  font-weight: 800;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.14em;
+}
+
 .adaptiveReviewWord {
   font-size: clamp(28px, 4.2vw, 40px);
   line-height: 1.1;
@@ -1879,7 +2042,7 @@ body.theme-dark .accountFoundingBadge {
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
-  min-height: 64px;
+  min-height: 76px;
   padding: 10px;
   text-align: left;
   cursor: pointer;
@@ -1909,9 +2072,153 @@ body.theme-dark .accountFoundingBadge {
   line-height: 1.35;
 }
 
+.adaptiveReviewRatingBtn span.adaptiveReviewNextTime {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 5px;
+}
+
 .adaptiveReviewRatingBtn.isSaving {
   border-color: color-mix(in srgb, var(--border) 55%, var(--accent) 45%);
   background: var(--surface-alt);
+}
+
+.adaptiveReviewSettingsSection {
+  gap: 12px;
+}
+
+.adaptiveReviewSettingsPanel {
+  display: grid;
+  gap: 18px;
+  padding: 18px 20px;
+}
+
+.adaptiveReviewSettingsIntro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.adaptiveReviewSettingsPanel h3 {
+  margin: 0 0 3px;
+}
+
+.adaptiveReviewSettingsPanel .settingsHint {
+  margin-top: 0;
+}
+
+.adaptiveReviewSettingsDivider {
+  height: 1px;
+  background: var(--border);
+}
+
+.adaptiveReviewSettingsPanel .settingsRow {
+  margin-top: 0;
+}
+
+.adaptiveReviewSettingsPanel .advancedSettingsRow {
+  align-items: center;
+}
+
+.adaptiveReviewSettingsTable {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.adaptiveReviewSettingsHeader,
+.adaptiveReviewSettingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 72px;
+  align-items: center;
+  gap: 8px;
+}
+
+.adaptiveReviewSettingsHeader {
+  padding: 9px 12px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.adaptiveReviewSettingsHeader span:not(:first-child) {
+  text-align: center;
+}
+
+.adaptiveReviewSettingRow {
+  min-height: 56px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.adaptiveReviewSettingCopy {
+  min-width: 0;
+}
+
+.adaptiveReviewSettingCopy strong,
+.adaptiveReviewSettingCopy small {
+  display: block;
+}
+
+.adaptiveReviewSettingCopy strong {
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+.adaptiveReviewSettingCopy small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.adaptiveReviewSettingCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 34px;
+  cursor: pointer;
+}
+
+.adaptiveReviewSettingCheck input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adaptiveReviewSettingCheck span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-alt);
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.adaptiveReviewSettingCheck input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.adaptiveReviewSettingCheck:focus-within span {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.adaptiveReviewSettingsActions {
+  justify-content: flex-end;
 }
 
 .chartGridLayout {
@@ -2423,6 +2730,29 @@ body.theme-dark .pinBtn.isPinned {
   margin-top: 14px;
   margin-bottom: 0;
   line-height: 1.45;
+}
+
+.createBookBrowsePremadeBtn {
+  width: 100%;
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.createBookBrowsePremadeBtn:hover {
+  border-color: color-mix(in srgb, var(--border) 55%, var(--accent) 45%);
+  background: color-mix(in srgb, var(--surface-alt) 86%, var(--accent) 14%);
+  transform: translateY(-1px);
 }
 
 .createBookModalCard .modalActions {
@@ -4994,18 +5324,7 @@ body.theme-dark .quizResultProgressFill {
   font-size: 14px;
 }
 
-.spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid var(--border);
-  border-top: 3px solid var(--accent);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  margin: 20px 0;
-}
-
-.accountSyncScreen {
-  min-height: min(560px, calc(100vh - 120px));
+.loadingAnimation {
   display: grid;
   place-items: center;
   align-content: center;
@@ -5013,11 +5332,28 @@ body.theme-dark .quizResultProgressFill {
   text-align: center;
 }
 
-.accountSyncScreen p {
+.loadingAnimation p {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
   font-weight: 700;
+}
+
+.accountSyncScreen {
+  min-height: min(560px, calc(100vh - 120px));
+}
+
+.inlineLoadingAnimation {
+  justify-items: start;
+  place-items: start;
+  align-content: start;
+  margin: 18px 0;
+  text-align: left;
+}
+
+.adaptiveReviewLoadingAnimation {
+  min-height: 180px;
+  padding: 28px 0;
 }
 
 .accountSyncLoader {
@@ -5055,12 +5391,6 @@ body.theme-dark .quizResultProgressFill {
   50% {
     transform: translateY(-12px) scale(1);
     opacity: 1;
-  }
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 
@@ -8272,6 +8602,15 @@ body.theme-dark .recentSquare.isPinned {
     margin-top: 14px;
   }
 
+  .starterBookImportCard {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .starterBookImportCard .primaryBtn {
+    width: 100%;
+  }
+
   .dashboardPanelGrid {
     gap: 10px;
     margin-top: 18px;
@@ -8427,6 +8766,23 @@ body.theme-dark .recentSquare.isPinned {
 
   .adaptiveReviewRatingsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adaptiveReviewSettingsHeader,
+  .adaptiveReviewSettingRow {
+    grid-template-columns: minmax(0, 1fr) 54px 54px;
+  }
+
+  .adaptiveReviewSettingsHeader {
+    padding-inline: 10px;
+  }
+
+  .adaptiveReviewSettingRow {
+    padding-inline: 10px;
+  }
+
+  .adaptiveReviewSettingCopy small {
+    display: none;
   }
 
   .settingsRow {

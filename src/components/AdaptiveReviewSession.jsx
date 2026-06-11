@@ -1,6 +1,196 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { JapaneseWordDisplay } from "./JapaneseWordDisplay";
 
+const ADAPTIVE_REVIEW_RATINGS = [
+  { value: "again", label: "Again", hint: "Forgot it" },
+  { value: "hard", label: "Hard", hint: "Barely knew it" },
+  { value: "good", label: "Good", hint: "Knew it" },
+  { value: "easy", label: "Easy", hint: "Very strong" },
+];
+const DEFAULT_DISPLAY_SETTINGS = {
+  front: {
+    word: true,
+    meaning: false,
+    kanji: false,
+    furigana: false,
+    pronunciation: true,
+    exampleSentence: false,
+    exampleTranslation: false,
+    chapter: false,
+  },
+  back: {
+    word: false,
+    meaning: true,
+    kanji: false,
+    furigana: false,
+    pronunciation: false,
+    exampleSentence: false,
+    exampleTranslation: false,
+    chapter: false,
+  },
+};
+
+function LoadingAnimation({ label, className = "" }) {
+  return (
+    <div className={`loadingAnimation ${className}`.trim()} role="status" aria-live="polite">
+      <div className="accountSyncLoader" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      {label ? <p>{label}</p> : null}
+    </div>
+  );
+}
+const DISPLAY_SETTING_KEYS = Object.keys(DEFAULT_DISPLAY_SETTINGS.front);
+
+function clampNumber(value, min, max) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return min;
+  return Math.min(max, Math.max(min, numeric));
+}
+
+function roundToInt(value, fallback = 1) {
+  const numeric = Math.round(Number(value));
+  if (!Number.isFinite(numeric) || numeric <= 0) return fallback;
+  return numeric;
+}
+
+function getProjectedReviewIntervalDays(item, rating) {
+  const normalizedRating = String(rating || "").trim().toLowerCase();
+  const previousEaseFactor = clampNumber(item?.easeFactor, 1.7, 3.0);
+  const previousIntervalDays = roundToInt(item?.intervalDays, 1);
+  const previousSuccessStreak = Math.max(0, Math.floor(Number(item?.successStreak) || 0));
+
+  if (normalizedRating === "again") return 1;
+  if (normalizedRating === "hard") return Math.max(1, roundToInt((previousIntervalDays || 1) * 1.2, 1));
+
+  const nextSuccessStreak = previousSuccessStreak + 1;
+  if (normalizedRating === "easy") {
+    return nextSuccessStreak <= 1
+      ? 5
+      : Math.max(2, roundToInt(Math.max(2, previousIntervalDays) * previousEaseFactor * 1.25, 5));
+  }
+
+  return nextSuccessStreak <= 1
+    ? 3
+    : Math.max(2, roundToInt(Math.max(2, previousIntervalDays) * previousEaseFactor, 3));
+}
+
+function formatReviewInterval(days) {
+  const safeDays = Math.max(1, Math.floor(Number(days) || 1));
+  if (safeDays === 1) return "1 day";
+  if (safeDays < 14) return `${safeDays} days`;
+
+  const weeks = Math.round(safeDays / 7);
+  if (weeks < 8) return `${weeks} ${weeks === 1 ? "week" : "weeks"}`;
+
+  const months = Math.round(safeDays / 30);
+  return `${Math.max(2, months)} months`;
+}
+
+function sanitizeDisplaySide(rawSide, fallbackSide) {
+  const side = rawSide && typeof rawSide === "object" && !Array.isArray(rawSide) ? rawSide : {};
+  return DISPLAY_SETTING_KEYS.reduce((nextSide, key) => {
+    nextSide[key] = typeof side[key] === "boolean" ? side[key] : Boolean(fallbackSide?.[key]);
+    return nextSide;
+  }, {});
+}
+
+function sanitizeDisplaySettings(rawSettings) {
+  const settings =
+    rawSettings && typeof rawSettings === "object" && !Array.isArray(rawSettings)
+      ? rawSettings
+      : {};
+
+  return {
+    front: sanitizeDisplaySide(settings.front, DEFAULT_DISPLAY_SETTINGS.front),
+    back: sanitizeDisplaySide(settings.back, DEFAULT_DISPLAY_SETTINGS.back),
+  };
+}
+
+function getPronunciationText(item) {
+  return String(
+    item?.pronunciation ||
+      item?.japaneseRomaji ||
+      item?.japaneseReading ||
+      ""
+  ).trim();
+}
+
+function getReadingText(item) {
+  return String(item?.japaneseReading || item?.japaneseRomaji || item?.pronunciation || "").trim();
+}
+
+function highlightReviewWord(text, item) {
+  const sentence = String(text || "").trim();
+  const candidates = [
+    item?.word,
+    item?.japaneseReading,
+    item?.japaneseRomaji,
+    item?.pronunciation,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  if (!sentence || candidates.length === 0) return sentence;
+
+  const lowerSentence = sentence.toLowerCase();
+  const target = candidates.find((candidate) => lowerSentence.includes(candidate.toLowerCase()));
+  if (!target) return sentence;
+
+  const startIndex = lowerSentence.indexOf(target.toLowerCase());
+  if (startIndex < 0) return sentence;
+
+  const endIndex = startIndex + target.length;
+  return (
+    <>
+      {sentence.slice(0, startIndex)}
+      <mark className="adaptiveReviewExampleWord">{sentence.slice(startIndex, endIndex)}</mark>
+      {sentence.slice(endIndex)}
+    </>
+  );
+}
+
+function buildDisplayRows(item, sideSettings, selectedDefinition) {
+  if (!item) return [];
+
+  const rows = [];
+  const pushRow = (key, label, value, className = "") => {
+    if (!sideSettings?.[key] || !value) return;
+    rows.push({ key, label, value, className });
+  };
+
+  pushRow(
+    "word",
+    "Word",
+    <JapaneseWordDisplay wordEntry={item} />,
+    "adaptiveReviewDisplayValueWord"
+  );
+  pushRow("meaning", "Meaning", selectedDefinition, "adaptiveReviewDisplayValueMeaning");
+  pushRow("kanji", "Kanji", String(item.word || "").trim(), "adaptiveReviewDisplayValueWord");
+  pushRow("furigana", "Reading", getReadingText(item));
+  pushRow("pronunciation", "Pronunciation", getPronunciationText(item));
+  pushRow(
+    "exampleSentence",
+    "Example",
+    highlightReviewWord(item.exampleSentence, item),
+    "adaptiveReviewDisplayValueExample"
+  );
+  pushRow("exampleTranslation", "Translation", String(item.exampleTranslation || "").trim());
+  pushRow("chapter", "Chapter", String(item.chapterName || "").trim());
+
+  if (rows.length > 0) return rows;
+
+  return [
+    {
+      key: "fallback",
+      label: "Word",
+      value: <JapaneseWordDisplay wordEntry={item} />,
+      className: "adaptiveReviewDisplayValueWord",
+    },
+  ];
+}
+
 export function AdaptiveReviewSession({
   items,
   stats,
@@ -9,6 +199,7 @@ export function AdaptiveReviewSession({
   title = "Adaptive Review",
   scopeName = "",
   pendingRating,
+  displaySettings,
   goBack,
   onReload,
   onRate,
@@ -23,6 +214,27 @@ export function AdaptiveReviewSession({
   const displayedDueNowCount = currentItem ? dueNowCount : 0;
   const selectedDefinition = useMemo(
     () => currentItem?.selectedDefinition || "No definition available.",
+    [currentItem]
+  );
+  const safeDisplaySettings = useMemo(
+    () => sanitizeDisplaySettings(displaySettings),
+    [displaySettings]
+  );
+  const visibleRows = useMemo(
+    () =>
+      buildDisplayRows(
+        currentItem,
+        showAnswer ? safeDisplaySettings.back : safeDisplaySettings.front,
+        selectedDefinition
+      ),
+    [currentItem, safeDisplaySettings, selectedDefinition, showAnswer]
+  );
+  const ratingOptions = useMemo(
+    () =>
+      ADAPTIVE_REVIEW_RATINGS.map((rating) => ({
+        ...rating,
+        nextReviewLabel: formatReviewInterval(getProjectedReviewIntervalDays(currentItem, rating.value)),
+      })),
     [currentItem]
   );
 
@@ -67,14 +279,10 @@ export function AdaptiveReviewSession({
         </div>
 
         {loading ? (
-          <div className="analyticsCard adaptiveReviewStateCard">
-            <h3>{isSubmittingRating ? "Saving your rating..." : "Loading your adaptive review queue..."}</h3>
-            <p className="settingsHint">
-              {isSubmittingRating
-                ? "Updating the next review date for this word."
-                : "Pulling in the words that are due for review."}
-            </p>
-          </div>
+          <LoadingAnimation
+            className="adaptiveReviewLoadingAnimation"
+            label={isSubmittingRating ? "Saving your rating..." : "Loading your adaptive review queue..."}
+          />
         ) : null}
 
         {error ? (
@@ -141,20 +349,14 @@ export function AdaptiveReviewSession({
                 }}
               >
                 <div className="adaptiveReviewFlashcardInner">
-                  {!showAnswer ? (
-                    <>
-                      <strong className="adaptiveReviewWord">
-                        <JapaneseWordDisplay wordEntry={currentItem} />
-                      </strong>
-                      {!currentItem.japaneseRomaji ? <p className="adaptiveReviewPronunciation">
-                        {currentItem.pronunciation || "Tap to reveal the selected definition."}
-                      </p> : null}
-                    </>
-                  ) : (
-                    <>
-                      <p className="adaptiveReviewDefinition">{selectedDefinition}</p>
-                    </>
-                  )}
+                  <div className="adaptiveReviewDisplayRows">
+                    {visibleRows.map((row) => (
+                      <div className={`adaptiveReviewDisplayRow ${row.className}`} key={row.key}>
+                        <span className="adaptiveReviewDisplayLabel">{row.label}</span>
+                        <div className="adaptiveReviewDisplayValue">{row.value}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -172,42 +374,18 @@ export function AdaptiveReviewSession({
                 </div>
               ) : (
                 <div className="adaptiveReviewRatingsGrid">
-                  <button
-                    type="button"
-                    className={`adaptiveReviewRatingBtn ${pendingRating === "again" ? "isSaving" : ""}`}
-                    onClick={() => onRate("again")}
-                    disabled={isSubmittingRating}
-                  >
-                    <strong>Again</strong>
-                    <span>Forgot it</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`adaptiveReviewRatingBtn ${pendingRating === "hard" ? "isSaving" : ""}`}
-                    onClick={() => onRate("hard")}
-                    disabled={isSubmittingRating}
-                  >
-                    <strong>Hard</strong>
-                    <span>Barely knew it</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`adaptiveReviewRatingBtn ${pendingRating === "good" ? "isSaving" : ""}`}
-                    onClick={() => onRate("good")}
-                    disabled={isSubmittingRating}
-                  >
-                    <strong>Good</strong>
-                    <span>Knew it</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`adaptiveReviewRatingBtn ${pendingRating === "easy" ? "isSaving" : ""}`}
-                    onClick={() => onRate("easy")}
-                    disabled={isSubmittingRating}
-                  >
-                    <strong>Easy</strong>
-                    <span>Very strong</span>
-                  </button>
+                  {ratingOptions.map((rating) => (
+                    <button
+                      type="button"
+                      className={`adaptiveReviewRatingBtn ${pendingRating === rating.value ? "isSaving" : ""}`}
+                      onClick={() => onRate(rating.value)}
+                      key={rating.value}
+                    >
+                      <span className="adaptiveReviewNextTime">{rating.nextReviewLabel}</span>
+                      <strong>{rating.label}</strong>
+                      <span>{rating.hint}</span>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

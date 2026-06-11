@@ -120,7 +120,6 @@ const FREE_PLAN = [
   { type: "check", text: "Up to 100 saved words" },
   { type: "check", text: "Unlimited word testing", note: "Included", muted: true },
   { type: "check", text: "Smart Review queue" },
-  { type: "check", text: "Weak-Words Lab + CSV export" },
   { type: "x", text: "Ads", note: "May be introduced later", muted: true },
 ];
 
@@ -129,7 +128,6 @@ const PRO_PLAN = [
   { type: "check", text: "Flashcards and quiz practice" },
   { type: "check", text: "Unlimited saved words", note: "Included" },
   { type: "check", text: "Smart Review queue" },
-  { type: "check", text: "Weak-Words Lab + CSV export" },
   { type: "check", text: "Ads", note: "Ad-free" },
 ];
 

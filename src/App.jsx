@@ -3,6 +3,7 @@ import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { AdaptiveReviewSession } from "./components/AdaptiveReviewSession";
 import { JapaneseWordDisplay } from "./components/JapaneseWordDisplay";
+import { Settings } from "lucide-react";
 import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
 import { identifyAnalyticsUser, resetAnalyticsIdentity, trackEvent } from "./lib/analytics.js";
 import { kanaToRomaji } from "./lib/japaneseText";
@@ -13,10 +14,62 @@ const PRO_DAILY_GOAL_DEFAULT = 30;
 const PRO_DAILY_GOAL_MIN = 10;
 const PRO_DAILY_GOAL_MAX = 120;
 const PRO_DAILY_GOAL_STEP = 5;
+const ADAPTIVE_REVIEW_DAILY_LIMIT_DEFAULT = 20;
+const ADAPTIVE_REVIEW_DAILY_LIMIT_MIN = 5;
+const ADAPTIVE_REVIEW_DAILY_LIMIT_MAX = 100;
+const ADAPTIVE_REVIEW_DAILY_LIMIT_STEP = 1;
 const FREE_WORD_LIMIT = 100;
 const WEAK_WORDS_RECENT_DAY_WINDOW = 21;
 const WEAK_WORDS_RECENT_QUESTION_WINDOW = 120;
 const DEFAULT_CHAPTER_ID = "general";
+const JAPANESE_STARTER_BOOK_META = {
+  id: "japanese-beginner-core-1500",
+  name: "Japanese Beginner Core 1.5k",
+  wordCount: 1500,
+  initialAdaptiveReviewActiveCount: 20,
+  sourceName: "jlpt-word-list",
+  sourceUrl: "https://github.com/elzup/jlpt-word-list",
+  sourceLicense: "MIT",
+};
+const PREMADE_BOOKS = [
+  {
+    ...JAPANESE_STARTER_BOOK_META,
+    typeLabel: "Premade Japanese Book",
+    typeLabelJa: "日本語スターターブック",
+  },
+];
+const ADAPTIVE_REVIEW_DISPLAY_ATTRIBUTE_KEYS = [
+  "word",
+  "meaning",
+  "kanji",
+  "furigana",
+  "pronunciation",
+  "exampleSentence",
+  "exampleTranslation",
+  "chapter",
+];
+const DEFAULT_ADAPTIVE_REVIEW_DISPLAY_SETTINGS = {
+  front: {
+    word: true,
+    meaning: false,
+    kanji: false,
+    furigana: false,
+    pronunciation: true,
+    exampleSentence: false,
+    exampleTranslation: false,
+    chapter: false,
+  },
+  back: {
+    word: false,
+    meaning: true,
+    kanji: false,
+    furigana: false,
+    pronunciation: false,
+    exampleSentence: false,
+    exampleTranslation: false,
+    chapter: false,
+  },
+};
 const DEFAULT_BOOK_LANGUAGE_MODE = "en_en";
 const BOOK_LANGUAGE_MODE_OPTIONS = [
   {
@@ -50,6 +103,19 @@ const BOOK_LANGUAGE_MODE_OPTIONS = [
     emptyHint: "Add a Japanese word or romaji above and Vocalibry will fetch English meanings for this book's flashcards and quizzes.",
   },
 ];
+
+function LoadingAnimation({ label, className = "" }) {
+  return (
+    <div className={`loadingAnimation ${className}`.trim()} role="status" aria-live="polite">
+      <div className="accountSyncLoader" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      {label ? <p>{label}</p> : null}
+    </div>
+  );
+}
 const BOOK_LANGUAGE_MODE_VALUE_SET = new Set(BOOK_LANGUAGE_MODE_OPTIONS.map((option) => option.value));
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .trim()
@@ -149,12 +215,28 @@ function countStoredWords(rawBooks) {
   }, 0);
 }
 
+function isAdaptiveReviewEnabledWord(wordEntry) {
+  return wordEntry?.adaptiveReviewEnabled !== false;
+}
+
+function getBookAdaptiveReviewDailyLimit(book) {
+  return parseAdaptiveReviewDailyLimit(book?.adaptiveReviewDailyLimit);
+}
+
+function getBookAdaptiveReviewShuffleDue(book) {
+  return parseStoredBoolean(book?.adaptiveReviewShuffleDue, false);
+}
+
 function buildLocalAdaptiveReviewSummaries(rawBooks) {
   const books = Array.isArray(rawBooks) ? rawBooks : [];
   return books
     .map((book) => {
       const bookId = String(book?.id || "").trim();
-      const words = Array.isArray(book?.words) ? book.words.filter((wordEntry) => String(wordEntry?.word || "").trim()) : [];
+      const words = Array.isArray(book?.words)
+        ? book.words.filter(
+            (wordEntry) => String(wordEntry?.word || "").trim() && isAdaptiveReviewEnabledWord(wordEntry)
+          )
+        : [];
       if (!bookId || words.length === 0) return null;
       return {
         bookId,
@@ -1105,8 +1187,33 @@ function parseJsonSafely(rawValue, fallbackValue) {
 function parseStoredStreak(rawValue) {
   const parsed = parseJsonSafely(rawValue, null);
   const count = Math.max(1, Math.floor(Number(parsed?.count) || 1));
-  const lastDate = parsed?.lastDate ? getCurrentDayKey(new Date(parsed.lastDate)) : null;
+  const rawLastDate = typeof parsed?.lastDate === "string" ? parsed.lastDate.trim() : "";
+  const lastDate = /^\d{4}-\d{2}-\d{2}$/.test(rawLastDate)
+    ? rawLastDate
+    : rawLastDate
+      ? getCurrentDayKey(new Date(rawLastDate))
+      : null;
   return { count, lastDate };
+}
+
+function choosePreferredStreak(currentStreak, candidateStreak) {
+  const current = currentStreak || { count: 1, lastDate: null };
+  const candidate = candidateStreak || { count: 1, lastDate: null };
+  const currentDayIndex = parseDayKeyToDayIndex(current.lastDate);
+  const candidateDayIndex = parseDayKeyToDayIndex(candidate.lastDate);
+
+  if (candidateDayIndex !== null && currentDayIndex !== null) {
+    if (candidateDayIndex > currentDayIndex) return candidate;
+    if (candidateDayIndex < currentDayIndex) return current;
+  } else if (candidateDayIndex !== null) {
+    return candidate;
+  } else if (currentDayIndex !== null) {
+    return current;
+  }
+
+  const currentCount = Math.max(1, Math.floor(Number(current.count) || 1));
+  const candidateCount = Math.max(1, Math.floor(Number(candidate.count) || 1));
+  return candidateCount > currentCount ? candidate : current;
 }
 
 function parseStoredBoolean(value, fallbackValue = false) {
@@ -1202,6 +1309,16 @@ function parseDailyGoalTarget(value) {
   const clamped = Math.min(PRO_DAILY_GOAL_MAX, Math.max(PRO_DAILY_GOAL_MIN, parsed));
   const offset = clamped - PRO_DAILY_GOAL_MIN;
   return PRO_DAILY_GOAL_MIN + Math.round(offset / PRO_DAILY_GOAL_STEP) * PRO_DAILY_GOAL_STEP;
+}
+
+function parseAdaptiveReviewDailyLimit(value) {
+  const parsed = Math.floor(Number(value) || ADAPTIVE_REVIEW_DAILY_LIMIT_DEFAULT);
+  const clamped = Math.min(
+    ADAPTIVE_REVIEW_DAILY_LIMIT_MAX,
+    Math.max(ADAPTIVE_REVIEW_DAILY_LIMIT_MIN, parsed)
+  );
+  const offset = clamped - ADAPTIVE_REVIEW_DAILY_LIMIT_MIN;
+  return ADAPTIVE_REVIEW_DAILY_LIMIT_MIN + Math.round(offset / ADAPTIVE_REVIEW_DAILY_LIMIT_STEP) * ADAPTIVE_REVIEW_DAILY_LIMIT_STEP;
 }
 
 function normalizeTrackedQuizMode(mode) {
@@ -1722,6 +1839,32 @@ function makeUniqueBookName(name, usedNames) {
   return nextName;
 }
 
+function sanitizeAdaptiveReviewDisplaySide(rawSide, fallbackSide) {
+  const side = rawSide && typeof rawSide === "object" && !Array.isArray(rawSide) ? rawSide : {};
+  return ADAPTIVE_REVIEW_DISPLAY_ATTRIBUTE_KEYS.reduce((nextSide, key) => {
+    nextSide[key] = typeof side[key] === "boolean" ? side[key] : Boolean(fallbackSide?.[key]);
+    return nextSide;
+  }, {});
+}
+
+function sanitizeAdaptiveReviewDisplaySettings(rawSettings) {
+  const settings =
+    rawSettings && typeof rawSettings === "object" && !Array.isArray(rawSettings)
+      ? rawSettings
+      : {};
+
+  return {
+    front: sanitizeAdaptiveReviewDisplaySide(
+      settings.front,
+      DEFAULT_ADAPTIVE_REVIEW_DISPLAY_SETTINGS.front
+    ),
+    back: sanitizeAdaptiveReviewDisplaySide(
+      settings.back,
+      DEFAULT_ADAPTIVE_REVIEW_DISPLAY_SETTINGS.back
+    ),
+  };
+}
+
 function ensureBookChapters(book) {
   const languageMode = inferBookLanguageMode(book);
   const existingChapters = Array.isArray(book?.chapters) ? book.chapters : [];
@@ -1768,6 +1911,11 @@ function ensureBookChapters(book) {
   return {
     ...book,
     languageMode,
+    adaptiveReviewDisplaySettings: sanitizeAdaptiveReviewDisplaySettings(
+      book?.adaptiveReviewDisplaySettings
+    ),
+    adaptiveReviewDailyLimit: parseAdaptiveReviewDailyLimit(book?.adaptiveReviewDailyLimit),
+    adaptiveReviewShuffleDue: parseStoredBoolean(book?.adaptiveReviewShuffleDue, false),
     chapters: uniqueChapters,
     words: normalizedWords,
   };
@@ -2302,7 +2450,7 @@ export default function App() {
     };
   }
 
-  function buildLocalAdaptiveReviewItems(bookId, limit = 20) {
+  function buildLocalAdaptiveReviewItems(bookId, limit = 20, options = {}) {
     const safeBookId = String(bookId || "").trim();
     const book = latestBooksRef.current.find((item) => String(item?.id) === safeBookId);
     if (!book) return [];
@@ -2312,9 +2460,8 @@ export default function App() {
     );
     const maxItems = Math.max(1, Math.floor(Number(limit) || 20));
 
-    return (Array.isArray(book.words) ? book.words : [])
-      .filter((wordEntry) => String(wordEntry?.word || "").trim())
-      .slice(0, maxItems)
+    const reviewWords = (Array.isArray(book.words) ? book.words : [])
+      .filter((wordEntry) => String(wordEntry?.word || "").trim() && isAdaptiveReviewEnabledWord(wordEntry))
       .map((wordEntry) => {
         const chapterId = String(wordEntry?.chapterId || DEFAULT_CHAPTER_ID).trim() || DEFAULT_CHAPTER_ID;
         const japaneseReading = String(
@@ -2334,9 +2481,13 @@ export default function App() {
           pronunciation: String(wordEntry?.pronunciation || wordEntry?.pronounciation || "").trim(),
           japaneseReading,
           japaneseRomaji: String(wordEntry?.japaneseRomaji || (japaneseReading ? kanaToRomaji(japaneseReading) : "")).trim(),
+          exampleSentence: String(wordEntry?.exampleSentence || "").trim(),
+          exampleTranslation: String(wordEntry?.exampleTranslation || "").trim(),
           isLocalFallback: true,
         };
       });
+
+    return (options?.shuffleDue ? shuffleArray(reviewWords) : reviewWords).slice(0, maxItems);
   }
 
   function startQuizSessionWithSetup(selection, modeOverride = quizMode) {
@@ -2391,59 +2542,6 @@ export default function App() {
     initializeQuizSetupSelection();
     setQuizMode("normal");
     setScreen("quizSelect");
-  }
-
-  function exportWeakWordsCsv() {
-    if (!weakWordCandidates.length) {
-      openNoticeModal("No weak-word data yet. Complete some quizzes first.", "No Data");
-      return;
-    }
-
-    const header = [
-      "word",
-      "book",
-      "mistakes",
-      "recentAttempts",
-      "recentAccuracyPercent",
-      "mcAccuracyPercent",
-      "typingAccuracyPercent",
-      "weaknessScore",
-    ];
-    const rows = weakWordCandidates.slice(0, 200).map((entry) => [
-      String(entry.word || ""),
-      String(entry.sourceBookName || ""),
-      String(entry.mistakeCount || 0),
-      String(entry.recentAttempts || 0),
-      entry.recentAccuracyPercent === null || entry.recentAccuracyPercent === undefined
-        ? ""
-        : String(entry.recentAccuracyPercent),
-      entry.recentNormalAccuracyPercent === null || entry.recentNormalAccuracyPercent === undefined
-        ? ""
-        : String(entry.recentNormalAccuracyPercent),
-      entry.recentTypingAccuracyPercent === null || entry.recentTypingAccuracyPercent === undefined
-        ? ""
-        : String(entry.recentTypingAccuracyPercent),
-      String(Math.round(Number(entry.weaknessScore) || 0)),
-    ]);
-    const csvContent = [header, ...rows]
-      .map((cols) =>
-        cols
-          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-          .join(",")
-      )
-      .join("\n");
-
-    const dateStamp = new Date().toISOString().slice(0, 10);
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `weak-words-${dateStamp}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    openNoticeModal("Weak words CSV exported.", "Export Complete");
   }
 
   const startMistakeReviewSession = useCallback((source = "global") => {
@@ -2694,9 +2792,10 @@ export default function App() {
   const loadAdaptiveReviewQueue = useCallback(async (limit = 20, options = {}) => {
     const showLoading = !options?.silent;
     const bookId = String(options?.bookId ?? selectedAdaptiveReviewBookId ?? "").trim();
+    const shuffleDue = Boolean(options?.shuffleDue);
 
     if (!authToken) {
-      const fallbackItems = bookId ? buildLocalAdaptiveReviewItems(bookId, limit) : [];
+      const fallbackItems = bookId ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue }) : [];
       setAdaptiveReviewItems(fallbackItems);
       setAdaptiveReviewStats({ dueNow: fallbackItems.length });
       setAdaptiveReviewError("");
@@ -2728,6 +2827,9 @@ export default function App() {
       if (bookId) {
         params.set("bookId", bookId);
       }
+      if (shuffleDue) {
+        params.set("shuffleDue", "1");
+      }
       const response = await fetchWithRetry(`${REVIEW_API_PATH}/due?${params.toString()}`, {
         credentials: "include",
         headers: buildAuthHeaders(authToken),
@@ -2744,7 +2846,7 @@ export default function App() {
 
       const apiItems = Array.isArray(payload?.items) ? payload.items : [];
       const fallbackItems =
-        bookId && apiItems.length === 0 ? buildLocalAdaptiveReviewItems(bookId, limit) : [];
+        bookId && apiItems.length === 0 ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue }) : [];
       const items = apiItems.length > 0 ? apiItems : fallbackItems;
       const visibleItems = items.filter(
         (item) => !adaptiveReviewRatingInFlightRef.current.has(getAdaptiveReviewItemKey(item))
@@ -2756,7 +2858,7 @@ export default function App() {
       });
       return { ok: true, payload };
     } catch (error) {
-      const fallbackItems = bookId ? buildLocalAdaptiveReviewItems(bookId, limit) : [];
+      const fallbackItems = bookId ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue }) : [];
       if (fallbackItems.length > 0) {
         setAdaptiveReviewItems(fallbackItems);
         setAdaptiveReviewStats({ dueNow: fallbackItems.length });
@@ -2798,7 +2900,11 @@ export default function App() {
     setSelectedAdaptiveReviewBookId(safeBookId);
     setAdaptiveReviewBackScreen(options.backScreen || "adaptiveReviewSelect");
     setScreen("adaptiveReview");
-    const result = await loadAdaptiveReviewQueue(20, { bookId: safeBookId });
+    const reviewBook = latestBooksRef.current.find((book) => String(book?.id) === safeBookId);
+    const result = await loadAdaptiveReviewQueue(getBookAdaptiveReviewDailyLimit(reviewBook), {
+      bookId: safeBookId,
+      shuffleDue: getBookAdaptiveReviewShuffleDue(reviewBook),
+    });
     if (result?.ok) {
       trackEvent("adaptive_review_started", {
         book_id: safeBookId,
@@ -2806,6 +2912,69 @@ export default function App() {
       });
     }
   }, [loadAdaptiveReviewQueue, openAdaptiveReviewSelect]);
+
+  function openAdaptiveReviewSettings(bookId) {
+    const safeBookId = String(bookId || "").trim();
+    if (!safeBookId) return;
+    setSelectedAdaptiveReviewBookId(safeBookId);
+    setScreen("adaptiveReviewSettings");
+  }
+
+  function updateAdaptiveReviewDisplaySetting(bookId, side, key, checked) {
+    const safeBookId = String(bookId || "").trim();
+    const safeSide = side === "back" ? "back" : "front";
+    if (!safeBookId || !ADAPTIVE_REVIEW_DISPLAY_ATTRIBUTE_KEYS.includes(key)) return;
+
+    setBooks((prevBooks) =>
+      prevBooks.map((book) => {
+        if (String(book.id) !== safeBookId) return book;
+
+        const currentSettings = sanitizeAdaptiveReviewDisplaySettings(
+          book.adaptiveReviewDisplaySettings
+        );
+        return {
+          ...book,
+          adaptiveReviewDisplaySettings: {
+            ...currentSettings,
+            [safeSide]: {
+              ...currentSettings[safeSide],
+              [key]: Boolean(checked),
+            },
+          },
+        };
+      })
+    );
+  }
+
+  function updateBookAdaptiveReviewDailyLimit(bookId, value) {
+    const safeBookId = String(bookId || "").trim();
+    if (!safeBookId) return;
+    setBooks((prevBooks) =>
+      prevBooks.map((book) =>
+        String(book.id) === safeBookId
+          ? {
+              ...book,
+              adaptiveReviewDailyLimit: parseAdaptiveReviewDailyLimit(value),
+            }
+          : book
+      )
+    );
+  }
+
+  function updateBookAdaptiveReviewShuffleDue(bookId, checked) {
+    const safeBookId = String(bookId || "").trim();
+    if (!safeBookId) return;
+    setBooks((prevBooks) =>
+      prevBooks.map((book) =>
+        String(book.id) === safeBookId
+          ? {
+              ...book,
+              adaptiveReviewShuffleDue: Boolean(checked),
+            }
+          : book
+      )
+    );
+  }
 
   function openPracticeQuizForBook(bookId) {
     const safeBookId = String(bookId || "").trim();
@@ -2830,7 +2999,6 @@ export default function App() {
     if (!currentItem || (!authToken && !isLocalFallbackItem) || adaptiveReviewRatingInFlightRef.current.has(itemKey)) return;
 
     adaptiveReviewRatingInFlightRef.current.add(itemKey);
-    setAdaptiveReviewPendingRating(rating);
     const remainingCount = Math.max(0, adaptiveReviewItems.length - 1);
     const shouldReloadQueueAfterSave = adaptiveReviewItems.length <= 1;
 
@@ -2906,7 +3074,12 @@ export default function App() {
       });
 
       if (shouldReloadQueueAfterSave && !isLocalFallbackItem) {
-        await loadAdaptiveReviewQueue(20, { silent: true, bookId: currentItem.bookId });
+        const reviewBook = latestBooksRef.current.find((book) => String(book?.id) === String(currentItem.bookId));
+        await loadAdaptiveReviewQueue(getBookAdaptiveReviewDailyLimit(reviewBook), {
+          silent: true,
+          bookId: currentItem.bookId,
+          shuffleDue: getBookAdaptiveReviewShuffleDue(reviewBook),
+        });
         trackEvent("adaptive_review_completed", {});
       }
     } catch (error) {
@@ -2947,14 +3120,7 @@ export default function App() {
       screen === "mistakeReview";
 
     const mainContent = isAccountDataHydrating ? (
-      <div className="accountSyncScreen" role="status" aria-live="polite">
-        <div className="accountSyncLoader" aria-hidden="true">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <p>{uiText.loadingAccountData}</p>
-      </div>
+      <LoadingAnimation className="accountSyncScreen" label={uiText.loadingAccountData} />
     ) : content;
 
     const stopGuidedTourForSidebarNavigation = () => {
@@ -4333,6 +4499,50 @@ export default function App() {
     }
   }
 
+  async function importJapaneseStarterBook() {
+    const existingStarterBook = books.find(
+      (book) => String(book?.starterBookId || "") === JAPANESE_STARTER_BOOK_META.id
+    );
+    if (existingStarterBook) {
+      setCurrentBookId(existingStarterBook.id);
+      setScreen("bookMenu");
+      openNoticeModal(
+        tr("The Japanese starter book is already in your library.", "日本語スターターブックはすでにライブラリにあります。"),
+        tr("Starter Book Already Imported", "スターターブックはインポート済み")
+      );
+      return;
+    }
+
+    const { JAPANESE_STARTER_BOOK } = await import("./data/japaneseStarterBook.js");
+    const now = Date.now();
+    const usedNames = new Set(books.map((book) => normalizeBookNameForComparison(book?.name)));
+    const importedBook = ensureBookChapters({
+      id: `starter-${JAPANESE_STARTER_BOOK.id}-${now}`,
+      starterBookId: JAPANESE_STARTER_BOOK.id,
+      starterBookSourceName: JAPANESE_STARTER_BOOK.sourceName,
+      starterBookSourceUrl: JAPANESE_STARTER_BOOK.sourceUrl,
+      starterBookSourceLicense: JAPANESE_STARTER_BOOK.sourceLicense,
+      starterBookSourceAttribution: JAPANESE_STARTER_BOOK.sourceAttribution,
+      name: makeUniqueBookName(JAPANESE_STARTER_BOOK.name, usedNames),
+      languageMode: JAPANESE_STARTER_BOOK.languageMode,
+      chapters: JAPANESE_STARTER_BOOK.chapters,
+      words: JAPANESE_STARTER_BOOK.words,
+      questionsCompleted: 0,
+      lastOpened: now,
+    });
+
+    setBooks([...books, importedBook]);
+    setCurrentBookId(importedBook.id);
+    setScreen("bookMenu");
+    openNoticeModal(
+      tr(
+        `${JAPANESE_STARTER_BOOK.words.length} starter words imported. Adaptive Review starts with ${JAPANESE_STARTER_BOOK.initialAdaptiveReviewActiveCount} words so it stays manageable.`,
+        `${JAPANESE_STARTER_BOOK.words.length}語をインポートしました。負担を避けるため、適応型復習は最初の${JAPANESE_STARTER_BOOK.initialAdaptiveReviewActiveCount}語から始まります。`
+      ),
+      tr("Starter Book Imported", "スターターブックをインポートしました")
+    );
+  }
+
   function addChapter() {
     if (!currentBook) return;
     const chapterName = newChapterName.trim();
@@ -4526,7 +4736,11 @@ export default function App() {
 
     const importedBooks = normalizeBooksData(rawData.books);
     const importedTheme = rawData.theme === "dark" || rawData.theme === "light" ? rawData.theme : "light";
-    const importedStreak = parseStoredStreak(JSON.stringify(rawData?.streak || null));
+    const hasImportedStreak =
+      rawData?.streak && typeof rawData.streak === "object" && !Array.isArray(rawData.streak);
+    const importedStreak = hasImportedStreak
+      ? parseStoredStreak(JSON.stringify(rawData.streak))
+      : null;
     const importedSidebarHidden = parseStoredBoolean(rawData?.isSidebarHidden, false);
     const importedWeeklyStats = parseStoredWeeklyStats(JSON.stringify(rawData?.weeklyStats || null));
     const importedActivityHistory = parseStoredActivityHistory(
@@ -4582,7 +4796,7 @@ export default function App() {
 
     setTheme(importedTheme);
     setBooks(importedBooks);
-    setStreak(importedStreak);
+    setStreak((prev) => choosePreferredStreak(prev, importedStreak));
     setIsSidebarHidden(importedSidebarHidden);
     setWeeklyStats(importedWeeklyStats);
     setActivityHistory(importedActivityHistory);
@@ -5168,6 +5382,16 @@ export default function App() {
                 "各ブックを1つの学習方向に集中させます。"
               )}
             </p>
+            <button
+              type="button"
+              className="createBookBrowsePremadeBtn"
+              onClick={() => {
+                setIsAddBookModalOpen(false);
+                setScreen("premadeBooks");
+              }}
+            >
+              {tr("Browse Premade Books", "既製ブックを見る")}
+            </button>
             {renderGuidedTourCoach("inline", "book-name")}
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={closeAddBookModal}>
@@ -7278,55 +7502,6 @@ export default function App() {
 
           </div>
 
-          <div className="analyticsCard premiumDataCard">
-              <div className="premiumFocusHeader">
-                <h3>{tr("Weak-Words Lab", "弱点単語ラボ")}</h3>
-              </div>
-              <p className="settingsHint">
-                {tr("Find the exact words that cost you points and export them for focused drills.", "失点しやすい単語を特定し、集中練習用にエクスポートできます。")}
-              </p>
-              <p className="quizSetupHint">
-                {tr("Rolling window:", "分析期間:")} {WEAK_WORDS_RECENT_DAY_WINDOW}{tr(" days and up to", "日、かつ各単語につき最新")}{" "}
-                {WEAK_WORDS_RECENT_QUESTION_WINDOW}{tr(" recent answers per word.", "件まで")}
-              </p>
-              <div className="premiumWeakList">
-                {weakWordCandidates.slice(0, 8).map((entry, index) => (
-                  <div key={`${entry.sourceBookId}:${entry.word}:${index}`} className="premiumWeakRow">
-                    <strong>{entry.word}</strong>
-                    <span>{entry.sourceBookName}</span>
-                    <span>
-                      Recent:{" "}
-                      {entry.recentAccuracyPercent === null || entry.recentAccuracyPercent === undefined
-                        ? "N/A"
-                        : `${entry.recentAccuracyPercent}%`}{" "}
-                      ({entry.recentAttempts})
-                    </span>
-                    <span>
-                      MC:{" "}
-                      {entry.recentNormalAccuracyPercent === null || entry.recentNormalAccuracyPercent === undefined
-                        ? "N/A"
-                        : `${entry.recentNormalAccuracyPercent}%`}{" "}
-                      | Typing:{" "}
-                      {entry.recentTypingAccuracyPercent === null || entry.recentTypingAccuracyPercent === undefined
-                        ? "N/A"
-                        : `${entry.recentTypingAccuracyPercent}%`}
-                    </span>
-                  </div>
-                ))}
-                {weakWordCandidates.length === 0 ? (
-                  <p className="quizSetupHint">{tr("No weak-word data yet. Complete quizzes to build insights.", "弱点データはまだありません。クイズを解いてデータを作成しましょう。")}</p>
-                ) : null}
-              </div>
-              <div className="premiumActionRow">
-                <button type="button" className="primaryBtn" onClick={openQuizSetup}>
-                  {tr("Open Quiz Setup", "クイズ設定を開く")}
-                </button>
-                <button type="button" className="primaryBtn" onClick={exportWeakWordsCsv}>
-                  {tr("Export Weak Words CSV", "弱点単語CSVを出力")}
-                </button>
-              </div>
-            </div>
-
           <div className="analyticsCard backupRestoreCard">
             <h3>{tr("Backup & Restore", "バックアップと復元")}</h3>
             <p className="quizSetupHint">
@@ -7352,6 +7527,62 @@ export default function App() {
               />
             </div>
           </div>
+        </div>
+        {renderModal()}
+      </div>
+    );
+  }
+
+  // ---------- PREMADE BOOKS ----------
+  if (screen === "premadeBooks") {
+    return renderWithSidebar(
+      <div className="page">
+        <div className="pageHeader">
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("books")}>&times;</button>
+          <h1>{tr("Premade Books", "既製ブック")}</h1>
+        </div>
+        <div className="bookGrid selectBookGrid premadeBookGrid">
+          {PREMADE_BOOKS.map((premadeBook) => {
+            const importedBook = books.find(
+              (book) => String(book?.starterBookId || "") === premadeBook.id
+            );
+            const actionLabel = importedBook
+              ? tr("Open Book", "ブックを開く")
+              : tr("Import Book", "ブックを読み込む");
+            const handleAction = importedBook
+              ? () => {
+                  setCurrentBookId(importedBook.id);
+                  setScreen("bookMenu");
+                }
+              : importJapaneseStarterBook;
+
+            return (
+              <div key={premadeBook.id} className="selectBookCard premadeBookTile">
+                <div className="selectBookCardTop">
+                  <p className="starterBookEyebrow">
+                    {tr(premadeBook.typeLabel, premadeBook.typeLabelJa)}
+                  </p>
+                  <h3 className="selectBookTitle">{premadeBook.name}</h3>
+                  <p className="settingsHint">
+                    {tr(
+                      `${premadeBook.wordCount} beginner-friendly words across JLPT N5, N4, and an N3 starter top-up.`,
+                      `${premadeBook.wordCount}語をJLPT N5、N4、N3入門に分けて収録。`
+                    )}
+                  </p>
+                </div>
+                <p className="starterBookAttribution">
+                  {tr("Source:", "出典:")}{" "}
+                  <a href={premadeBook.sourceUrl} target="_blank" rel="noreferrer">
+                    {premadeBook.sourceName}
+                  </a>{" "}
+                  ({premadeBook.sourceLicense})
+                </p>
+                <button type="button" className="primaryBtn" onClick={handleAction}>
+                  {actionLabel}
+                </button>
+              </div>
+            );
+          })}
         </div>
         {renderModal()}
       </div>
@@ -7594,7 +7825,7 @@ export default function App() {
             {uiText.manageChapters}
           </button>
         </div>
-        {loading && <div className="spinner"></div>}
+        {loading && <LoadingAnimation className="inlineLoadingAnimation" label={tr("Saving word...", "単語を保存中...")} />}
         {!loading && (currentBook?.words || []).length === 0 ? (
           renderEmptyActionState({
             icon: "\uD83D\uDCD8",
@@ -8274,10 +8505,10 @@ export default function App() {
         </div>
         <div className="analyticsSection">
           {adaptiveReviewLoading ? (
-            <div className="analyticsCard adaptiveReviewStateCard">
-              <h3>{tr("Loading review books...", "復習ブックを読み込み中...")}</h3>
-              <p className="settingsHint">{tr("Checking due counts for each book.", "各ブックの復習数を確認しています。")}</p>
-            </div>
+            <LoadingAnimation
+              className="adaptiveReviewLoadingAnimation"
+              label={tr("Loading review books...", "復習ブックを読み込み中...")}
+            />
           ) : null}
 
           {adaptiveReviewError ? (
@@ -8310,12 +8541,7 @@ export default function App() {
                   totalWords
                 );
 
-                return (
-                  <button
-                    key={summary.bookId}
-                    type="button"
-                    className={`analyticsCard adaptiveReviewBookCard ${dueNow <= 0 ? "isEmpty" : ""}`}
-                    onClick={() => {
+                const startReview = () => {
                       if (dueNow <= 0) {
                         openNoticeModal(
                           tr("This book has no words due right now.", "このブックには現在復習期限の単語がありません。"),
@@ -8324,8 +8550,33 @@ export default function App() {
                         return;
                       }
                       openAdaptiveReviewSession(summary.bookId, { backScreen: "adaptiveReviewSelect" });
+                    };
+
+                return (
+                  <div
+                    key={summary.bookId}
+                    className={`analyticsCard adaptiveReviewBookCard ${dueNow <= 0 ? "isEmpty" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={startReview}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      startReview();
                     }}
                   >
+                    <button
+                      type="button"
+                      className="adaptiveReviewBookSettingsBtn"
+                      aria-label={tr(`Open review settings for ${summary.bookName}`, `${summary.bookName}の復習設定を開く`)}
+                      title={tr("Review settings", "復習設定")}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openAdaptiveReviewSettings(summary.bookId);
+                      }}
+                    >
+                      <Settings size={16} aria-hidden="true" strokeWidth={2} />
+                    </button>
                     <div>
                       <h3>{summary.bookName}</h3>
                       <p className="settingsHint">
@@ -8338,12 +8589,226 @@ export default function App() {
                         {tr("due", "期限")}
                       </span>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
           ) : null}
         </div>
+        {renderModal()}
+      </div>
+    );
+  }
+
+  if (screen === "adaptiveReviewSettings") {
+    const selectedAdaptiveReviewBook = books.find(
+      (book) => String(book.id) === String(selectedAdaptiveReviewBookId)
+    );
+    const displaySettings = sanitizeAdaptiveReviewDisplaySettings(
+      selectedAdaptiveReviewBook?.adaptiveReviewDisplaySettings
+    );
+    const selectedBookReviewDailyLimit = getBookAdaptiveReviewDailyLimit(selectedAdaptiveReviewBook);
+    const selectedBookShuffleDue = getBookAdaptiveReviewShuffleDue(selectedAdaptiveReviewBook);
+    const displaySettingOptions = [
+      {
+        key: "word",
+        label: tr("Word", "単語"),
+        description: tr("The saved word with Japanese reading when available.", "保存した単語と利用可能な読みを表示します。"),
+      },
+      {
+        key: "meaning",
+        label: tr("Meaning", "意味"),
+        description: tr("The selected definition or translation.", "選択中の定義または翻訳を表示します。"),
+      },
+      {
+        key: "kanji",
+        label: tr("Kanji / word only", "漢字 / 単語のみ"),
+        description: tr("The raw saved word without furigana.", "ふりがななしで保存単語を表示します。"),
+      },
+      {
+        key: "furigana",
+        label: tr("Furigana / reading", "ふりがな / 読み"),
+        description: tr("The reading, kana, or romaji when available.", "利用可能な読み、かな、ローマ字を表示します。"),
+      },
+      {
+        key: "pronunciation",
+        label: tr("Pronunciation", "発音"),
+        description: tr("Pronunciation, romaji, or reading metadata.", "発音、ローマ字、読み情報を表示します。"),
+      },
+      {
+        key: "exampleSentence",
+        label: tr("Example sentence", "例文"),
+        description: tr("Shows the AI example sentence with the review word highlighted.", "復習単語を強調したAI例文を表示します。"),
+      },
+      {
+        key: "exampleTranslation",
+        label: tr("Example translation", "例文訳"),
+        description: tr("Shows the example sentence translation when available.", "利用可能な例文訳を表示します。"),
+      },
+      {
+        key: "chapter",
+        label: tr("Chapter", "章"),
+        description: tr("Shows the source chapter for the word.", "単語の章を表示します。"),
+      },
+    ];
+
+    return renderWithSidebar(
+      <div className="page">
+        <div className="pageHeader">
+          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("adaptiveReviewSelect")}>&times;</button>
+          <h1>
+            {selectedAdaptiveReviewBook?.name
+              ? `${selectedAdaptiveReviewBook.name} ${tr("Review Settings", "復習設定")}`
+              : tr("Review Settings", "復習設定")}
+          </h1>
+        </div>
+        {!selectedAdaptiveReviewBook ? (
+          <div className="analyticsCard adaptiveReviewStateCard">
+            <h3>{tr("Book not found", "ブックが見つかりません")}</h3>
+            <p className="settingsHint">{tr("Go back and choose a review book again.", "戻って復習ブックを選び直してください。")}</p>
+          </div>
+        ) : (
+          <div className="analyticsSection adaptiveReviewSettingsSection">
+            <div className="analyticsCard adaptiveReviewSettingsPanel">
+              <div className="adaptiveReviewSettingsIntro">
+                <div>
+                  <h3>{tr("Advanced Settings", "詳細設定")}</h3>
+                  <p className="settingsHint">
+                    {tr("Control how this book feeds Smart Review sessions.", "このブックのスマート復習セッションの出題量を調整します。")}
+                  </p>
+                </div>
+              </div>
+              <div className="settingsRow advancedSettingsRow">
+                <span>{tr("Reviews per day", "1日の復習数")}</span>
+                <div className="settingsStepper reviewLimitStepper" role="group" aria-label={tr("Reviews per day", "1日の復習数")}>
+                  <button
+                    type="button"
+                    className="secondaryBtn settingsStepperBtn"
+                    onClick={() =>
+                      updateBookAdaptiveReviewDailyLimit(
+                        selectedAdaptiveReviewBook.id,
+                        selectedBookReviewDailyLimit - ADAPTIVE_REVIEW_DAILY_LIMIT_STEP
+                      )
+                    }
+                    disabled={selectedBookReviewDailyLimit <= ADAPTIVE_REVIEW_DAILY_LIMIT_MIN}
+                    aria-label={tr("Decrease reviews per day", "1日の復習数を減らす")}
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    className="settingsInput settingsNumberInput"
+                    min={ADAPTIVE_REVIEW_DAILY_LIMIT_MIN}
+                    max={ADAPTIVE_REVIEW_DAILY_LIMIT_MAX}
+                    step={ADAPTIVE_REVIEW_DAILY_LIMIT_STEP}
+                    value={selectedBookReviewDailyLimit}
+                    onChange={(event) =>
+                      updateBookAdaptiveReviewDailyLimit(selectedAdaptiveReviewBook.id, event.target.value)
+                    }
+                    aria-label={tr("Reviews per day", "1日の復習数")}
+                  />
+                  <button
+                    type="button"
+                    className="secondaryBtn settingsStepperBtn"
+                    onClick={() =>
+                      updateBookAdaptiveReviewDailyLimit(
+                        selectedAdaptiveReviewBook.id,
+                        selectedBookReviewDailyLimit + ADAPTIVE_REVIEW_DAILY_LIMIT_STEP
+                      )
+                    }
+                    disabled={selectedBookReviewDailyLimit >= ADAPTIVE_REVIEW_DAILY_LIMIT_MAX}
+                    aria-label={tr("Increase reviews per day", "1日の復習数を増やす")}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="settingsRow">
+                <span>{tr("Shuffle due words", "期限単語をシャッフル")}</span>
+                <button
+                  type="button"
+                  className={`themeSwitch dailyGoalsSwitch ${selectedBookShuffleDue ? "isDark" : ""}`}
+                  onClick={() =>
+                    updateBookAdaptiveReviewShuffleDue(selectedAdaptiveReviewBook.id, !selectedBookShuffleDue)
+                  }
+                  aria-label={tr(
+                    selectedBookShuffleDue ? "Turn off shuffle mode" : "Turn on shuffle mode",
+                    selectedBookShuffleDue ? "シャッフルをオフにする" : "シャッフルをオンにする"
+                  )}
+                >
+                  <span className="themeSwitchIcon" aria-hidden="true" />
+                </button>
+              </div>
+              <p className="settingsHint">
+                {tr(
+                  selectedBookShuffleDue
+                    ? `Smart Review will load up to ${selectedBookReviewDailyLimit} due cards in random order.`
+                    : `Smart Review will load up to ${selectedBookReviewDailyLimit} due cards in due-date order.`,
+                  selectedBookShuffleDue
+                    ? `スマート復習は最大${selectedBookReviewDailyLimit}枚の期限カードをランダム順で読み込みます。`
+                    : `スマート復習は最大${selectedBookReviewDailyLimit}枚の期限カードを期限順で読み込みます。`
+                )}
+              </p>
+              <div className="adaptiveReviewSettingsDivider" />
+              <div className="adaptiveReviewSettingsIntro">
+                <div>
+                  <h3>{tr("Card Display", "カード表示")}</h3>
+                  <p className="settingsHint">
+                    {tr("Choose what appears before and after reveal.", "答えを表示する前後に見える内容を選びます。")}
+                  </p>
+                </div>
+              </div>
+              <div className="adaptiveReviewSettingsTable">
+                <div className="adaptiveReviewSettingsHeader" aria-hidden="true">
+                  <span>{tr("Attribute", "項目")}</span>
+                  <span>{tr("Front", "表")}</span>
+                  <span>{tr("Back", "裏")}</span>
+                </div>
+                {displaySettingOptions.map((option) => (
+                  <div className="adaptiveReviewSettingRow" key={option.key}>
+                    <div className="adaptiveReviewSettingCopy">
+                      <strong>{option.label}</strong>
+                      <small>{option.description}</small>
+                    </div>
+                    {["front", "back"].map((side) => (
+                      <label
+                        className="adaptiveReviewSettingCheck"
+                        key={`${option.key}-${side}`}
+                        aria-label={`${option.label} ${side}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(displaySettings[side]?.[option.key])}
+                          onChange={(event) =>
+                            updateAdaptiveReviewDisplaySetting(
+                              selectedAdaptiveReviewBook?.id,
+                              side,
+                              option.key,
+                              event.target.checked
+                            )
+                          }
+                        />
+                        <span aria-hidden="true"></span>
+                      </label>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="modalActions adaptiveReviewSettingsActions">
+              <button type="button" className="modalBtn ghost" onClick={() => setScreen("adaptiveReviewSelect")}>
+                {tr("Back", "戻る")}
+              </button>
+              <button
+                type="button"
+                className="modalBtn primary"
+                onClick={() => openAdaptiveReviewSession(selectedAdaptiveReviewBook.id, { backScreen: "adaptiveReviewSettings" })}
+              >
+                {tr("Start Review", "復習を開始")}
+              </button>
+            </div>
+          </div>
+        )}
         {renderModal()}
       </div>
     );
@@ -8363,11 +8828,20 @@ export default function App() {
             : "Adaptive Review"
         }
         scopeName={selectedAdaptiveReviewBook?.name || ""}
+        displaySettings={sanitizeAdaptiveReviewDisplaySettings(
+          selectedAdaptiveReviewBook?.adaptiveReviewDisplaySettings
+        )}
         loading={adaptiveReviewLoading}
         error={adaptiveReviewError}
         pendingRating={adaptiveReviewPendingRating}
         goBack={() => setScreen(adaptiveReviewBackScreen || "adaptiveReviewSelect")}
-        onReload={() => loadAdaptiveReviewQueue(20, { bookId: selectedAdaptiveReviewBookId })}
+        onReload={() => {
+          const reviewBook = latestBooksRef.current.find((book) => String(book?.id) === String(selectedAdaptiveReviewBookId));
+          return loadAdaptiveReviewQueue(getBookAdaptiveReviewDailyLimit(reviewBook), {
+            bookId: selectedAdaptiveReviewBookId,
+            shuffleDue: getBookAdaptiveReviewShuffleDue(reviewBook),
+          });
+        }}
         onRate={rateAdaptiveReviewWord}
         onPracticeQuiz={() => openPracticeQuizForBook(selectedAdaptiveReviewBookId)}
       />

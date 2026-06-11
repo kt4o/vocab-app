@@ -11,6 +11,25 @@ function normalizeWordKey(value) {
   return normalizeText(value).toLowerCase();
 }
 
+function parseStoredBoolean(value, fallbackValue = false) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "1" || normalized === "true" || normalized === "yes") return true;
+    if (normalized === "0" || normalized === "false" || normalized === "no") return false;
+  }
+  return fallbackValue;
+}
+
+function shuffleArray(items) {
+  const nextItems = [...items];
+  for (let index = nextItems.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [nextItems[index], nextItems[swapIndex]] = [nextItems[swapIndex], nextItems[index]];
+  }
+  return nextItems;
+}
+
 function getSelectedDefinition(wordEntry) {
   const definitions = Array.isArray(wordEntry?.definitions)
     ? wordEntry.definitions.map((item) => normalizeText(item)).filter(Boolean)
@@ -52,6 +71,7 @@ function buildWordCatalog(appState) {
     (Array.isArray(book?.words) ? book.words : []).forEach((wordEntry) => {
       const word = normalizeText(wordEntry?.word);
       if (!word) return;
+      if (wordEntry?.adaptiveReviewEnabled === false) return;
       const chapterId = normalizeText(wordEntry?.chapterId) || "general";
       const definitions = Array.isArray(wordEntry?.definitions)
         ? wordEntry.definitions.map((item) => normalizeText(item)).filter(Boolean)
@@ -74,6 +94,8 @@ function buildWordCatalog(appState) {
             wordEntry?.pronounciation
         ),
         japaneseRomaji: normalizeText(wordEntry?.japaneseRomaji),
+        exampleSentence: normalizeText(wordEntry?.exampleSentence),
+        exampleTranslation: normalizeText(wordEntry?.exampleTranslation),
       });
     });
   });
@@ -156,6 +178,8 @@ function toReviewItem(row, catalogItem) {
     pronunciation: catalogItem?.pronunciation || "",
     japaneseReading: catalogItem?.japaneseReading || "",
     japaneseRomaji: catalogItem?.japaneseRomaji || "",
+    exampleSentence: catalogItem?.exampleSentence || "",
+    exampleTranslation: catalogItem?.exampleTranslation || "",
     nextReviewAt: row.next_review_at,
     lastReviewedAt: row.last_reviewed_at || null,
     lastRating: row.last_rating || "",
@@ -206,6 +230,7 @@ reviewRouter.get("/due", async (req, res) => {
   const nowIso = new Date().toISOString();
   const limit = Math.min(100, Math.max(1, Math.floor(Number(req.query?.limit) || 20)));
   const filterBookId = normalizeText(req.query?.bookId);
+  const shuffleDue = parseStoredBoolean(req.query?.shuffleDue, false);
 
   try {
     const wordCatalog = await loadUserWordCatalog(userId);
@@ -232,7 +257,7 @@ reviewRouter.get("/due", async (req, res) => {
         return toReviewItem(row, catalogItem);
       })
       .filter(Boolean);
-    const items = dueItems.slice(0, limit);
+    const items = (shuffleDue ? shuffleArray(dueItems) : dueItems).slice(0, limit);
 
     res.json({
       items,
