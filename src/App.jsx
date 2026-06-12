@@ -227,14 +227,20 @@ function getBookAdaptiveReviewShuffleDue(book) {
   return parseStoredBoolean(book?.adaptiveReviewShuffleDue, false);
 }
 
-function buildLocalAdaptiveReviewSummaries(rawBooks) {
+function buildLocalAdaptiveReviewSummaries(rawBooks, options = {}) {
   const books = Array.isArray(rawBooks) ? rawBooks : [];
+  const excludedKeys = options?.excludedKeys instanceof Set ? options.excludedKeys : new Set();
   return books
     .map((book) => {
       const bookId = String(book?.id || "").trim();
       const words = Array.isArray(book?.words)
         ? book.words.filter(
-            (wordEntry) => String(wordEntry?.word || "").trim() && isAdaptiveReviewEnabledWord(wordEntry)
+            (wordEntry) => {
+              const word = String(wordEntry?.word || "").trim();
+              if (!word || !isAdaptiveReviewEnabledWord(wordEntry)) return false;
+              const chapterId = String(wordEntry?.chapterId || DEFAULT_CHAPTER_ID).trim() || DEFAULT_CHAPTER_ID;
+              return !excludedKeys.has(getAdaptiveReviewItemKey({ bookId, chapterId, word }));
+            }
           )
         : [];
       if (!bookId || words.length === 0) return null;
@@ -249,21 +255,41 @@ function buildLocalAdaptiveReviewSummaries(rawBooks) {
     .filter(Boolean);
 }
 
-function mergeAdaptiveReviewSummaries(apiSummaries, localSummaries) {
-  const merged = new Map();
-  (Array.isArray(apiSummaries) ? apiSummaries : []).forEach((summary) => {
-    const bookId = String(summary?.bookId || "").trim();
-    if (!bookId) return;
-    merged.set(bookId, { ...summary, bookId });
+function mergeAdaptiveReviewDashboardSummaries(apiSummaries, localSummaries) {
+  const apiSummaryByBookId = new Map(
+    (Array.isArray(apiSummaries) ? apiSummaries : [])
+      .map((summary) => [String(summary?.bookId || "").trim(), summary])
+      .filter(([bookId]) => Boolean(bookId))
+  );
+
+  const merged = (Array.isArray(localSummaries) ? localSummaries : []).map((localSummary) => {
+    const bookId = String(localSummary?.bookId || "").trim();
+    const apiSummary = apiSummaryByBookId.get(bookId);
+    const totalWords = Math.max(
+      0,
+      Math.floor(Number(localSummary?.totalWords ?? apiSummary?.totalWords) || 0)
+    );
+    const dueNow = Math.min(
+      Math.max(0, Math.floor(Number(apiSummary?.dueNow) || 0)),
+      totalWords
+    );
+    return {
+      ...localSummary,
+      ...apiSummary,
+      bookId,
+      bookName: localSummary?.bookName || apiSummary?.bookName || "Book",
+      totalWords,
+      dueNow,
+      isLocalFallback: !apiSummary,
+    };
   });
 
-  (Array.isArray(localSummaries) ? localSummaries : []).forEach((summary) => {
-    const bookId = String(summary?.bookId || "").trim();
-    if (!bookId || merged.has(bookId)) return;
-    merged.set(bookId, { ...summary, bookId });
+  apiSummaryByBookId.forEach((apiSummary, bookId) => {
+    if (merged.some((summary) => String(summary?.bookId) === bookId)) return;
+    merged.push(apiSummary);
   });
 
-  return Array.from(merged.values());
+  return merged;
 }
 
 function getCloudStateSyncErrorMessage(result, fallbackMessage) {
@@ -2321,6 +2347,7 @@ export default function App() {
   const backupFileInputRef = useRef(null);
   const pronunciationFetchInFlightRef = useRef(new Set());
   const adaptiveReviewRatingInFlightRef = useRef(new Set());
+  const adaptiveReviewCompletedItemKeysRef = useRef(new Set());
   const authTokenRef = useRef("");
   const latestBooksRef = useRef([]);
   const cloudStateSnapshotRef = useRef(null);
@@ -2459,6 +2486,7 @@ export default function App() {
       getBookChapterList(book).map((chapter) => [String(chapter.id), chapter.name || "Chapter"])
     );
     const maxItems = Math.max(1, Math.floor(Number(limit) || 20));
+    const excludedKeys = options?.excludedKeys instanceof Set ? options.excludedKeys : new Set();
 
     const reviewWords = (Array.isArray(book.words) ? book.words : [])
       .filter((wordEntry) => String(wordEntry?.word || "").trim() && isAdaptiveReviewEnabledWord(wordEntry))
@@ -2485,7 +2513,8 @@ export default function App() {
           exampleTranslation: String(wordEntry?.exampleTranslation || "").trim(),
           isLocalFallback: true,
         };
-      });
+      })
+      .filter((item) => !excludedKeys.has(getAdaptiveReviewItemKey(item)));
 
     return (options?.shuffleDue ? shuffleArray(reviewWords) : reviewWords).slice(0, maxItems);
   }
@@ -2701,9 +2730,15 @@ export default function App() {
 
   const loadAdaptiveReviewSummary = useCallback(async (options = {}) => {
     const showLoading = !options?.silent;
+    const excludedItemKeys = new Set([
+      ...adaptiveReviewCompletedItemKeysRef.current,
+      ...adaptiveReviewRatingInFlightRef.current,
+    ]);
 
     if (!authToken) {
-      const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current);
+      const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current, {
+        excludedKeys: excludedItemKeys,
+      });
       setAdaptiveReviewBookSummaries(localBookSummaries);
       setAdaptiveReviewStats({
         dueNow: localBookSummaries.reduce(
@@ -2722,11 +2757,25 @@ export default function App() {
 
     try {
       const syncResult = await syncBooksForAdaptiveReview(latestBooksRef.current);
+      if (syncResult?.skipped) {
+        const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current, {
+          excludedKeys: excludedItemKeys,
+        });
+        setAdaptiveReviewBookSummaries(localBookSummaries);
+        setAdaptiveReviewStats({
+          dueNow: localBookSummaries.reduce(
+            (total, summary) => total + Math.max(0, Math.floor(Number(summary?.dueNow) || 0)),
+            0
+          ),
+        });
+        setAdaptiveReviewError("");
+        return { ok: true, localFallback: true, skipped: true };
+      }
       if (!syncResult?.ok && !syncResult?.skipped) {
-        throw new Error(
+        console.warn(
           getCloudStateSyncErrorMessage(
             syncResult,
-            "Adaptive Review could not sync your latest books. Please try again."
+            "Adaptive Review could not sync your latest books before loading the scheduler."
           )
         );
       }
@@ -2750,8 +2799,10 @@ export default function App() {
         const rawDueNow = Math.max(0, Math.floor(Number(summary?.dueNow) || 0));
         return { ...summary, totalWords, dueNow: Math.min(rawDueNow, totalWords) };
       });
-      const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current);
-      const bookSummaries = mergeAdaptiveReviewSummaries(apiBookSummaries, localBookSummaries);
+      const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current, {
+        excludedKeys: excludedItemKeys,
+      });
+      const bookSummaries = mergeAdaptiveReviewDashboardSummaries(apiBookSummaries, localBookSummaries);
 
       setAdaptiveReviewBookSummaries(bookSummaries);
       setAdaptiveReviewStats({
@@ -2759,19 +2810,6 @@ export default function App() {
       });
       return { ok: true, payload: { ...payload, books: bookSummaries } };
     } catch (error) {
-      const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current);
-      if (localBookSummaries.length > 0) {
-        setAdaptiveReviewBookSummaries(localBookSummaries);
-        setAdaptiveReviewStats({
-          dueNow: localBookSummaries.reduce(
-            (total, summary) => total + Math.max(0, Math.floor(Number(summary?.dueNow) || 0)),
-            0
-          ),
-        });
-        setAdaptiveReviewError("");
-        return { ok: true, localFallback: true, error };
-      }
-
       setAdaptiveReviewBookSummaries([]);
       setAdaptiveReviewStats({ dueNow: 0 });
       setAdaptiveReviewError(
@@ -2793,9 +2831,15 @@ export default function App() {
     const showLoading = !options?.silent;
     const bookId = String(options?.bookId ?? selectedAdaptiveReviewBookId ?? "").trim();
     const shuffleDue = Boolean(options?.shuffleDue);
+    const excludedItemKeys = new Set([
+      ...adaptiveReviewCompletedItemKeysRef.current,
+      ...adaptiveReviewRatingInFlightRef.current,
+    ]);
 
     if (!authToken) {
-      const fallbackItems = bookId ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue }) : [];
+      const fallbackItems = bookId
+        ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue, excludedKeys: excludedItemKeys })
+        : [];
       setAdaptiveReviewItems(fallbackItems);
       setAdaptiveReviewStats({ dueNow: fallbackItems.length });
       setAdaptiveReviewError("");
@@ -2814,11 +2858,26 @@ export default function App() {
     setAdaptiveReviewError("");
     try {
       const syncResult = await syncBooksForAdaptiveReview(latestBooksRef.current);
+      if (syncResult?.skipped) {
+        const fallbackItems = bookId
+          ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue, excludedKeys: excludedItemKeys })
+          : [];
+        setAdaptiveReviewItems(fallbackItems);
+        setAdaptiveReviewStats({ dueNow: fallbackItems.length });
+        setAdaptiveReviewError("");
+        setAdaptiveReviewPendingRating("");
+        return {
+          ok: true,
+          localFallback: true,
+          skipped: true,
+          payload: { items: fallbackItems, stats: { dueNow: fallbackItems.length } },
+        };
+      }
       if (!syncResult?.ok && !syncResult?.skipped) {
-        throw new Error(
+        console.warn(
           getCloudStateSyncErrorMessage(
             syncResult,
-            "Adaptive Review could not sync your latest words. Please try again."
+            "Adaptive Review could not sync your latest words before loading the scheduler."
           )
         );
       }
@@ -2845,10 +2904,7 @@ export default function App() {
       }
 
       const apiItems = Array.isArray(payload?.items) ? payload.items : [];
-      const fallbackItems =
-        bookId && apiItems.length === 0 ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue }) : [];
-      const items = apiItems.length > 0 ? apiItems : fallbackItems;
-      const visibleItems = items.filter(
+      const visibleItems = apiItems.filter(
         (item) => !adaptiveReviewRatingInFlightRef.current.has(getAdaptiveReviewItemKey(item))
       );
       const dueNow = Math.max(0, Math.floor(Number(payload?.stats?.dueNow) || 0));
@@ -2858,7 +2914,9 @@ export default function App() {
       });
       return { ok: true, payload };
     } catch (error) {
-      const fallbackItems = bookId ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue }) : [];
+      const fallbackItems = bookId
+        ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue, excludedKeys: excludedItemKeys })
+        : [];
       if (fallbackItems.length > 0) {
         setAdaptiveReviewItems(fallbackItems);
         setAdaptiveReviewStats({ dueNow: fallbackItems.length });
@@ -3018,6 +3076,7 @@ export default function App() {
           sourceChapterId: currentItem.chapterId,
           word: currentItem.word,
         });
+        adaptiveReviewCompletedItemKeysRef.current.add(itemKey);
         trackEvent("adaptive_review_rated", {
           rating,
           remaining_count: remainingCount,
@@ -3048,6 +3107,7 @@ export default function App() {
             sourceChapterId: currentItem.chapterId,
             word: currentItem.word,
           });
+          adaptiveReviewCompletedItemKeysRef.current.add(itemKey);
           trackEvent("adaptive_review_rated", {
             rating,
             remaining_count: remainingCount,
@@ -3068,6 +3128,7 @@ export default function App() {
         sourceChapterId: currentItem.chapterId,
         word: currentItem.word,
       });
+      adaptiveReviewCompletedItemKeysRef.current.add(itemKey);
       trackEvent("adaptive_review_rated", {
         rating,
         remaining_count: remainingCount,
@@ -8834,7 +8895,14 @@ export default function App() {
         loading={adaptiveReviewLoading}
         error={adaptiveReviewError}
         pendingRating={adaptiveReviewPendingRating}
-        goBack={() => setScreen(adaptiveReviewBackScreen || "adaptiveReviewSelect")}
+        goBack={() => {
+          if ((adaptiveReviewBackScreen || "adaptiveReviewSelect") === "adaptiveReviewSelect") {
+            void openAdaptiveReviewSelect();
+            return;
+          }
+          setAdaptiveReviewError("");
+          setScreen(adaptiveReviewBackScreen || "adaptiveReviewSelect");
+        }}
         onReload={() => {
           const reviewBook = latestBooksRef.current.find((book) => String(book?.id) === String(selectedAdaptiveReviewBookId));
           return loadAdaptiveReviewQueue(getBookAdaptiveReviewDailyLimit(reviewBook), {

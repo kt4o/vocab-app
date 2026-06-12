@@ -212,6 +212,8 @@ export function AdaptiveReviewSession({
   const isSubmittingRating = Boolean(pendingRating);
   const dueNowCount = Math.max(0, Math.floor(Number(stats?.dueNow) || 0));
   const displayedDueNowCount = currentItem ? dueNowCount : 0;
+  const hasNoDueWords = !currentItem && dueNowCount === 0;
+  const shouldShowError = Boolean(error) && !hasNoDueWords;
   const selectedDefinition = useMemo(
     () => currentItem?.selectedDefinition || "No definition available.",
     [currentItem]
@@ -285,7 +287,7 @@ export function AdaptiveReviewSession({
           />
         ) : null}
 
-        {error ? (
+        {shouldShowError ? (
           <div className="analyticsCard adaptiveReviewStateCard">
             <h3>Adaptive Review hit a snag</h3>
             <p className="settingsHint">{error}</p>
@@ -297,9 +299,9 @@ export function AdaptiveReviewSession({
           </div>
         ) : null}
 
-        {!loading && !error && !currentItem ? (
+        {!loading && !shouldShowError && !currentItem ? (
           <div className="analyticsCard adaptiveReviewStateCard">
-            <h3>No words due right now</h3>
+            <h3>No more words due</h3>
             <p className="settingsHint">
               {scopeName
                 ? `Your ${scopeName} review queue is clear for now. Come back later, or practice this book another way.`
