@@ -12,8 +12,8 @@ const TRANSLATION_CACHE_TTL_MS = (() => {
   if (!Number.isFinite(parsed) || parsed <= 0) return 7 * 24 * 60 * 60 * 1000;
   return parsed;
 })();
-const EN_JA_CACHE_VERSION = "openai-v1";
-const JA_EN_CACHE_VERSION = "openai-v1";
+const EN_JA_CACHE_VERSION = "validated-v2";
+const JA_EN_CACHE_VERSION = "validated-v2";
 const UPSTREAM_FETCH_TIMEOUT_MS = 8000;
 const UPSTREAM_FETCH_RETRY_DELAYS_MS = [350, 900];
 const VOCABULARY_INPUT_MAX_WORDS = 3;
@@ -498,27 +498,9 @@ translateRouter.post("/en-ja", async (req, res) => {
     let reading = "";
 
     try {
-      const openAiResult = await translateEnglishToJapaneseWithOpenAI(text);
-      if (openAiResult?.japanese) {
-        translations = [openAiResult.japanese];
-        provider = "openai";
-        confidence = openAiResult.confidence || "";
-        partOfSpeech = openAiResult.partOfSpeech || "";
-        note = openAiResult.note || "";
-        reading = openAiResult.reading || "";
-      }
-    } catch (error) {
-      console.error("OpenAI English to Japanese translation failed", error);
+      translations = await fetchJishoTranslations(text);
+    } catch {
       translations = [];
-      provider = "jisho";
-    }
-
-    if (!translations.length) {
-      try {
-        translations = await fetchJishoTranslations(text);
-      } catch {
-        translations = [];
-      }
     }
 
     // If Jisho has no current match, allow stale Jisho cache as a fallback.
@@ -538,6 +520,20 @@ translateRouter.post("/en-ja", async (req, res) => {
     if (!translations.length) {
       res.status(404).json({ error: "jisho-word-not-available" });
       return;
+    }
+
+    try {
+      const openAiResult = await translateEnglishToJapaneseWithOpenAI(text);
+      if (openAiResult?.japanese) {
+        translations = [openAiResult.japanese];
+        provider = "openai";
+        confidence = openAiResult.confidence || "";
+        partOfSpeech = openAiResult.partOfSpeech || "";
+        note = openAiResult.note || "";
+        reading = openAiResult.reading || "";
+      }
+    } catch (error) {
+      console.error("OpenAI English to Japanese translation failed", error);
     }
 
     await writeCachedTranslation({
@@ -605,53 +601,13 @@ translateRouter.post("/ja-en", async (req, res) => {
     let resolvedWord = "";
     let reading = "";
 
-    if (isRomanizedJapaneseText(text)) {
-      try {
-        const openAiResult = await translateJapaneseToEnglishWithOpenAI(text);
-        if (openAiResult?.english) {
-          translations = [openAiResult.english];
-          provider = "openai";
-          resolvedWord = normalizeResolvedJapaneseWord(openAiResult.resolvedJapanese);
-          reading = normalizeResolvedJapaneseWord(openAiResult.reading);
-          confidence = openAiResult.confidence || "";
-          partOfSpeech = openAiResult.partOfSpeech || "";
-          note = openAiResult.note || "";
-        }
-      } catch (error) {
-        console.error("OpenAI romaji Japanese to English translation failed", error);
-        translations = [];
-        provider = "jisho";
-      }
-    }
-
-    if (!translations.length && !isRomanizedJapaneseText(text)) {
-      try {
-        const openAiResult = await translateJapaneseToEnglishWithOpenAI(text);
-        if (openAiResult?.english) {
-          translations = [openAiResult.english];
-          provider = "openai";
-          resolvedWord = normalizeResolvedJapaneseWord(openAiResult.resolvedJapanese) || resolvedWord;
-          reading = normalizeResolvedJapaneseWord(openAiResult.reading) || reading;
-          confidence = openAiResult.confidence || "";
-          partOfSpeech = openAiResult.partOfSpeech || "";
-          note = openAiResult.note || "";
-        }
-      } catch (error) {
-        console.error("OpenAI Japanese to English translation failed", error);
-        translations = [];
-        provider = "jisho";
-      }
-    }
-
-    if (!translations.length) {
-      try {
-        const jishoResult = await fetchJishoEnglishDefinitionResult(text);
-        translations = jishoResult.translations;
-        resolvedWord = jishoResult.resolvedWord;
-        reading = jishoResult.reading;
-      } catch {
-        translations = [];
-      }
+    try {
+      const jishoResult = await fetchJishoEnglishDefinitionResult(text);
+      translations = jishoResult.translations;
+      resolvedWord = jishoResult.resolvedWord;
+      reading = jishoResult.reading;
+    } catch {
+      translations = [];
     }
 
     if (!translations.length && cached?.translations?.length && cached.provider === "jisho") {
@@ -670,6 +626,21 @@ translateRouter.post("/ja-en", async (req, res) => {
     if (!translations.length) {
       res.status(404).json({ error: "jisho-word-not-available" });
       return;
+    }
+
+    try {
+      const openAiResult = await translateJapaneseToEnglishWithOpenAI(text);
+      if (openAiResult?.english) {
+        translations = [openAiResult.english];
+        provider = "openai";
+        resolvedWord = normalizeResolvedJapaneseWord(openAiResult.resolvedJapanese) || resolvedWord;
+        reading = normalizeResolvedJapaneseWord(openAiResult.reading) || reading;
+        confidence = openAiResult.confidence || "";
+        partOfSpeech = openAiResult.partOfSpeech || "";
+        note = openAiResult.note || "";
+      }
+    } catch (error) {
+      console.error("OpenAI Japanese to English translation failed", error);
     }
 
     await writeCachedTranslation({

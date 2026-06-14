@@ -4496,7 +4496,7 @@ body.theme-dark .wordRow .deleteBtn {
   min-width: 0;
 }
 .exampleList {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;

@@ -47,7 +47,7 @@ const FAQ_ENTRIES = [
   {
     question: "How can I expand my vocabulary faster?",
     answer:
-      "Use a repeatable loop: collect useful words, practice active recall daily, and review mistakes before forgetting. Vocalibry supports this with books, chapters, flashcards, and targeted quizzes.",
+      "Use a repeatable loop: save useful target-language words, practice active recall from English and back again, and review mistakes before forgetting. Vocalibry supports this with books, chapters, flashcards, quizzes, and bilingual study modes.",
   },
   {
     question: "Is Vocalibry free to use?",
@@ -62,7 +62,7 @@ const FAQ_ENTRIES = [
   {
     question: "Can I organize vocabulary by class or textbook chapter?",
     answer:
-      "Yes. You can create books and chapters so your vocabulary lists match your exam topics, reading projects, or personal study plan.",
+      "Yes. You can create books and chapters so your vocabulary lists match your language class, textbook, manga, reading project, or personal study plan.",
   },
 ];
 
@@ -430,7 +430,7 @@ function RootPage() {
             operatingSystem: "Web",
             url: SITE_URL,
             description:
-              "Vocabulary learning app with flashcards, quizzes, and smart review to improve English fluency.",
+              "Vocabulary learning app with flashcards, quizzes, smart review, and bilingual modes for English-speaking language learners.",
             offers: [
               {
                 "@type": "Offer",

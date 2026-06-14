@@ -7,33 +7,33 @@ const YEAR = new Date().getFullYear();
 const FEATURE_CARDS = [
   {
     icon: BookOpen,
-    title: "Save Words From Real Reading",
+    title: "Save Words From Real Input",
     description:
-      "Capture unfamiliar words from books, essays, and articles, then organize them by book and chapter.",
+      "Add target-language words from books, manga, lessons, podcasts, videos, or class notes. Keep them grouped by book and chapter.",
   },
   {
     icon: Zap,
-    title: "Review Before They Fade",
+    title: "Review Before You Forget",
     description:
-      "Use active recall and smart review to bring back looked-up words before they slip out of memory.",
+      "Use active recall and smart review to bring words back before they disappear from memory.",
   },
   {
     icon: Trophy,
-    title: "Track Real Progress",
+    title: "See Your Progress",
     description:
-      "See your streak, quiz activity, and vocabulary growth so reading turns into measurable improvement.",
+      "Track streaks, quiz activity, and vocabulary growth so your study feels visible.",
   },
   {
     icon: Brain,
-    title: "Turn Recognition Into Recall",
+    title: "Move From Recognition To Recall",
     description:
-      "Practice with flashcards, typing, and quizzes until words feel familiar enough to use, not just recognize.",
+      "Practice both directions with flashcards, typing, and quizzes until translations come back without prompting.",
   },
   {
     icon: Languages,
-    title: "Read Japanese Books",
+    title: "Study From English Or To English",
     description:
-      "Create Japanese learning books, save kanji or kana vocabulary, and review Japanese-to-English or English-to-Japanese cards.",
+      "Built for English speakers learning Japanese, with English-to-Japanese and Japanese-to-English review modes.",
     href: "/learn-japanese-from-books",
     badge: "New",
   },
@@ -41,23 +41,23 @@ const FEATURE_CARDS = [
 
 const HOW_IT_WORKS = [
   {
-    title: "1. Save Words You Meet While Reading",
+    title: "1. Add Words You Want To Learn",
     description:
-      "Add unfamiliar but useful words from novels, nonfiction, essays, or articles and keep them grouped by book and chapter.",
+      "Save useful words from your target language: reading, textbooks, manga, lessons, videos, or notes.",
     href: "/register",
     label: "Create your free account",
   },
   {
-    title: "2. Review With Active Recall",
+    title: "2. Check Your Memory",
     description:
-      "Use flashcards and quiz modes to pull the meaning back from memory so the word becomes easier to recognize and reuse.",
+      "Use flashcards and quizzes to practice the translation, meaning, reading, or original word.",
     href: "/features",
     label: "Explore features",
   },
   {
-    title: "3. Revisit The Words You Keep Losing",
+    title: "3. Repeat Weak Words",
     description:
-      "Focus on mistakes and weak words first so the vocabulary you almost remember gets the extra repetition it needs.",
+      "Focus on missed words first so difficult vocabulary gets more reps before it fades.",
     href: "/register",
     label: "Start learning now",
   },
@@ -65,19 +65,34 @@ const HOW_IT_WORKS = [
 
 const FORGETTING_REASONS = [
   {
-    title: "Do not trust the dictionary moment",
+    title: "A lookup is not a memory",
     description:
-      "Looking up a word while reading helps comprehension, but the memory is often shallow. Save the word and come back to it later.",
+      "A translation helps you understand the sentence now. It does not always make the word available tomorrow.",
   },
   {
-    title: "Keep the word tied to the book",
+    title: "Context helps",
     description:
-      "Vocabulary is easier to remember when it stays connected to the sentence, scene, or chapter where you first met it.",
+      "Target-language words are easier to remember when they stay linked to the sentence, book, chapter, or lesson where you found them.",
   },
   {
-    title: "Recall beats rereading",
+    title: "Testing helps more than rereading",
     description:
-      "Short review sessions with flashcards and quizzes usually do more for retention than repeatedly glancing at the definition.",
+      "Short flashcard and quiz sessions help you pull the word from memory, not only see the answer again.",
+  },
+];
+
+const LANGUAGE_MODES = [
+  {
+    label: "English",
+    text: "Target word -> English meaning",
+  },
+  {
+    label: "English to Japanese",
+    text: "hello -> こんにちは",
+  },
+  {
+    label: "Japanese to English",
+    text: "記憶 -> memory",
   },
 ];
 
@@ -135,14 +150,14 @@ const FAQ = [
   {
     question: "Who is Vocalibry for?",
     answer:
-      "Vocalibry is for people who already understand English well, read regularly, and keep looking up useful words they later forget. It gives those words a repeatable review system.",
+      "Vocalibry is for English-speaking language learners who save target-language words while reading, studying, or taking notes and need an easy way to review them later.",
     href: "#how-it-works",
     label: "See how it works",
   },
   {
-    question: "Why do looked-up words disappear so quickly?",
+    question: "Why do new words disappear so quickly?",
     answer:
-      "Because understanding a word once is not the same as remembering it later. Words stick better when you revisit them with active recall instead of relying on the original dictionary lookup.",
+      "Because understanding a word once is not the same as remembering it later. Words stick better when you test yourself and review them again.",
     href: "/how-to-expand-your-vocabulary",
     label: "Read the guide",
   },
@@ -154,9 +169,9 @@ const FAQ = [
     label: "See pricing",
   },
   {
-    question: "How does Vocalibry help me remember book vocabulary long-term?",
+    question: "Which languages can I study?",
     answer:
-      "Vocalibry helps you save useful words from reading, review them with flashcards and quizzes, and revisit weak words in focused sessions so they are less likely to fade.",
+      "You can use English vocabulary books, English-to-Japanese books, and Japanese-to-English books. The study loop works especially well for Japanese kanji, kana, readings, and English translations.",
     href: "/features",
     label: "Explore features",
   },
@@ -171,12 +186,12 @@ export function LandingPage() {
         <section className="bg-[#f5f7fb] px-4 pb-0 pt-14 sm:px-6 sm:pt-16">
           <div className="mx-auto w-full max-w-[1280px]">
             <div className="mx-auto max-w-[920px] text-center">
-              <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Built for Fluent Readers</p>
+              <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">For English-Speaking Language Learners</p>
               <h1 className="mb-4 text-[42px] font-bold leading-[1.05] text-foreground sm:text-[52px] md:text-[68px]">
                 Never forget a word again.
               </h1>
               <p className="mx-auto mb-5 max-w-[800px] text-[17px] leading-relaxed text-muted-foreground sm:text-[18px]">
-                Vocalibry helps strong English readers save unfamiliar words from books, review them with active recall, and stop forgetting them a day later.
+                Save words from the language you are learning, attach English meanings, and review them with flashcards, typing, and quizzes. Built especially for English speakers studying Japanese.
               </p>
 
               <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
@@ -211,16 +226,24 @@ export function LandingPage() {
         <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-10 sm:px-6 sm:py-12">
           <div className="mx-auto max-w-[900px] text-center">
             <p className="text-[16px] leading-relaxed text-muted-foreground">
-              Save words from real reading, organize them by book, and review weak vocabulary before it fades.
+              Keep target-language words, English meanings, readings, and review progress in one focused study workspace.
             </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {LANGUAGE_MODES.map((mode) => (
+                <article key={mode.label} className="rounded-lg border border-border/40 bg-white px-4 py-3 text-left">
+                  <p className="text-[13px] font-semibold text-[#6F92E8]">{mode.label}</p>
+                  <p className="mt-1 text-[15px] text-foreground">{mode.text}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
         <section className="bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="features">
           <div className="mx-auto w-full max-w-[1280px]">
-            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Built for readers, not random word lists</h2>
+            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">A calmer way to learn another language</h2>
             <p className="mx-auto mb-12 max-w-3xl text-center text-[16px] text-muted-foreground sm:mb-16 sm:text-[17px]">
-              If you already understand English but want stronger recall and more precise expression, your reading habit can become your vocabulary system.
+              Keep new words in one place, review them in both directions, and spend more time practicing than managing lists.
             </p>
 
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
@@ -250,10 +273,10 @@ export function LandingPage() {
         <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
           <div className="mx-auto grid w-full max-w-[1120px] gap-8 md:grid-cols-[1fr_1.1fr] md:items-center">
             <div>
-              <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">New Feature</p>
-              <h2 className="mb-4 text-[30px] font-bold text-foreground sm:text-[36px]">Japanese books now fit the same learning loop</h2>
+              <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Japanese Study</p>
+              <h2 className="mb-4 text-[30px] font-bold text-foreground sm:text-[36px]">Study Japanese with English meanings</h2>
               <p className="mb-5 text-[16px] leading-relaxed text-muted-foreground">
-                Keep Vocalibry focused on book-based vocabulary, while giving Japanese learners their own path for kanji, kana, translations, and review.
+                Create Japanese books, save kanji or kana, add English translations, and review Japanese-to-English or English-to-Japanese cards.
               </p>
               <a href="/learn-japanese-from-books" className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#8FB0FF] px-5 text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]">
                 Explore Japanese books
@@ -289,7 +312,7 @@ export function LandingPage() {
           <div className="mx-auto w-full max-w-[1280px]">
             <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">How It Works</h2>
             <p className="mb-12 text-center text-[16px] text-muted-foreground">
-              A simple loop for turning looked-up words into vocabulary you actually remember.
+              A simple loop for turning target-language words into vocabulary you can recall from English.
             </p>
 
             <div className="grid gap-8 md:grid-cols-3">
@@ -308,9 +331,9 @@ export function LandingPage() {
 
         <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
           <div className="mx-auto w-full max-w-[1280px]">
-            <h2 className="mb-10 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:mb-12 md:text-[40px]">Why readers forget useful words</h2>
+            <h2 className="mb-10 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:mb-12 md:text-[40px]">Why language learners forget new words</h2>
             <p className="mx-auto mb-12 max-w-4xl text-center text-[16px] text-muted-foreground">
-              Reading exposes you to strong vocabulary, but exposure alone is not enough. The best way to retain words from books is to save them in context, test recall later, and revisit the ones that still feel shaky.
+              Recognizing a word in a sentence is helpful, but it is usually not enough. Save the word, test the English meaning and the target-language form, and review the ones that still feel difficult.
             </p>
 
             <div className="mb-12 grid gap-8 md:grid-cols-3">
@@ -331,7 +354,7 @@ export function LandingPage() {
               <a href="/how-to-expand-your-vocabulary" className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
                 vocabulary guide
               </a>{" "}
-              for a step-by-step system for readers, then explore all study tools on{" "}
+              for a step-by-step system for English-speaking learners, then explore all study tools on{" "}
               <a href="/features" className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
                 Features
               </a>
@@ -342,9 +365,9 @@ export function LandingPage() {
 
         <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="guides">
           <div className="mx-auto w-full max-w-[1280px]">
-            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Guides for building vocabulary from reading</h2>
+            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Guides for language vocabulary</h2>
             <p className="mb-12 text-center text-[16px] text-muted-foreground">
-              Explore practical guides on remembering words you look up, learning vocabulary in context, and turning book reading into lasting vocabulary growth.
+              Explore practical guides on remembering translations, learning words in context, and choosing a study routine you can keep.
             </p>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -365,7 +388,7 @@ export function LandingPage() {
           <div className="mx-auto w-full max-w-[1100px]">
             <div className="mb-12 text-center">
               <h2 className="mb-3 text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Choose Your Plan</h2>
-              <p className="text-[16px] text-muted-foreground">Start free and build a reading-driven vocabulary habit that lasts.</p>
+              <p className="text-[16px] text-muted-foreground">Start free and build a language vocabulary habit that lasts.</p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -373,7 +396,7 @@ export function LandingPage() {
                 <div className="mb-8">
                   <h3 className="mb-4 text-[22px] font-semibold text-foreground">Free</h3>
                   <div className="mb-3 text-[56px] font-bold leading-none text-foreground">A$0</div>
-                  <p className="text-[15px] font-medium text-[#6F92E8]">Good for starting your reading vocabulary system.</p>
+                  <p className="text-[15px] font-medium text-[#6F92E8]">Good for starting your language vocabulary system.</p>
                 </div>
                 <a
                   href="/register"
@@ -430,7 +453,7 @@ export function LandingPage() {
         <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
           <div className="mx-auto max-w-[900px]">
             <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Frequently Asked Questions</h2>
-            <p className="mb-12 text-center text-[16px] text-muted-foreground">Quick answers for readers who want to stop forgetting useful words.</p>
+            <p className="mb-12 text-center text-[16px] text-muted-foreground">Quick answers for English-speaking language learners.</p>
 
             <div className="space-y-8">
               {FAQ.map((item) => (
@@ -458,7 +481,7 @@ export function LandingPage() {
                 <span className="text-[17px] font-semibold text-foreground">Vocalibry</span>
               </div>
               <p className="text-[14px] leading-relaxed text-muted-foreground">
-                Turn looked-up words from books into vocabulary you actually remember and use.
+                Save target-language words, review them from English and back again, and remember more of what you study.
               </p>
             </div>
 

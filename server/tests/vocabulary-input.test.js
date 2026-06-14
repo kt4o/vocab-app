@@ -131,6 +131,19 @@ describe("vocabulary input validation", () => {
   });
 
   it("keeps only one resolved Japanese spelling when OpenAI returns alternatives", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          {
+            is_common: true,
+            japanese: [{ word: "\u8fd4\u4e8b", reading: "\u3078\u3093\u3058" }],
+            senses: [{ english_definitions: ["reply from jisho"], parts_of_speech: ["Noun"] }],
+          },
+        ],
+      }),
+    });
     openAiMocks.translateJapaneseToEnglishWithOpenAI.mockResolvedValue({
       english: "reply; answer",
       resolvedJapanese: "\u8fd4\u4e8b / \u8fd4\u7b54",
@@ -153,7 +166,7 @@ describe("vocabulary input validation", () => {
     expect(response.body.reading).toBe("\u3078\u3093\u3058");
   });
 
-  it("uses OpenAI for romaji when Jisho has no result", async () => {
+  it("rejects romaji when Jisho has no result instead of asking OpenAI to guess", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue({
       ok: true,
@@ -175,11 +188,34 @@ describe("vocabulary input validation", () => {
       text: "kiiro",
     });
 
-    expect(response.status).toBe(200);
-    expect(response.body.translations).toEqual(["yellow"]);
-    expect(response.body.provider).toBe("openai");
-    expect(response.body.resolvedWord).toBe("黄色");
-    expect(response.body.reading).toBe("きいろ");
-    expect(openAiMocks.translateJapaneseToEnglishWithOpenAI).toHaveBeenCalledWith("kiiro");
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: "jisho-word-not-available" });
+    expect(openAiMocks.translateJapaneseToEnglishWithOpenAI).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown English words instead of asking OpenAI to guess", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [] }),
+    });
+    openAiMocks.translateEnglishToJapaneseWithOpenAI.mockResolvedValue({
+      japanese: "作り物",
+      reading: "つくりもの",
+      confidence: "low",
+      partOfSpeech: "noun",
+      note: "",
+    });
+
+    const { translateRouter } = await import("../routes/translate.js");
+    const app = createTestApp("/api/translate", translateRouter);
+
+    const response = await request(app).post("/api/translate/en-ja").send({
+      text: "zzzznotaword",
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: "jisho-word-not-available" });
+    expect(openAiMocks.translateEnglishToJapaneseWithOpenAI).not.toHaveBeenCalled();
   });
 });
