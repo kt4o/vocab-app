@@ -3,6 +3,10 @@ import { query } from "../db/client.js";
 import { requireAuth } from "../middleware/auth.js";
 import { computeNextReviewState } from "../lib/reviewScheduler.js";
 
+const ADAPTIVE_REVIEW_NEW_WORD_LIMIT_DEFAULT = 20;
+const ADAPTIVE_REVIEW_NEW_WORD_LIMIT_MIN = 5;
+const ADAPTIVE_REVIEW_NEW_WORD_LIMIT_MAX = 100;
+
 function normalizeText(value) {
   return String(value || "").trim();
 }
@@ -19,6 +23,20 @@ function parseStoredBoolean(value, fallbackValue = false) {
     if (normalized === "0" || normalized === "false" || normalized === "no") return false;
   }
   return fallbackValue;
+}
+
+function parseAdaptiveReviewNewWordLimit(value) {
+  const parsed = Math.floor(Number(value) || ADAPTIVE_REVIEW_NEW_WORD_LIMIT_DEFAULT);
+  return Math.min(
+    ADAPTIVE_REVIEW_NEW_WORD_LIMIT_MAX,
+    Math.max(ADAPTIVE_REVIEW_NEW_WORD_LIMIT_MIN, parsed)
+  );
+}
+
+function getUtcDayStartIso(nowIso) {
+  const date = new Date(nowIso);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10) + "T00:00:00.000Z";
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())).toISOString();
 }
 
 function shuffleArray(items) {
@@ -62,6 +80,7 @@ function buildWordCatalog(appState) {
     const bookId = normalizeText(book?.id);
     if (!bookId) return;
     const bookName = normalizeText(book?.name) || "Book";
+    const newWordLimit = parseAdaptiveReviewNewWordLimit(book?.adaptiveReviewDailyLimit);
     const chapterNameById = new Map(
       (Array.isArray(book?.chapters) ? book.chapters : [])
         .filter((chapter) => chapter && typeof chapter === "object")
@@ -81,6 +100,7 @@ function buildWordCatalog(appState) {
       catalog.set(catalogKey, {
         bookId,
         bookName,
+        newWordLimit,
         chapterId,
         chapterName: chapterNameById.get(chapterId) || (chapterId === "general" ? "General" : "Chapter"),
         word,
@@ -113,11 +133,15 @@ function buildBookSummaryBase(wordCatalog) {
         bookName: item.bookName || "Book",
         totalWords: 0,
         dueNow: 0,
+        reviewDueNow: 0,
+        newDueNow: 0,
+        newWordLimit: item.newWordLimit,
       });
     }
 
     const summary = summaries.get(item.bookId);
     summary.totalWords += 1;
+    summary.newWordLimit = item.newWordLimit;
   });
 
   return summaries;
@@ -228,27 +252,65 @@ reviewRouter.use(requireAuth);
 reviewRouter.get("/due", async (req, res) => {
   const userId = req.authUser.id;
   const nowIso = new Date().toISOString();
-  const limit = Math.min(100, Math.max(1, Math.floor(Number(req.query?.limit) || 20)));
+  const newWordLimit = Math.min(100, Math.max(1, Math.floor(Number(req.query?.limit) || 20)));
   const filterBookId = normalizeText(req.query?.bookId);
   const shuffleDue = parseStoredBoolean(req.query?.shuffleDue, false);
+  const dayStartIso = getUtcDayStartIso(nowIso);
 
   try {
     const wordCatalog = await loadUserWordCatalog(userId);
     await ensureReviewStateRows(userId, wordCatalog, nowIso);
 
-    const dueRowsResult = await query(
+    const reviewedDueRowsResult = await query(
       `
         SELECT *
         FROM word_review_state
         WHERE user_id = $1
           AND next_review_at <= $2
           AND ($3 = '' OR book_id = $3)
+          AND last_reviewed_at IS NOT NULL
         ORDER BY next_review_at ASC, lapse_count DESC, success_streak ASC, updated_at ASC
       `,
       [userId, nowIso, filterBookId]
     );
 
-    const dueRows = getDueReviewRows(dueRowsResult.rows, wordCatalog);
+    const newWordsSeenTodayResult = await query(
+      `
+        SELECT COUNT(*) AS count
+        FROM word_review_state
+        WHERE user_id = $1
+          AND ($2 = '' OR book_id = $2)
+          AND last_reviewed_at >= $3
+          AND last_reviewed_at <= $4
+          AND due_count = 1
+      `,
+      [userId, filterBookId, dayStartIso, nowIso]
+    );
+    const newWordsSeenToday = Math.max(
+      0,
+      Math.floor(Number(newWordsSeenTodayResult.rows?.[0]?.count) || 0)
+    );
+    const remainingNewWordLimit = Math.max(0, newWordLimit - newWordsSeenToday);
+
+    const newDueRowsResult = remainingNewWordLimit > 0
+      ? await query(
+          `
+            SELECT *
+            FROM word_review_state
+            WHERE user_id = $1
+              AND next_review_at <= $2
+              AND ($3 = '' OR book_id = $3)
+              AND last_reviewed_at IS NULL
+            ORDER BY next_review_at ASC, updated_at ASC
+            LIMIT $4
+          `,
+          [userId, nowIso, filterBookId, remainingNewWordLimit]
+        )
+      : { rows: [] };
+
+    const reviewedDueRows = getDueReviewRows(reviewedDueRowsResult.rows, wordCatalog);
+    const newDueRows = getDueReviewRows(newDueRowsResult.rows, wordCatalog);
+    const dueRows = [...reviewedDueRows, ...newDueRows];
     const dueItems = dueRows
       .map((row) => {
         const catalogKey = `${row.book_id}:${row.chapter_id}:${normalizeWordKey(row.word)}`;
@@ -257,12 +319,16 @@ reviewRouter.get("/due", async (req, res) => {
         return toReviewItem(row, catalogItem);
       })
       .filter(Boolean);
-    const items = (shuffleDue ? shuffleArray(dueItems) : dueItems).slice(0, limit);
+    const items = shuffleDue ? shuffleArray(dueItems) : dueItems;
 
     res.json({
       items,
       stats: {
         dueNow: dueItems.length,
+        reviewDueNow: reviewedDueRows.length,
+        newDueNow: newDueRows.length,
+        newWordsSeenToday,
+        newWordsRemainingToday: remainingNewWordLimit,
       },
     });
   } catch {
@@ -273,22 +339,40 @@ reviewRouter.get("/due", async (req, res) => {
 reviewRouter.get("/summary", async (req, res) => {
   const userId = req.authUser.id;
   const nowIso = new Date().toISOString();
+  const dayStartIso = getUtcDayStartIso(nowIso);
 
   try {
     const wordCatalog = await loadUserWordCatalog(userId);
     await ensureReviewStateRows(userId, wordCatalog, nowIso);
 
     const summaries = buildBookSummaryBase(wordCatalog);
+    const newWordsSeenTodayResult = await query(
+      `
+        SELECT book_id, COUNT(*) AS count
+        FROM word_review_state
+        WHERE user_id = $1
+          AND last_reviewed_at >= $2
+          AND last_reviewed_at <= $3
+          AND due_count = 1
+        GROUP BY book_id
+      `,
+      [userId, dayStartIso, nowIso]
+    );
+    const newWordsSeenTodayByBookId = new Map(
+      (newWordsSeenTodayResult.rows || []).map((row) => [
+        normalizeText(row.book_id),
+        Math.max(0, Math.floor(Number(row.count) || 0)),
+      ])
+    );
     const dueRowsResult = await query(
       `
-        SELECT book_id, chapter_id, word, next_review_at, updated_at
+        SELECT book_id, chapter_id, word, next_review_at, last_reviewed_at, due_count, updated_at
         FROM word_review_state
         WHERE user_id = $1
           AND next_review_at <= $2
       `,
       [userId, nowIso]
     );
-
     const dueRows = getDueReviewRows(dueRowsResult.rows, wordCatalog);
 
     dueRows.forEach((row) => {
@@ -297,19 +381,40 @@ reviewRouter.get("/summary", async (req, res) => {
       const bookId = normalizeText(row.book_id);
       const summary = summaries.get(bookId);
       if (!summary) return;
-      summary.dueNow += 1;
+      if (row.last_reviewed_at) {
+        summary.reviewDueNow += 1;
+        return;
+      }
+      summary.newDueNow += 1;
     });
 
-    const books = Array.from(summaries.values()).sort((a, b) => {
+    const books = Array.from(summaries.values()).map((book) => ({
+      ...book,
+      newWordsSeenToday: newWordsSeenTodayByBookId.get(book.bookId) || 0,
+    })).map((book) => {
+      const newWordsRemainingToday = Math.max(
+        0,
+        Math.floor(Number(book.newWordLimit) || ADAPTIVE_REVIEW_NEW_WORD_LIMIT_DEFAULT) -
+          Math.max(0, Math.floor(Number(book.newWordsSeenToday) || 0))
+      );
+      const newDueNow = Math.min(
+        Math.max(0, Math.floor(Number(book.newDueNow) || 0)),
+        newWordsRemainingToday
+      );
+      const reviewDueNow = Math.max(0, Math.floor(Number(book.reviewDueNow) || 0));
+      const totalWords = Math.max(0, Math.floor(Number(book.totalWords) || 0));
+      return {
+        ...book,
+        totalWords,
+        reviewDueNow,
+        newDueNow,
+        newWordsRemainingToday,
+        dueNow: Math.min(reviewDueNow + newDueNow, totalWords),
+      };
+    }).sort((a, b) => {
       if (b.dueNow !== a.dueNow) return b.dueNow - a.dueNow;
       return a.bookName.localeCompare(b.bookName);
-    }).map((book) => ({
-      ...book,
-      dueNow: Math.min(
-        Math.max(0, Math.floor(Number(book.dueNow) || 0)),
-        Math.max(0, Math.floor(Number(book.totalWords) || 0))
-      ),
-    }));
+    });
 
     res.json({
       books,

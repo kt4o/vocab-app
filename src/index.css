@@ -1406,65 +1406,8 @@ body.theme-dark .accountFoundingBadge {
   padding-left: 38px;
 }
 
-.dailyGoalOverviewCard,
 .dashboardPanelGrid .panelCard {
   position: relative;
-}
-
-.premiumFocusGrid {
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.premiumFocusMetric {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 10px;
-  padding: 12px;
-  display: grid;
-  gap: 6px;
-  box-shadow: none;
-}
-
-.premiumFocusMetric span {
-  font-size: 11px;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.premiumFocusMetric strong {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
-
-.premiumFocusMetric small {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.premiumProgressTrack {
-  width: 100%;
-  height: 4px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--border) 82%, transparent 18%);
-  overflow: hidden;
-}
-
-.premiumProgressFill {
-  height: 100%;
-  background: color-mix(in srgb, var(--text) 74%, var(--accent) 26%);
-  transition: width 0.24s ease;
-}
-
-@media (max-width: 720px) {
-  .premiumFocusGrid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .panelGrid {
@@ -1503,45 +1446,6 @@ body.theme-dark .accountFoundingBadge {
   border-radius: 14px;
   padding: 14px;
   box-shadow: var(--shadow-soft);
-}
-
-.weeklyDailyDivider {
-  margin: 14px 0 12px;
-  border-top: 1px solid var(--border);
-}
-
-.dailyGoalOverviewCard {
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  display: grid;
-  gap: 8px;
-  font: inherit;
-  color: inherit;
-  background: color-mix(in srgb, var(--surface) 92%, var(--surface-alt) 8%);
-  border-radius: 12px;
-  box-shadow: none;
-}
-
-.dailyGoalOverviewCard:hover {
-  border-color: color-mix(in srgb, var(--border) 72%, var(--text) 28%);
-  background: color-mix(in srgb, var(--surface) 88%, var(--surface-alt) 12%);
-}
-
-.dailyGoalOverviewCard .weeklyOverviewLabel {
-  margin-bottom: 2px;
-}
-
-.dailyGoalOverviewCard .weeklyOverviewValue {
-  font-size: 22px;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-}
-
-.dailyGoalOverviewCard .settingsHint {
-  font-size: 11px;
-  line-height: 1.35;
-  margin-top: 2px;
 }
 
 .weeklyOverviewLabel {
@@ -1727,7 +1631,7 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewSection {
-  width: min(100%, 760px);
+  width: min(100%, 960px);
 }
 
 .adaptiveReviewSection > .analyticsCard + .analyticsCard {
@@ -1744,6 +1648,113 @@ body.theme-dark .accountFoundingBadge {
 
 .adaptiveReviewHeroCopy {
   min-width: 0;
+}
+
+.adaptiveReviewTitleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.adaptiveReviewTitleRow h1 {
+  margin: 0;
+}
+
+.adaptiveReviewInfoBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.adaptiveReviewInfoBtn:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+  background: var(--surface-alt);
+}
+
+.adaptiveReviewInfoModal {
+  width: min(98vw, 1320px) !important;
+  max-width: min(98vw, 1320px) !important;
+  max-height: min(86svh, 820px);
+  overflow: auto;
+}
+
+.adaptiveReviewInfoIntro {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.adaptiveReviewInfoSections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.adaptiveReviewInfoSections section {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+
+.adaptiveReviewInfoSections h4 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.adaptiveReviewInfoSections p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.adaptiveReviewInfoSections p + p {
+  margin-top: 9px;
+}
+
+.adaptiveReviewInfoSections ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.adaptiveReviewInfoSections li + li {
+  margin-top: 5px;
+}
+
+.adaptiveReviewInfoExample {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .adaptiveReviewInfoSections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .adaptiveReviewHeroCard h3,
@@ -1873,7 +1884,7 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewCard {
-  padding: 14px 16px 16px;
+  padding: clamp(16px, 2.4vw, 24px);
   scroll-margin-top: 12px;
 }
 
@@ -1914,7 +1925,7 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewFlashcard {
-  min-height: clamp(190px, 34svh, 280px);
+  min-height: clamp(320px, 54svh, 560px);
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -1932,8 +1943,8 @@ body.theme-dark .accountFoundingBadge {
 }
 
 .adaptiveReviewFlashcardInner {
-  min-height: clamp(190px, 34svh, 280px);
-  padding: 20px;
+  min-height: clamp(320px, 54svh, 560px);
+  padding: clamp(24px, 4vw, 56px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1943,19 +1954,36 @@ body.theme-dark .accountFoundingBadge {
 
 .adaptiveReviewDisplayRows {
   display: grid;
-  gap: 12px;
+  gap: clamp(14px, 2.4vw, 28px);
   width: 100%;
+  align-content: center;
+  min-height: 100%;
+}
+
+.adaptiveReviewDisplayRowsCount1 {
+  gap: 0;
+}
+
+.adaptiveReviewDisplayRowsCount2 {
+  gap: clamp(22px, 4vw, 44px);
+}
+
+.adaptiveReviewDisplayRowsCount5,
+.adaptiveReviewDisplayRowsCount6 {
+  gap: clamp(10px, 1.4vw, 18px);
 }
 
 .adaptiveReviewDisplayRow {
   display: grid;
-  gap: 4px;
+  gap: clamp(6px, 1vw, 10px);
   justify-items: center;
+  align-content: center;
+  min-width: 0;
 }
 
 .adaptiveReviewDisplayLabel {
   color: var(--muted);
-  font-size: 11px;
+  font-size: clamp(11px, 1.15vw, 13px);
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -1963,7 +1991,7 @@ body.theme-dark .accountFoundingBadge {
 
 .adaptiveReviewDisplayValue {
   color: var(--text);
-  font-size: 16px;
+  font-size: clamp(18px, 2.2vw, 28px);
   line-height: 1.45;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -1971,9 +1999,15 @@ body.theme-dark .accountFoundingBadge {
 
 .adaptiveReviewDisplayValueWord .adaptiveReviewDisplayValue {
   color: var(--text);
-  font-size: clamp(28px, 7vw, 48px);
+  font-size: clamp(44px, 9vw, 96px);
   font-weight: 800;
   line-height: 1.15;
+}
+
+.adaptiveReviewDisplayValueReading .adaptiveReviewDisplayValue {
+  font-size: clamp(34px, 7vw, 82px);
+  font-weight: 700;
+  line-height: 1.18;
 }
 
 .adaptiveReviewDisplayValueWord .japaneseWordDisplay rt,
@@ -1983,7 +2017,52 @@ body.theme-dark .accountFoundingBadge {
 
 .adaptiveReviewDisplayValueMeaning .adaptiveReviewDisplayValue,
 .adaptiveReviewDisplayValueExample .adaptiveReviewDisplayValue {
-  font-size: clamp(18px, 3vw, 26px);
+  font-size: clamp(22px, 3.4vw, 38px);
+  line-height: 1.35;
+}
+
+.adaptiveReviewDisplayRowHero {
+  min-height: clamp(210px, 36svh, 420px);
+}
+
+.adaptiveReviewDisplayRowHero .adaptiveReviewDisplayLabel {
+  font-size: clamp(12px, 1.3vw, 15px);
+}
+
+.adaptiveReviewDisplayRowHero .adaptiveReviewDisplayValue {
+  font-size: clamp(46px, 9vw, 108px);
+  line-height: 1.12;
+}
+
+.adaptiveReviewDisplayRowHero.adaptiveReviewDisplayValueMeaning .adaptiveReviewDisplayValue,
+.adaptiveReviewDisplayRowHero.adaptiveReviewDisplayValueExample .adaptiveReviewDisplayValue,
+.adaptiveReviewDisplayRowLargeText .adaptiveReviewDisplayValue {
+  font-size: clamp(24px, 4.1vw, 46px);
+  line-height: 1.28;
+}
+
+.adaptiveReviewDisplayRowPrimary .adaptiveReviewDisplayValue {
+  font-size: clamp(36px, 6.2vw, 72px);
+  line-height: 1.15;
+}
+
+.adaptiveReviewDisplayRowSecondary .adaptiveReviewDisplayValue {
+  font-size: clamp(28px, 4.4vw, 54px);
+  line-height: 1.22;
+}
+
+.adaptiveReviewDisplayRowCompact .adaptiveReviewDisplayValue {
+  font-size: clamp(20px, 2.8vw, 34px);
+}
+
+.adaptiveReviewDisplayRowDense .adaptiveReviewDisplayValue {
+  font-size: clamp(17px, 2vw, 24px);
+  line-height: 1.34;
+}
+
+.adaptiveReviewDisplayRowDense.adaptiveReviewDisplayValueWord .adaptiveReviewDisplayValue,
+.adaptiveReviewDisplayRowDense.adaptiveReviewDisplayValueReading .adaptiveReviewDisplayValue {
+  font-size: clamp(24px, 3.3vw, 42px);
 }
 
 .adaptiveReviewExampleWord {
@@ -5561,15 +5640,15 @@ body.theme-dark .recentSquare.isPinned {
   transform: translateX(22px);
 }
 
-.dailyGoalsSwitch {
+.reviewShuffleSwitch {
   background: color-mix(in srgb, var(--border) 45%, var(--surface-alt) 55%);
 }
 
-.dailyGoalsSwitch.isDark {
+.reviewShuffleSwitch.isDark {
   background: color-mix(in srgb, var(--accent) 68%, #ffffff 32%);
 }
 
-.dailyGoalsSwitch .themeSwitchIcon {
+.reviewShuffleSwitch .themeSwitchIcon {
   background: #ffffff;
 }
 
@@ -8754,6 +8833,16 @@ body.theme-dark .recentSquare.isPinned {
     justify-content: flex-start;
   }
 
+  .adaptiveReviewInfoModal {
+    width: 94vw !important;
+    max-width: 94vw !important;
+    max-height: 86svh;
+  }
+
+  .adaptiveReviewInfoSections {
+    grid-template-columns: 1fr;
+  }
+
   .adaptiveReviewHelpText {
     text-align: left;
     white-space: normal;
@@ -8761,7 +8850,46 @@ body.theme-dark .recentSquare.isPinned {
 
   .adaptiveReviewFlashcard,
   .adaptiveReviewFlashcardInner {
-    min-height: clamp(170px, 32svh, 220px);
+    min-height: clamp(280px, 48svh, 430px);
+  }
+
+  .adaptiveReviewFlashcardInner {
+    padding: clamp(20px, 7vw, 34px);
+  }
+
+  .adaptiveReviewDisplayRows {
+    gap: 14px;
+  }
+
+  .adaptiveReviewDisplayRowsCount1 {
+    gap: 0;
+  }
+
+  .adaptiveReviewDisplayRowHero {
+    min-height: clamp(190px, 32svh, 300px);
+  }
+
+  .adaptiveReviewDisplayRowHero .adaptiveReviewDisplayValue {
+    font-size: clamp(40px, 15vw, 74px);
+  }
+
+  .adaptiveReviewDisplayValueWord .adaptiveReviewDisplayValue,
+  .adaptiveReviewDisplayValueReading .adaptiveReviewDisplayValue {
+    font-size: clamp(34px, 13vw, 64px);
+  }
+
+  .adaptiveReviewDisplayRowPrimary .adaptiveReviewDisplayValue {
+    font-size: clamp(30px, 11vw, 56px);
+  }
+
+  .adaptiveReviewDisplayRowSecondary .adaptiveReviewDisplayValue {
+    font-size: clamp(24px, 8vw, 42px);
+  }
+
+  .adaptiveReviewDisplayRowLargeText .adaptiveReviewDisplayValue,
+  .adaptiveReviewDisplayRowHero.adaptiveReviewDisplayValueMeaning .adaptiveReviewDisplayValue,
+  .adaptiveReviewDisplayRowHero.adaptiveReviewDisplayValueExample .adaptiveReviewDisplayValue {
+    font-size: clamp(22px, 7vw, 34px);
   }
 
   .adaptiveReviewRatingsGrid {

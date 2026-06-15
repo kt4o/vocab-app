@@ -3,17 +3,13 @@ import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { AdaptiveReviewSession } from "./components/AdaptiveReviewSession";
 import { JapaneseWordDisplay } from "./components/JapaneseWordDisplay";
-import { Settings } from "lucide-react";
+import { Info, Settings } from "lucide-react";
 import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
 import { identifyAnalyticsUser, resetAnalyticsIdentity, trackEvent } from "./lib/analytics.js";
 import { kanaToRomaji } from "./lib/japaneseText";
 import { useThemeMode } from "./hooks/useThemeMode.js";
 
 const INACTIVITY_TIMEOUT_MS = 7 * 60 * 1000;
-const PRO_DAILY_GOAL_DEFAULT = 30;
-const PRO_DAILY_GOAL_MIN = 10;
-const PRO_DAILY_GOAL_MAX = 120;
-const PRO_DAILY_GOAL_STEP = 5;
 const ADAPTIVE_REVIEW_DAILY_LIMIT_DEFAULT = 20;
 const ADAPTIVE_REVIEW_DAILY_LIMIT_MIN = 5;
 const ADAPTIVE_REVIEW_DAILY_LIMIT_MAX = 100;
@@ -244,11 +240,16 @@ function buildLocalAdaptiveReviewSummaries(rawBooks, options = {}) {
           )
         : [];
       if (!bookId || words.length === 0) return null;
+      const newWordLimit = getBookAdaptiveReviewDailyLimit(book);
+      const newDueNow = Math.min(words.length, newWordLimit);
       return {
         bookId,
         bookName: String(book?.name || "").trim() || "Book",
         totalWords: words.length,
-        dueNow: words.length,
+        dueNow: newDueNow,
+        newDueNow,
+        reviewDueNow: 0,
+        newWordsRemainingToday: newWordLimit,
         isLocalFallback: true,
       };
     })
@@ -269,8 +270,20 @@ function mergeAdaptiveReviewDashboardSummaries(apiSummaries, localSummaries) {
       0,
       Math.floor(Number(localSummary?.totalWords ?? apiSummary?.totalWords) || 0)
     );
+    const apiTotalWords = Math.max(0, Math.floor(Number(apiSummary?.totalWords) || 0));
+    const missingLocalWordCount = Math.max(0, totalWords - apiTotalWords);
+    const localDueNow = Math.max(0, Math.floor(Number(localSummary?.dueNow) || 0));
+    const missingQueuedLocalWordCount = Math.min(missingLocalWordCount, localDueNow);
+    const reviewDueNow = Math.min(
+      Math.max(0, Math.floor(Number(apiSummary?.reviewDueNow) || 0)),
+      totalWords
+    );
+    const newDueNow = Math.min(
+      Math.max(0, Math.floor(Number(apiSummary?.newDueNow) || 0)) + missingQueuedLocalWordCount,
+      Math.max(0, totalWords - reviewDueNow)
+    );
     const dueNow = Math.min(
-      Math.max(0, Math.floor(Number(apiSummary?.dueNow) || 0)),
+      reviewDueNow + newDueNow,
       totalWords
     );
     return {
@@ -280,6 +293,8 @@ function mergeAdaptiveReviewDashboardSummaries(apiSummaries, localSummaries) {
       bookName: localSummary?.bookName || apiSummary?.bookName || "Book",
       totalWords,
       dueNow,
+      newDueNow,
+      reviewDueNow,
       isLocalFallback: !apiSummary,
     };
   });
@@ -307,8 +322,6 @@ const ACCOUNT_DATA_STORAGE_KEYS = [
   "vocab_books",
   "vocab_weekly_stats",
   "vocab_activity_history",
-  "vocab_pro_daily_goal_questions",
-  "vocab_feature_daily_goals_enabled",
   "vocab_free_daily_usage",
   "vocab_last_quiz_mistakes",
   "vocab_last_quiz_mistakes_by_book",
@@ -1330,13 +1343,6 @@ function ensureCurrentFreeDailyUsage(rawUsage, date = new Date()) {
   };
 }
 
-function parseDailyGoalTarget(value) {
-  const parsed = Math.floor(Number(value) || PRO_DAILY_GOAL_DEFAULT);
-  const clamped = Math.min(PRO_DAILY_GOAL_MAX, Math.max(PRO_DAILY_GOAL_MIN, parsed));
-  const offset = clamped - PRO_DAILY_GOAL_MIN;
-  return PRO_DAILY_GOAL_MIN + Math.round(offset / PRO_DAILY_GOAL_STEP) * PRO_DAILY_GOAL_STEP;
-}
-
 function parseAdaptiveReviewDailyLimit(value) {
   const parsed = Math.floor(Number(value) || ADAPTIVE_REVIEW_DAILY_LIMIT_DEFAULT);
   const clamped = Math.min(
@@ -1400,88 +1406,6 @@ function appendWordQuizPerformance(rawHistory, attempt, nowTs = Date.now()) {
     ...(Array.isArray(rawHistory) ? rawHistory : []),
   ];
   return sanitizeWordQuizPerformanceHistory(next, { nowTs: ts });
-}
-
-function getWordQuizPerformanceStats(rawHistory) {
-  const history = sanitizeWordQuizPerformanceHistory(rawHistory);
-  const byMode = {
-    normal: { attempts: 0, correct: 0, accuracyPercent: null },
-    typing: { attempts: 0, correct: 0, accuracyPercent: null },
-  };
-  let totalCorrect = 0;
-
-  history.forEach((entry) => {
-    byMode[entry.mode].attempts += 1;
-    if (entry.correct) {
-      byMode[entry.mode].correct += 1;
-      totalCorrect += 1;
-    }
-  });
-
-  Object.keys(byMode).forEach((modeKey) => {
-    const modeStats = byMode[modeKey];
-    modeStats.accuracyPercent = modeStats.attempts
-      ? Math.round((modeStats.correct / modeStats.attempts) * 100)
-      : null;
-  });
-
-  const totalAttempts = history.length;
-  const accuracyPercent = totalAttempts ? Math.round((totalCorrect / totalAttempts) * 100) : null;
-
-  return {
-    attempts: totalAttempts,
-    correct: totalCorrect,
-    accuracyPercent,
-    byMode,
-    windowDays: WEAK_WORDS_RECENT_DAY_WINDOW,
-    windowQuestions: WEAK_WORDS_RECENT_QUESTION_WINDOW,
-  };
-}
-
-function buildWeakWordCandidates(books) {
-  return (books || [])
-    .flatMap((book) =>
-      (book?.words || [])
-        .filter((wordEntry) => getWordDefinitions(wordEntry).length > 0)
-        .map((wordEntry) => {
-          const mistakeCount = getMistakeCount(wordEntry);
-          const performance = getWordQuizPerformanceStats(wordEntry?.quizPerformanceHistory);
-          const recentAccuracyPenalty = performance.attempts
-            ? (100 - (performance.accuracyPercent || 0)) / 10
-            : 0;
-          const recentAttemptSignal = Math.min(
-            performance.attempts,
-            WEAK_WORDS_RECENT_QUESTION_WINDOW
-          ) * 0.12;
-          const weaknessScore =
-            mistakeCount * 4 +
-            recentAccuracyPenalty * 3 +
-            recentAttemptSignal;
-
-          return {
-            ...wordEntry,
-            sourceBookId: book.id,
-            sourceBookName: String(book?.name || "Book"),
-            mistakeCount,
-            recentAttempts: performance.attempts,
-            recentCorrect: performance.correct,
-            recentAccuracyPercent: performance.accuracyPercent,
-            recentNormalAttempts: performance.byMode.normal.attempts,
-            recentNormalAccuracyPercent: performance.byMode.normal.accuracyPercent,
-            recentTypingAttempts: performance.byMode.typing.attempts,
-            recentTypingAccuracyPercent: performance.byMode.typing.accuracyPercent,
-            recentWindowDays: performance.windowDays,
-            recentWindowQuestions: performance.windowQuestions,
-            weaknessScore,
-          };
-        })
-    )
-    .sort(
-      (a, b) =>
-        b.weaknessScore - a.weaknessScore ||
-        b.recentAttempts - a.recentAttempts ||
-        b.mistakeCount - a.mistakeCount
-    );
 }
 
 function shuffleArray(items) {
@@ -2269,12 +2193,6 @@ export default function App() {
   const [freeDailyUsage, setFreeDailyUsage] = useState(() =>
     ensureCurrentFreeDailyUsage(parseJsonSafely(localStorage.getItem("vocab_free_daily_usage"), null))
   );
-  const [proDailyGoalQuestions, setProDailyGoalQuestions] = useState(() =>
-    parseDailyGoalTarget(localStorage.getItem("vocab_pro_daily_goal_questions"))
-  );
-  const [isDailyGoalsEnabled, setIsDailyGoalsEnabled] = useState(() =>
-    parseStoredBoolean(localStorage.getItem("vocab_feature_daily_goals_enabled"), true)
-  );
   const [authToken, setAuthToken] = useState(() => {
     const savedAuthToken = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
     return isBearerAuthToken(savedAuthToken) ? savedAuthToken : "";
@@ -2313,7 +2231,6 @@ export default function App() {
   const [isBillingPortalSubmitting, setIsBillingPortalSubmitting] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [accountPanelModal, setAccountPanelModal] = useState("");
-  const [isDailyGoalModalOpen, setIsDailyGoalModalOpen] = useState(false);
   const [accountSecurityForm, setAccountSecurityForm] = useState({
     resetEmail: "",
     deletePassword: "",
@@ -2335,6 +2252,7 @@ export default function App() {
   const [adaptiveReviewLoading, setAdaptiveReviewLoading] = useState(false);
   const [adaptiveReviewError, setAdaptiveReviewError] = useState("");
   const [adaptiveReviewPendingRating, setAdaptiveReviewPendingRating] = useState("");
+  const [isAdaptiveReviewInfoOpen, setIsAdaptiveReviewInfoOpen] = useState(false);
   const isJapaneseUi = preferredLanguage === "ja";
   const appLocale = isJapaneseUi ? "ja" : "en";
   const uiText = APP_TEXT[appLocale] || APP_TEXT.en;
@@ -2393,17 +2311,6 @@ export default function App() {
   const totalSavedWordCount = countStoredWords(books);
   const freeWordLimitRemaining = Math.max(0, FREE_WORD_LIMIT - totalSavedWordCount);
   const isFreeWordLimitReached = !isProPlan && totalSavedWordCount >= FREE_WORD_LIMIT;
-  const weakWordCandidates = buildWeakWordCandidates(books);
-  const smartReviewWords = weakWordCandidates.slice(0, 20).map((entry) => ({
-    ...entry,
-    sourceBookId: entry.sourceBookId ?? null,
-  }));
-  const proDailyGoalProgress = Math.max(0, Math.floor(Number(activityDailyStats.questionsCompleted) || 0));
-  const proDailyGoalPercent = Math.min(
-    100,
-    Math.round((proDailyGoalProgress / Math.max(proDailyGoalQuestions, 1)) * 100)
-  );
-  const hasMetProDailyGoal = proDailyGoalProgress >= proDailyGoalQuestions;
   const definitionTrend = buildDefinitionTrend(activityHistory, 14);
   const wordTrend = definitionTrend.map((item) => ({
     ...item,
@@ -2428,8 +2335,6 @@ export default function App() {
       weeklyStats,
       activityHistory,
       freeDailyUsage,
-      proDailyGoalQuestions,
-      isDailyGoalsEnabled,
       preferredLanguage,
       dictionaryPreference,
       lastQuizMistakeKeys,
@@ -2519,6 +2424,33 @@ export default function App() {
     return (options?.shuffleDue ? shuffleArray(reviewWords) : reviewWords).slice(0, maxItems);
   }
 
+  function mergeAdaptiveReviewQueueItems(apiItems, localItems, limit = 20, options = {}) {
+    const maxNewItems = Math.max(1, Math.floor(Number(limit) || 20));
+    const minimumDueItemCount = Math.max(0, Math.floor(Number(options?.minimumDueItemCount) || 0));
+    const maxItems = Math.max(maxNewItems, minimumDueItemCount, Array.isArray(apiItems) ? apiItems.length : 0);
+    const mergedItems = [];
+    const seenKeys = new Set();
+
+    (Array.isArray(apiItems) ? apiItems : []).forEach((item) => {
+      const itemKey = getAdaptiveReviewItemKey(item);
+      if (!itemKey || seenKeys.has(itemKey)) return;
+      seenKeys.add(itemKey);
+      mergedItems.push(item);
+    });
+
+    if (mergedItems.length < minimumDueItemCount) {
+      (Array.isArray(localItems) ? localItems : []).forEach((item) => {
+        if (mergedItems.length >= minimumDueItemCount) return;
+        const itemKey = getAdaptiveReviewItemKey(item);
+        if (!itemKey || seenKeys.has(itemKey)) return;
+        seenKeys.add(itemKey);
+        mergedItems.push(item);
+      });
+    }
+
+    return mergedItems.slice(0, maxItems);
+  }
+
   function startQuizSessionWithSetup(selection, modeOverride = quizMode) {
     const selectedMode = normalizeQuizMode(modeOverride, "normal");
     const nextWords = getQuizWordsForSetup(selection, selectedMode);
@@ -2564,13 +2496,6 @@ export default function App() {
     const recentBookWithWords = sortedBooksByRecent.find((book) => (book.words || []).length >= 2);
     const selection = buildAllBooksQuizSelection(recentBookWithWords ? [recentBookWithWords] : sortedBooksByRecent);
     startQuizSessionWithSetup(selection, "normal");
-  }
-
-  function openQuizSetup() {
-    setQuizBackScreen("quizSelect");
-    initializeQuizSetupSelection();
-    setQuizMode("normal");
-    setScreen("quizSelect");
   }
 
   const startMistakeReviewSession = useCallback((source = "global") => {
@@ -2730,13 +2655,14 @@ export default function App() {
 
   const loadAdaptiveReviewSummary = useCallback(async (options = {}) => {
     const showLoading = !options?.silent;
+    const sourceBooks = Array.isArray(options?.books) ? options.books : latestBooksRef.current;
     const excludedItemKeys = new Set([
       ...adaptiveReviewCompletedItemKeysRef.current,
       ...adaptiveReviewRatingInFlightRef.current,
     ]);
 
     if (!authToken) {
-      const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current, {
+      const localBookSummaries = buildLocalAdaptiveReviewSummaries(sourceBooks, {
         excludedKeys: excludedItemKeys,
       });
       setAdaptiveReviewBookSummaries(localBookSummaries);
@@ -2756,9 +2682,9 @@ export default function App() {
     setAdaptiveReviewError("");
 
     try {
-      const syncResult = await syncBooksForAdaptiveReview(latestBooksRef.current);
+      const syncResult = await syncBooksForAdaptiveReview(sourceBooks);
       if (syncResult?.skipped) {
-        const localBookSummaries = buildLocalAdaptiveReviewSummaries(latestBooksRef.current, {
+        const localBookSummaries = buildLocalAdaptiveReviewSummaries(sourceBooks, {
           excludedKeys: excludedItemKeys,
         });
         setAdaptiveReviewBookSummaries(localBookSummaries);
@@ -2831,6 +2757,7 @@ export default function App() {
     const showLoading = !options?.silent;
     const bookId = String(options?.bookId ?? selectedAdaptiveReviewBookId ?? "").trim();
     const shuffleDue = Boolean(options?.shuffleDue);
+    const sourceBooks = Array.isArray(options?.books) ? options.books : latestBooksRef.current;
     const excludedItemKeys = new Set([
       ...adaptiveReviewCompletedItemKeysRef.current,
       ...adaptiveReviewRatingInFlightRef.current,
@@ -2841,14 +2768,14 @@ export default function App() {
         ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue, excludedKeys: excludedItemKeys })
         : [];
       setAdaptiveReviewItems(fallbackItems);
-      setAdaptiveReviewStats({ dueNow: fallbackItems.length });
+      setAdaptiveReviewStats({ dueNow: fallbackItems.length, newDueNow: fallbackItems.length, reviewDueNow: 0 });
       setAdaptiveReviewError("");
       setAdaptiveReviewPendingRating("");
       return {
         ok: true,
         localFallback: true,
         skipped: true,
-        payload: { items: fallbackItems, stats: { dueNow: fallbackItems.length } },
+        payload: { items: fallbackItems, stats: { dueNow: fallbackItems.length, newDueNow: fallbackItems.length, reviewDueNow: 0 } },
       };
     }
 
@@ -2857,20 +2784,20 @@ export default function App() {
     }
     setAdaptiveReviewError("");
     try {
-      const syncResult = await syncBooksForAdaptiveReview(latestBooksRef.current);
+      const syncResult = await syncBooksForAdaptiveReview(sourceBooks);
       if (syncResult?.skipped) {
         const fallbackItems = bookId
           ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue, excludedKeys: excludedItemKeys })
           : [];
         setAdaptiveReviewItems(fallbackItems);
-        setAdaptiveReviewStats({ dueNow: fallbackItems.length });
+        setAdaptiveReviewStats({ dueNow: fallbackItems.length, newDueNow: fallbackItems.length, reviewDueNow: 0 });
         setAdaptiveReviewError("");
         setAdaptiveReviewPendingRating("");
         return {
           ok: true,
           localFallback: true,
           skipped: true,
-          payload: { items: fallbackItems, stats: { dueNow: fallbackItems.length } },
+          payload: { items: fallbackItems, stats: { dueNow: fallbackItems.length, newDueNow: fallbackItems.length, reviewDueNow: 0 } },
         };
       }
       if (!syncResult?.ok && !syncResult?.skipped) {
@@ -2907,21 +2834,36 @@ export default function App() {
       const visibleItems = apiItems.filter(
         (item) => !adaptiveReviewRatingInFlightRef.current.has(getAdaptiveReviewItemKey(item))
       );
-      const dueNow = Math.max(0, Math.floor(Number(payload?.stats?.dueNow) || 0));
-      setAdaptiveReviewItems(visibleItems);
-      setAdaptiveReviewStats({
-        dueNow: visibleItems.length > 0 ? Math.max(dueNow, visibleItems.length) : 0,
+      const localItems = bookId
+        ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue, excludedKeys: excludedItemKeys })
+        : [];
+      const mergedItems = mergeAdaptiveReviewQueueItems(visibleItems, localItems, limit, {
+        minimumDueItemCount: options?.minimumDueItemCount,
       });
-      return { ok: true, payload };
+      const derivedReviewDueNow = mergedItems.filter((item) => Boolean(item?.lastReviewedAt)).length;
+      const derivedNewDueNow = Math.max(0, mergedItems.length - derivedReviewDueNow);
+      const rawNewDueNow = Math.max(0, Math.floor(Number(payload?.stats?.newDueNow) || 0));
+      const rawReviewDueNow = Math.max(0, Math.floor(Number(payload?.stats?.reviewDueNow) || 0));
+      const bucketCount = rawNewDueNow + rawReviewDueNow;
+      const newDueNow = bucketCount >= mergedItems.length ? rawNewDueNow : derivedNewDueNow;
+      const reviewDueNow = bucketCount >= mergedItems.length ? rawReviewDueNow : derivedReviewDueNow;
+      const dueNow = mergedItems.length;
+      setAdaptiveReviewItems(mergedItems);
+      setAdaptiveReviewStats({
+        dueNow,
+        newDueNow,
+        reviewDueNow,
+      });
+      return { ok: true, payload: { ...payload, items: mergedItems, stats: { ...payload?.stats, dueNow, newDueNow, reviewDueNow } } };
     } catch (error) {
       const fallbackItems = bookId
         ? buildLocalAdaptiveReviewItems(bookId, limit, { shuffleDue, excludedKeys: excludedItemKeys })
         : [];
       if (fallbackItems.length > 0) {
         setAdaptiveReviewItems(fallbackItems);
-        setAdaptiveReviewStats({ dueNow: fallbackItems.length });
+        setAdaptiveReviewStats({ dueNow: fallbackItems.length, newDueNow: fallbackItems.length, reviewDueNow: 0 });
         setAdaptiveReviewError("");
-        return { ok: true, localFallback: true, error, payload: { items: fallbackItems, stats: { dueNow: fallbackItems.length } } };
+        return { ok: true, localFallback: true, error, payload: { items: fallbackItems, stats: { dueNow: fallbackItems.length, newDueNow: fallbackItems.length, reviewDueNow: 0 } } };
       }
 
       setAdaptiveReviewItems([]);
@@ -2959,9 +2901,13 @@ export default function App() {
     setAdaptiveReviewBackScreen(options.backScreen || "adaptiveReviewSelect");
     setScreen("adaptiveReview");
     const reviewBook = latestBooksRef.current.find((book) => String(book?.id) === safeBookId);
+    const reviewSummary = adaptiveReviewBookSummaries.find(
+      (summary) => String(summary?.bookId) === safeBookId
+    );
     const result = await loadAdaptiveReviewQueue(getBookAdaptiveReviewDailyLimit(reviewBook), {
       bookId: safeBookId,
       shuffleDue: getBookAdaptiveReviewShuffleDue(reviewBook),
+      minimumDueItemCount: reviewSummary?.dueNow,
     });
     if (result?.ok) {
       trackEvent("adaptive_review_started", {
@@ -2969,7 +2915,7 @@ export default function App() {
         due_now: Math.max(0, Math.floor(Number(result?.payload?.stats?.dueNow) || 0)),
       });
     }
-  }, [loadAdaptiveReviewQueue, openAdaptiveReviewSelect]);
+  }, [adaptiveReviewBookSummaries, loadAdaptiveReviewQueue, openAdaptiveReviewSelect]);
 
   function openAdaptiveReviewSettings(bookId) {
     const safeBookId = String(bookId || "").trim();
@@ -3067,6 +3013,14 @@ export default function App() {
     });
     setAdaptiveReviewStats((prev) => ({
       dueNow: Math.max(0, (Number(prev?.dueNow) || 0) - 1),
+      newDueNow: Math.max(
+        0,
+        (Number(prev?.newDueNow) || 0) - (currentItem?.lastReviewedAt ? 0 : 1)
+      ),
+      reviewDueNow: Math.max(
+        0,
+        (Number(prev?.reviewDueNow) || 0) - (currentItem?.lastReviewedAt ? 1 : 0)
+      ),
     }));
 
     try {
@@ -3372,8 +3326,6 @@ export default function App() {
       vocab_sidebar_hidden: JSON.stringify(isSidebarHidden),
       vocab_weekly_stats: JSON.stringify(weeklyStats),
       vocab_activity_history: JSON.stringify(activityHistory),
-      vocab_pro_daily_goal_questions: JSON.stringify(proDailyGoalQuestions),
-      vocab_feature_daily_goals_enabled: JSON.stringify(isDailyGoalsEnabled),
       vocab_free_daily_usage: JSON.stringify(freeDailyUsage),
       vocab_last_quiz_mistakes: JSON.stringify(lastQuizMistakeKeys),
       vocab_last_quiz_mistakes_by_book: JSON.stringify(lastQuizMistakeKeysByBook),
@@ -3402,8 +3354,6 @@ export default function App() {
     isSidebarHidden,
     weeklyStats,
     activityHistory,
-    proDailyGoalQuestions,
-    isDailyGoalsEnabled,
     freeDailyUsage,
     lastQuizMistakeKeys,
     lastQuizMistakeKeysByBook,
@@ -3611,7 +3561,6 @@ export default function App() {
     setIsAccountProfileLoading(false);
     setAccountActionError("");
     setIsChangePasswordModalOpen(false);
-    setIsDailyGoalModalOpen(false);
     setAuthForm({
       email: "",
       username: "",
@@ -4062,7 +4011,6 @@ export default function App() {
       setAccountEmail("");
       setIsStripeBillingConfigured(false);
       setIsChangePasswordModalOpen(false);
-      setIsDailyGoalModalOpen(false);
       setIsBillingStatusLoading(false);
       setIsAccountProfileLoading(false);
       return;
@@ -4216,8 +4164,6 @@ export default function App() {
               weeklyStats,
               activityHistory,
               freeDailyUsage,
-              proDailyGoalQuestions,
-              isDailyGoalsEnabled,
               lastQuizMistakeKeys,
               lastQuizMistakeKeysByBook,
               lastQuizMistakeMode,
@@ -4273,8 +4219,6 @@ export default function App() {
     weeklyStats,
     activityHistory,
     freeDailyUsage,
-    proDailyGoalQuestions,
-    isDailyGoalsEnabled,
     lastQuizMistakeKeys,
     lastQuizMistakeKeysByBook,
     lastQuizMistakeMode,
@@ -4808,14 +4752,6 @@ export default function App() {
       JSON.stringify(rawData?.activityHistory || {})
     );
     const importedFreeDailyUsage = ensureCurrentFreeDailyUsage(rawData?.freeDailyUsage);
-    const importedProDailyGoalQuestions =
-      rawData?.proDailyGoalQuestions === undefined
-        ? proDailyGoalQuestions
-        : parseDailyGoalTarget(rawData?.proDailyGoalQuestions);
-    const importedIsDailyGoalsEnabled = parseStoredBoolean(
-      rawData?.isDailyGoalsEnabled,
-      isDailyGoalsEnabled
-    );
     const legacyJapaneseMode = parseStoredBoolean(rawData?.isJapaneseLearnerMode, false);
     const importedPreferredLanguage = parseStoredUiLanguage(
       rawData?.preferredLanguage,
@@ -4862,8 +4798,6 @@ export default function App() {
     setWeeklyStats(importedWeeklyStats);
     setActivityHistory(importedActivityHistory);
     setFreeDailyUsage(importedFreeDailyUsage);
-    setProDailyGoalQuestions(importedProDailyGoalQuestions);
-    setIsDailyGoalsEnabled(importedIsDailyGoalsEnabled);
     setPreferredLanguage(importedPreferredLanguage);
     setDictionaryPreference(importedDictionaryPreference);
     setLastQuizMistakeKeys(importedLastQuizMistakeKeys);
@@ -4879,8 +4813,6 @@ export default function App() {
     applyAppDataSnapshot({
       theme,
       isSidebarHidden,
-      proDailyGoalQuestions,
-      isDailyGoalsEnabled,
       preferredLanguage,
       dictionaryPreference,
     });
@@ -4898,8 +4830,6 @@ export default function App() {
         weeklyStats,
         activityHistory,
         freeDailyUsage,
-        proDailyGoalQuestions,
-        isDailyGoalsEnabled,
         preferredLanguage,
         dictionaryPreference,
         lastQuizMistakeKeys,
@@ -5175,10 +5105,10 @@ export default function App() {
       isAddBookModalOpen ||
       isChangePasswordModalOpen ||
       Boolean(accountPanelModal) ||
-      isDailyGoalModalOpen ||
       Boolean(bookPendingRename) ||
       Boolean(bookPendingDelete) ||
       Boolean(chapterPendingDelete) ||
+      isAdaptiveReviewInfoOpen ||
       Boolean(noticeModal);
     if (!isModalOpen) return;
 
@@ -5192,10 +5122,10 @@ export default function App() {
       if (isAddBookModalOpen) setIsAddBookModalOpen(false);
       if (isChangePasswordModalOpen) setIsChangePasswordModalOpen(false);
       if (accountPanelModal) setAccountPanelModal("");
-      if (isDailyGoalModalOpen) setIsDailyGoalModalOpen(false);
       if (bookPendingRename) setBookPendingRename(null);
       if (bookPendingDelete) setBookPendingDelete(null);
       if (chapterPendingDelete) setChapterPendingDelete(null);
+      if (isAdaptiveReviewInfoOpen) setIsAdaptiveReviewInfoOpen(false);
       if (noticeModal) setNoticeModal(null);
     };
 
@@ -5234,10 +5164,10 @@ export default function App() {
     isAddBookModalOpen,
     isChangePasswordModalOpen,
     accountPanelModal,
-    isDailyGoalModalOpen,
     bookPendingRename,
     bookPendingDelete,
     chapterPendingDelete,
+    isAdaptiveReviewInfoOpen,
     isDeleteAccountConfirmOpen,
     noticeModal,
     completeOnboardingTutorial,
@@ -5886,75 +5816,6 @@ export default function App() {
       );
     }
 
-    if (isDailyGoalModalOpen && isDailyGoalsEnabled) {
-      return (
-        <div className="modalOverlay" onClick={() => setIsDailyGoalModalOpen(false)}>
-          <div
-            className="modalCard"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="daily-goal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 id="daily-goal-title">{tr("Daily Goal", "1日の目標")}</h3>
-            <p className="settingsHint">
-              {tr("Track today's target and jump into your highest-priority review words.", "本日の目標を追跡し、優先度の高い復習に進みましょう。")}
-            </p>
-            <div className="premiumFocusGrid">
-              <div className="premiumFocusMetric">
-                <span>{tr("Progress Today", "今日の進捗")}</span>
-                <strong>{proDailyGoalProgress} / {proDailyGoalQuestions} {tr("questions", "問")}</strong>
-                <div className="premiumProgressTrack" aria-hidden="true">
-                  <div className="premiumProgressFill" style={{ width: `${proDailyGoalPercent}%` }} />
-                </div>
-                <small>{hasMetProDailyGoal ? tr("Goal complete today.", "今日の目標達成。") : tr("Complete quizzes to close the goal.", "クイズを完了して目標達成しましょう。")}</small>
-              </div>
-              <div className="premiumFocusMetric">
-                <span>{tr("Smart Queue", "スマートキュー")}</span>
-                <strong>{smartReviewWords.length} {tr("words ready", "語が準備済み")}</strong>
-                <small>{tr("Weak words prioritized by your recent performance.", "最近の成績に基づいて弱点単語を優先表示します。")}</small>
-              </div>
-            </div>
-            <div className="modalActions">
-              <button
-                type="button"
-                className="modalBtn ghost"
-                onClick={() =>
-                  setProDailyGoalQuestions((prev) =>
-                    parseDailyGoalTarget(Math.max(PRO_DAILY_GOAL_MIN, prev - PRO_DAILY_GOAL_STEP))
-                  )
-                }
-              >
-                {tr("Goal -5", "目標 -5")}
-              </button>
-              <button
-                type="button"
-                className="modalBtn ghost"
-                onClick={() =>
-                  setProDailyGoalQuestions((prev) =>
-                    parseDailyGoalTarget(Math.min(PRO_DAILY_GOAL_MAX, prev + PRO_DAILY_GOAL_STEP))
-                  )
-                }
-              >
-                {tr("Goal +5", "目標 +5")}
-              </button>
-              <button
-                type="button"
-                className="modalBtn primary"
-                onClick={() => {
-                  setIsDailyGoalModalOpen(false);
-                  openQuizSetup();
-                }}
-              >
-                {tr("Open Quiz Setup", "クイズ設定を開く")}
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     if (bookPendingDelete) {
       return (
         <div className="modalOverlay" onClick={() => setBookPendingDelete(null)}>
@@ -6023,6 +5884,127 @@ export default function App() {
             <div className="modalActions">
               <button type="button" className="modalBtn primary" onClick={() => setNoticeModal(null)}>
                 OK
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (isAdaptiveReviewInfoOpen) {
+      return (
+        <div className="modalOverlay" onClick={() => setIsAdaptiveReviewInfoOpen(false)}>
+          <div
+            className="modalCard adaptiveReviewInfoModal"
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="adaptive-review-info-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="adaptive-review-info-title">{tr("How Adaptive Review Works", "適応型復習の使い方")}</h3>
+            <p className="adaptiveReviewInfoIntro">
+              {tr(
+                "Adaptive Review turns a long vocabulary list into a daily memory system. Instead of rereading everything or guessing what to study, it gives you the words most likely to matter today: a controlled number of new words plus older words that are ready to be strengthened.",
+                "適応型復習は、長い単語リストを毎日の記憶システムに変えます。全部を読み直したり、何を勉強するか迷ったりせず、今日必要な単語だけを出します。無理のない数の新出単語に、定着させるべき復習済み単語を加えます。"
+              )}
+            </p>
+            <div className="adaptiveReviewInfoSections">
+              <section>
+                <h4>{tr("Why spaced repetition helps", "間隔反復が役立つ理由")}</h4>
+                <p>
+                  {tr(
+                    "Most forgetting happens because a word is seen once, feels familiar, and then disappears for too long. Spaced repetition deliberately brings it back after a delay, forcing active recall. That recall effort is what makes the memory stronger.",
+                    "多くの単語は、一度見て分かった気になったあと、長く出会わないことで忘れてしまいます。間隔反復は、少し時間を空けて単語を戻し、能動的に思い出す機会を作ります。この思い出す努力が記憶を強くします。"
+                  )}
+                </p>
+                <p>
+                  {tr(
+                    "The benefit is efficiency: easy words stop wasting your time, while weak words get more attention before they vanish.",
+                    "利点は効率です。簡単な単語に時間を使いすぎず、弱い単語には忘れる前に多めの注意を向けられます。"
+                  )}
+                </p>
+              </section>
+              <section>
+                <h4>{tr("Reading the dashboard counters", "ダッシュボードのカウンター")}</h4>
+                <p>
+                  {tr(
+                    "Due is the total ready now. New is unseen words introduced today. Reviews are words you have seen before whose review date has arrived.",
+                    "Dueは今すぐ復習できる合計です。Newは今日導入される未学習単語です。Reviewsは以前見た単語で、復習日が来たものです。"
+                  )}
+                </p>
+                <div className="adaptiveReviewInfoExample">
+                  {tr("Example: 20 New + 7 Reviews = 27 Due.", "例: New 20 + Reviews 7 = Due 27。")}
+                </div>
+              </section>
+              <section>
+                <h4>{tr("How to run a review session", "復習セッションの進め方")}</h4>
+                <p>
+                  {tr(
+                    "Use it as a short daily habit. The goal is not to stare at cards until they feel familiar; the goal is to test recall, reveal the answer, and let the scheduler decide when each word should return.",
+                    "短い毎日の習慣として使います。カードを眺めて見慣れることが目的ではありません。思い出せるか試し、答えを確認し、次にいつ戻すかをスケジューラーに任せます。"
+                  )}
+                </p>
+                <ul>
+                  <li>{tr("Look at the prompt and pause before revealing.", "表示された内容を見て、答えを出してから表示します。")}</li>
+                  <li>{tr("Use the answer side to check meaning, reading, example, or chapter context.", "答え側で意味、読み、例文、章の文脈を確認します。")}</li>
+                  <li>{tr("Rate recall, not effort. The rating controls when the word returns.", "努力ではなく思い出せた度合いで評価します。評価が次回表示時期を決めます。")}</li>
+                </ul>
+              </section>
+              <section>
+                <h4>{tr("What the ratings mean", "評価の意味")}</h4>
+                <p>
+                  {tr(
+                    "Honest ratings make the system smarter. If you mark everything Easy, weak words disappear too soon. If you mark everything Again, your queue becomes heavier than it needs to be.",
+                    "正直な評価ほどシステムは賢くなります。すべてEasyにすると弱い単語が早く消えすぎます。すべてAgainにすると必要以上に復習量が重くなります。"
+                  )}
+                </p>
+                <ul>
+                  <li>{tr("Again: you missed it; bring it back soon.", "Again: 間違えたので早めに戻します。")}</li>
+                  <li>{tr("Hard: you got it, but it was slow or uncertain.", "Hard: 分かったが遅い、または不安定でした。")}</li>
+                  <li>{tr("Good: you remembered it clearly.", "Good: はっきり思い出せました。")}</li>
+                  <li>{tr("Easy: it felt automatic, so it can wait longer.", "Easy: 自然に出たので、次回まで長めに空けます。")}</li>
+                </ul>
+              </section>
+              <section>
+                <h4>{tr("Using settings", "設定の使い方")}</h4>
+                <p>
+                  {tr(
+                    "Press the gear on a book card to choose New words per day, shuffle due words, and control which attributes appear on the front and back of review cards.",
+                    "ブックカードの歯車から、1日の新出単語数、期限単語のシャッフル、カード表裏に表示する項目を設定できます。"
+                  )}
+                </p>
+                <ul>
+                  <li>{tr("New words per day controls intake, not total workload.", "1日の新出単語数は、総復習数ではなく新しい単語の導入数を管理します。")}</li>
+                  <li>{tr("Due review words are added on top of new words.", "期限が来た復習済み単語は、新出単語に追加されます。")}</li>
+                  <li>{tr("Card display settings let you choose what appears before and after reveal.", "カード表示設定で、答え表示前後に見せる項目を選べます。")}</li>
+                </ul>
+                <p>
+                  {tr(
+                    "A good starting point is 10-20 new words per day. Increase it only if you can also keep up with the reviews that come back later.",
+                    "最初は1日10〜20語がおすすめです。あとで戻ってくる復習にも対応できる場合だけ増やしましょう。"
+                  )}
+                </p>
+              </section>
+              <section>
+                <h4>{tr("Large premade books", "大きな既成ブック")}</h4>
+                <p>
+                  {tr(
+                    "For a 1.5k-word book, Adaptive Review will not dump every word into one session. If New words per day is 20, it introduces up to 20 unseen words per day, plus any older words that are due.",
+                    "1,500語のブックでも、全単語を一度に出すことはありません。1日の新出単語数が20なら、未学習単語は1日最大20語まで導入され、期限が来た復習済み単語が追加されます。"
+                  )}
+                </p>
+                <p>
+                  {tr(
+                    "This is what makes big decks usable: you get a steady path through the book without turning the first week into a giant backlog.",
+                    "これにより、大きな単語集でも現実的に使えます。最初の1週間で巨大な未消化リストを作るのではなく、毎日少しずつ進められます。"
+                  )}
+                </p>
+              </section>
+            </div>
+            <div className="modalActions">
+              <button type="button" className="modalBtn primary" onClick={() => setIsAdaptiveReviewInfoOpen(false)}>
+                {tr("Got it", "OK")}
               </button>
             </div>
           </div>
@@ -6508,6 +6490,7 @@ export default function App() {
       );
 
       setBooks(updatedBooks);
+      latestBooksRef.current = updatedBooks;
       setWeeklyStats((prev) => {
         const current = ensureCurrentWeekStats(prev);
         return {
@@ -6527,11 +6510,7 @@ export default function App() {
       updateStreak();
       setInputWord("");
       setLastAddedWord(savedWordForLastAdded);
-      void syncBooksForAdaptiveReview(updatedBooks).then((result) => {
-        if (result?.ok) {
-          void loadAdaptiveReviewSummary({ silent: true });
-        }
-      });
+      void loadAdaptiveReviewSummary({ silent: true, books: updatedBooks });
     } catch (error) {
       if (lookupSucceeded) {
         console.warn("Word was added, but post-save bookkeeping failed.", error);
@@ -6928,25 +6907,6 @@ export default function App() {
               <strong className="weeklyOverviewValue">{currentWeekStats.wordsAdded}</strong>
             </div>
           </div>
-          {isDailyGoalsEnabled ? (
-            <>
-              <div className="weeklyDailyDivider" aria-hidden="true" />
-              <button
-                type="button"
-                className="weeklyOverviewCard dailyGoalOverviewCard"
-                onClick={() => setIsDailyGoalModalOpen(true)}
-              >
-                <p className="weeklyOverviewLabel">{tr("Daily Goal", "1日の目標")}</p>
-                <strong className="weeklyOverviewValue">
-                  {proDailyGoalProgress} / {proDailyGoalQuestions} {tr("questions", "問")}
-                </strong>
-                <div className="premiumProgressTrack" aria-hidden="true">
-                  <div className="premiumProgressFill" style={{ width: `${proDailyGoalPercent}%` }} />
-                </div>
-                <span className="settingsHint">{tr("Tap to manage your daily goal.", "タップして目標を管理")}</span>
-              </button>
-            </>
-          ) : null}
         </div>
 
         <div className="recentSection">
@@ -7081,30 +7041,6 @@ export default function App() {
                   <span className="themeSwitchIcon" aria-hidden="true">
                     {theme === "dark" ? "\uD83C\uDF19" : "\u2600"}
                   </span>
-                </button>
-              </div>
-            </div>
-            <div className="analyticsCard settingsCard">
-              <h3>{tr("Features", "機能")}</h3>
-              <p className="settingsHint">
-                {tr("Choose which dashboard features are visible.", "ダッシュボードで表示する機能を選択します。")}
-              </p>
-              <div className="settingsRow">
-                <span>{tr("Daily Goals", "デイリー目標")}</span>
-                <button
-                  type="button"
-                  className={`themeSwitch dailyGoalsSwitch ${isDailyGoalsEnabled ? "isDark" : ""}`}
-                  onClick={() => {
-                    const nextEnabled = !isDailyGoalsEnabled;
-                    setIsDailyGoalsEnabled(nextEnabled);
-                    if (!nextEnabled) setIsDailyGoalModalOpen(false);
-                  }}
-                  aria-label={tr(
-                    isDailyGoalsEnabled ? "Turn off Daily Goals" : "Turn on Daily Goals",
-                    isDailyGoalsEnabled ? "デイリー目標をオフにする" : "デイリー目標をオンにする"
-                  )}
-                >
-                  <span className="themeSwitchIcon" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -8562,7 +8498,18 @@ export default function App() {
       <div className="page">
         <div className="pageHeader">
           <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>{tr("Select Review Book", "復習するブックを選択")}</h1>
+          <div className="adaptiveReviewTitleRow">
+            <h1>{tr("Select Review Book", "復習するブックを選択")}</h1>
+            <button
+              type="button"
+              className="adaptiveReviewInfoBtn"
+              aria-label={tr("Learn about Adaptive Review", "適応型復習について見る")}
+              title={tr("About Adaptive Review", "適応型復習について")}
+              onClick={() => setIsAdaptiveReviewInfoOpen(true)}
+            >
+              <Info size={18} aria-hidden="true" strokeWidth={2.2} />
+            </button>
+          </div>
         </div>
         <div className="analyticsSection">
           {adaptiveReviewLoading ? (
@@ -8600,6 +8547,14 @@ export default function App() {
                 const dueNow = Math.min(
                   Math.max(0, Math.floor(Number(summary.dueNow) || 0)),
                   totalWords
+                );
+                const newDueNow = Math.min(
+                  dueNow,
+                  Math.max(0, Math.floor(Number(summary.newDueNow) || 0))
+                );
+                const reviewDueNow = Math.min(
+                  dueNow,
+                  Math.max(0, Math.floor(Number(summary.reviewDueNow) || 0))
                 );
 
                 const startReview = () => {
@@ -8648,6 +8603,14 @@ export default function App() {
                       <span>
                         <strong>{dueNow}</strong>
                         {tr("due", "期限")}
+                      </span>
+                      <span>
+                        <strong>{newDueNow}</strong>
+                        {tr("new", "新出")}
+                      </span>
+                      <span>
+                        <strong>{reviewDueNow}</strong>
+                        {tr("reviews", "復習")}
                       </span>
                     </div>
                   </div>
@@ -8740,8 +8703,8 @@ export default function App() {
                 </div>
               </div>
               <div className="settingsRow advancedSettingsRow">
-                <span>{tr("Reviews per day", "1日の復習数")}</span>
-                <div className="settingsStepper reviewLimitStepper" role="group" aria-label={tr("Reviews per day", "1日の復習数")}>
+                <span>{tr("New words per day", "1日の新出単語数")}</span>
+                <div className="settingsStepper reviewLimitStepper" role="group" aria-label={tr("New words per day", "1日の新出単語数")}>
                   <button
                     type="button"
                     className="secondaryBtn settingsStepperBtn"
@@ -8752,7 +8715,7 @@ export default function App() {
                       )
                     }
                     disabled={selectedBookReviewDailyLimit <= ADAPTIVE_REVIEW_DAILY_LIMIT_MIN}
-                    aria-label={tr("Decrease reviews per day", "1日の復習数を減らす")}
+                    aria-label={tr("Decrease new words per day", "1日の新出単語数を減らす")}
                   >
                     -
                   </button>
@@ -8766,7 +8729,7 @@ export default function App() {
                     onChange={(event) =>
                       updateBookAdaptiveReviewDailyLimit(selectedAdaptiveReviewBook.id, event.target.value)
                     }
-                    aria-label={tr("Reviews per day", "1日の復習数")}
+                    aria-label={tr("New words per day", "1日の新出単語数")}
                   />
                   <button
                     type="button"
@@ -8778,7 +8741,7 @@ export default function App() {
                       )
                     }
                     disabled={selectedBookReviewDailyLimit >= ADAPTIVE_REVIEW_DAILY_LIMIT_MAX}
-                    aria-label={tr("Increase reviews per day", "1日の復習数を増やす")}
+                    aria-label={tr("Increase new words per day", "1日の新出単語数を増やす")}
                   >
                     +
                   </button>
@@ -8788,7 +8751,7 @@ export default function App() {
                 <span>{tr("Shuffle due words", "期限単語をシャッフル")}</span>
                 <button
                   type="button"
-                  className={`themeSwitch dailyGoalsSwitch ${selectedBookShuffleDue ? "isDark" : ""}`}
+                  className={`themeSwitch reviewShuffleSwitch ${selectedBookShuffleDue ? "isDark" : ""}`}
                   onClick={() =>
                     updateBookAdaptiveReviewShuffleDue(selectedAdaptiveReviewBook.id, !selectedBookShuffleDue)
                   }
@@ -8803,11 +8766,11 @@ export default function App() {
               <p className="settingsHint">
                 {tr(
                   selectedBookShuffleDue
-                    ? `Smart Review will load up to ${selectedBookReviewDailyLimit} due cards in random order.`
-                    : `Smart Review will load up to ${selectedBookReviewDailyLimit} due cards in due-date order.`,
+                    ? `Smart Review will add up to ${selectedBookReviewDailyLimit} unseen words per day, plus any previously reviewed words that are due, in random order.`
+                    : `Smart Review will add up to ${selectedBookReviewDailyLimit} unseen words per day, plus any previously reviewed words that are due.`,
                   selectedBookShuffleDue
-                    ? `スマート復習は最大${selectedBookReviewDailyLimit}枚の期限カードをランダム順で読み込みます。`
-                    : `スマート復習は最大${selectedBookReviewDailyLimit}枚の期限カードを期限順で読み込みます。`
+                    ? `スマート復習は1日最大${selectedBookReviewDailyLimit}語の新出単語に、期限が来た復習済み単語を加えてランダム順で読み込みます。`
+                    : `スマート復習は1日最大${selectedBookReviewDailyLimit}語の新出単語に、期限が来た復習済み単語を加えて読み込みます。`
                 )}
               </p>
               <div className="adaptiveReviewSettingsDivider" />
@@ -8905,9 +8868,13 @@ export default function App() {
         }}
         onReload={() => {
           const reviewBook = latestBooksRef.current.find((book) => String(book?.id) === String(selectedAdaptiveReviewBookId));
+          const reviewSummary = adaptiveReviewBookSummaries.find(
+            (summary) => String(summary?.bookId) === String(selectedAdaptiveReviewBookId)
+          );
           return loadAdaptiveReviewQueue(getBookAdaptiveReviewDailyLimit(reviewBook), {
             bookId: selectedAdaptiveReviewBookId,
             shuffleDue: getBookAdaptiveReviewShuffleDue(reviewBook),
+            minimumDueItemCount: reviewSummary?.dueNow,
           });
         }}
         onRate={rateAdaptiveReviewWord}

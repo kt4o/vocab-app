@@ -151,49 +151,94 @@ function highlightReviewWord(text, item) {
   );
 }
 
+function getDisplayValueText(value) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (Array.isArray(value)) return value.map(getDisplayValueText).join(" ");
+  if (typeof value === "object" && value?.props) {
+    return getDisplayValueText(value.props.children);
+  }
+  return "";
+}
+
+function getAdaptiveReviewRowSizeClass(key, rawText, rowCount) {
+  const textLength = String(rawText || "").trim().length;
+  if (rowCount <= 1) {
+    if (["word", "kanji", "furigana", "pronunciation"].includes(key)) return "adaptiveReviewDisplayRowHero";
+    if (textLength > 120) return "adaptiveReviewDisplayRowLargeText";
+    return "adaptiveReviewDisplayRowHero";
+  }
+  if (rowCount === 2) {
+    if (["word", "kanji"].includes(key)) return "adaptiveReviewDisplayRowPrimary";
+    if (textLength > 120) return "adaptiveReviewDisplayRowLargeText";
+    return "adaptiveReviewDisplayRowSecondary";
+  }
+  if (rowCount <= 4) {
+    if (["word", "kanji"].includes(key)) return "adaptiveReviewDisplayRowPrimary";
+    if (["exampleSentence", "exampleTranslation", "meaning"].includes(key) && textLength > 90) {
+      return "adaptiveReviewDisplayRowLargeText";
+    }
+    return "adaptiveReviewDisplayRowCompact";
+  }
+  return "adaptiveReviewDisplayRowDense";
+}
+
 function buildDisplayRows(item, sideSettings, selectedDefinition) {
   if (!item) return [];
 
   const rows = [];
-  const pushRow = (key, label, value, className = "") => {
+  const pushRow = (key, label, value, className = "", rawText = value) => {
     if (!sideSettings?.[key] || !value) return;
-    rows.push({ key, label, value, className });
+    rows.push({ key, label, value, className, rawText: getDisplayValueText(rawText) });
   };
+
+  const wordText = String(item.word || "").trim();
+  const readingText = getReadingText(item);
+  const pronunciationText = getPronunciationText(item);
 
   pushRow(
     "word",
     "Word",
     <JapaneseWordDisplay wordEntry={item} />,
-    "adaptiveReviewDisplayValueWord"
+    "adaptiveReviewDisplayValueWord",
+    [wordText, readingText, pronunciationText].filter(Boolean).join(" ")
   );
   pushRow("meaning", "Meaning", selectedDefinition, "adaptiveReviewDisplayValueMeaning");
-  pushRow("kanji", "Kanji", String(item.word || "").trim(), "adaptiveReviewDisplayValueWord");
-  pushRow("furigana", "Reading", getReadingText(item));
-  pushRow("pronunciation", "Pronunciation", getPronunciationText(item));
+  pushRow("kanji", "Kanji", wordText, "adaptiveReviewDisplayValueWord");
+  pushRow("furigana", "Reading", readingText, "adaptiveReviewDisplayValueReading");
+  pushRow("pronunciation", "Pronunciation", pronunciationText, "adaptiveReviewDisplayValueReading");
   pushRow(
     "exampleSentence",
     "Example",
     highlightReviewWord(item.exampleSentence, item),
-    "adaptiveReviewDisplayValueExample"
+    "adaptiveReviewDisplayValueExample",
+    item.exampleSentence
   );
   pushRow("exampleTranslation", "Translation", String(item.exampleTranslation || "").trim());
   pushRow("chapter", "Chapter", String(item.chapterName || "").trim());
 
-  if (rows.length > 0) return rows;
+  if (rows.length > 0) {
+    return rows.map((row) => ({
+      ...row,
+      className: [
+        row.className,
+        getAdaptiveReviewRowSizeClass(row.key, row.rawText, rows.length),
+      ].filter(Boolean).join(" "),
+    }));
+  }
 
   return [
     {
       key: "fallback",
       label: "Word",
       value: <JapaneseWordDisplay wordEntry={item} />,
-      className: "adaptiveReviewDisplayValueWord",
+      className: "adaptiveReviewDisplayValueWord adaptiveReviewDisplayRowHero",
     },
   ];
 }
 
 export function AdaptiveReviewSession({
   items,
-  stats,
   loading,
   error,
   title = "Adaptive Review",
@@ -210,9 +255,18 @@ export function AdaptiveReviewSession({
   const reviewFooterRef = useRef(null);
   const currentItem = items[0] || null;
   const isSubmittingRating = Boolean(pendingRating);
-  const dueNowCount = Math.max(0, Math.floor(Number(stats?.dueNow) || 0));
-  const displayedDueNowCount = currentItem ? dueNowCount : 0;
-  const hasNoDueWords = !currentItem && dueNowCount === 0;
+  const visibleQueueCount = Array.isArray(items) ? items.length : 0;
+  const visibleReviewDueNowCount = (Array.isArray(items) ? items : []).filter((item) =>
+    Boolean(item?.lastReviewedAt)
+  ).length;
+  const displayedDueNowCount = currentItem ? visibleQueueCount : 0;
+  const displayedReviewDueNowCount = currentItem
+    ? Math.min(visibleReviewDueNowCount, displayedDueNowCount)
+    : 0;
+  const displayedNewDueNowCount = currentItem
+    ? Math.max(0, displayedDueNowCount - displayedReviewDueNowCount)
+    : 0;
+  const hasNoDueWords = !currentItem && visibleQueueCount === 0;
   const shouldShowError = Boolean(error) && !hasNoDueWords;
   const selectedDefinition = useMemo(
     () => currentItem?.selectedDefinition || "No definition available.",
@@ -231,6 +285,7 @@ export function AdaptiveReviewSession({
       ),
     [currentItem, safeDisplaySettings, selectedDefinition, showAnswer]
   );
+  const displayRowCountClass = `adaptiveReviewDisplayRowsCount${Math.min(Math.max(visibleRows.length, 1), 6)}`;
   const ratingOptions = useMemo(
     () =>
       ADAPTIVE_REVIEW_RATINGS.map((rating) => ({
@@ -276,6 +331,14 @@ export function AdaptiveReviewSession({
             <div className="adaptiveReviewStatPill">
               <span>Due</span>
               <strong>{displayedDueNowCount}</strong>
+            </div>
+            <div className="adaptiveReviewStatPill">
+              <span>New</span>
+              <strong>{displayedNewDueNowCount}</strong>
+            </div>
+            <div className="adaptiveReviewStatPill">
+              <span>Reviews</span>
+              <strong>{displayedReviewDueNowCount}</strong>
             </div>
           </div>
         </div>
@@ -351,7 +414,7 @@ export function AdaptiveReviewSession({
                 }}
               >
                 <div className="adaptiveReviewFlashcardInner">
-                  <div className="adaptiveReviewDisplayRows">
+                  <div className={`adaptiveReviewDisplayRows ${displayRowCountClass}`}>
                     {visibleRows.map((row) => (
                       <div className={`adaptiveReviewDisplayRow ${row.className}`} key={row.key}>
                         <span className="adaptiveReviewDisplayLabel">{row.label}</span>
