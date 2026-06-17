@@ -11,6 +11,8 @@
     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display:
     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-japanese:
+    "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", Meiryo, sans-serif;
   --font-size-body: 15.5px;
   --line-height-body: 1.55;
   --background: #ffffff;
@@ -3218,14 +3220,15 @@ body.theme-dark .modalBtn.primary {
 @media (max-width: 700px) {
   .tutorialOverlay {
     align-items: flex-end;
-    padding: 10px;
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
   }
 
   .tutorialModalCard {
-    height: min(590px, calc(100vh - 20px));
-    max-height: calc(100vh - 20px);
+    height: min(590px, calc(100dvh - 20px));
+    max-height: calc(100dvh - 20px);
     padding: 14px;
     border-radius: 14px;
+    overscroll-behavior: contain;
   }
 
   .tutorialImageFrame {
@@ -3266,6 +3269,70 @@ body.theme-dark .modalBtn.primary {
 
   .tutorialModalCard p {
     font-size: 14px;
+  }
+
+  .tutorialActions {
+    gap: 8px;
+  }
+
+  .tutorialActions .modalBtn {
+    flex: 1 1 0;
+    min-height: 44px;
+  }
+
+  .appShell.isGuidedLocked .appMain {
+    padding-bottom: calc(188px + env(safe-area-inset-bottom));
+  }
+
+  .appShell.isGuidedLocked .guidedTarget,
+  .appShell.isGuidedLocked .guidedTargetRow {
+    scroll-margin-top: 18px;
+    scroll-margin-bottom: 210px;
+  }
+
+  .appShell.isGuidedLocked .page {
+    padding-bottom: calc(220px + env(safe-area-inset-bottom));
+  }
+
+  .appShell.isGuidedLocked.hasGuidedModalOpen .page {
+    padding-bottom: 24px;
+  }
+
+  .appShell.isGuidedLocked.hasGuidedModalOpen .modalOverlay {
+    padding-bottom: calc(154px + env(safe-area-inset-bottom));
+  }
+
+  .guidedCoach {
+    position: fixed;
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    top: auto;
+    width: auto;
+    max-height: min(42dvh, 220px);
+    padding: 14px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    border-radius: 14px;
+  }
+
+  .guidedCoach-floating,
+  .guidedCoach-inline,
+  .guidedCoach-below,
+  .guidedCoach-inlineRight,
+  .guidedCoach-dashboard-add-book.guidedCoach-below,
+  .addWordGuidedAnchor .guidedCoach-below {
+    position: fixed;
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    top: auto;
+    width: auto;
+  }
+
+  .guidedCoach::before,
+  .guidedCoach::after {
+    display: none;
   }
 }
 
@@ -4390,6 +4457,7 @@ body.theme-dark .inputRow .addWordBtn {
   font-size: 16px;
 }
 .japaneseWordDisplay {
+  font-family: var(--font-japanese);
   display: inline-flex;
   align-items: flex-end;
   gap: 6px;
@@ -4412,6 +4480,7 @@ body.theme-dark .inputRow .addWordBtn {
   line-height: 1;
 }
 .japaneseRomajiText {
+  font-family: var(--font-sans);
   color: color-mix(in srgb, var(--muted) 82%, var(--surface) 18%);
   font-size: 0.72em;
   font-weight: 600;
@@ -4562,7 +4631,7 @@ body.theme-dark .wordRow .deleteBtn {
   color: #fff;
 }
 .definitionRow {
-  margin-top: 6px;
+  margin-top: 4px;
   width: 100%;
   display: flex;
   align-items: flex-start;
@@ -4575,10 +4644,10 @@ body.theme-dark .wordRow .deleteBtn {
   min-width: 0;
 }
 .exampleList {
-  margin-top: 8px;
+  margin-top: 2px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 .exampleToggleBtn {
   margin-top: 10px;
@@ -4616,6 +4685,9 @@ body.theme-dark .wordRow .deleteBtn {
   line-height: 1.5;
   padding-left: 10px;
   border-left: 2px solid var(--border);
+}
+.exampleItem.isJapaneseText {
+  font-family: var(--font-japanese);
 }
 .exampleTranslation {
   color: color-mix(in srgb, var(--muted) 82%, var(--text) 18%);
@@ -5798,8 +5870,38 @@ body.theme-dark .recentSquare.isPinned {
     display: none;
   }
   .dashboardHeader {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 34px;
+  }
+
+  .dashboardTitleRow {
+    min-width: 0;
+  }
+
+  .dashboardTitleRow h1 {
+    font-size: clamp(28px, 8vw, 34px);
+    white-space: nowrap;
+  }
+
+  .dashboardStatus {
+    min-width: 0;
+    flex: 0 0 auto;
     align-items: flex-start;
+  }
+
+  .dashboardStatus .streakWrap,
+  .dashboardStatus.isEconomyOff .streakWrap {
+    align-self: auto;
+    align-items: flex-start;
+  }
+
+  .streakBadge {
+    padding: 5px 10px;
+    font-size: 12px;
+    gap: 5px;
   }
   .quizFastStartCard {
     align-items: stretch;
@@ -5837,14 +5939,39 @@ body.theme-dark .recentSquare.isPinned {
   }
   .weeklyOverviewGrid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(160px, 1fr));
-    gap: 10px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scroll-snap-type: x proximity;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+    padding-bottom: 0;
+    scroll-snap-type: none;
   }
+
+  .weeklyOverviewTitle {
+    margin-bottom: 7px;
+    font-size: 18px;
+    line-height: 1.15;
+  }
+
+  .weeklyOverviewCard {
+    min-height: 78px;
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .weeklyOverviewLabel {
+    margin-bottom: 5px;
+    font-size: 8.5px;
+    line-height: 1.2;
+    letter-spacing: 0.15px;
+  }
+
+  .weeklyOverviewValue {
+    font-size: 20px;
+    margin-bottom: 0;
+  }
+
   .weeklyOverviewGrid > * {
-    min-width: 160px;
+    min-width: 0;
     scroll-snap-align: start;
   }
   .analyticsGrid {
@@ -5877,8 +6004,9 @@ body.theme-dark .recentSquare.isPinned {
   .dashboardStatus {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    width: 100%;
+    align-items: flex-start;
+    width: auto;
+    flex: 0 0 auto;
   }
   .streakStatusText,
   .streakProgressText {
@@ -5905,8 +6033,25 @@ body.theme-dark .recentSquare.isPinned {
   }
   .definitionRow {
     flex-direction: column;
-    gap: 10px;
+    gap: 4px;
   }
+
+  .definitionRow:not(:has(.definitionEditField)) {
+    position: relative;
+    display: block;
+    min-height: 38px;
+  }
+
+  .definitionRow:not(:has(.definitionEditField)) p {
+    padding-right: 48px;
+  }
+
+  .definitionRow:not(:has(.definitionEditField)) .definitionControls {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+
   .definitionRow p,
   .definitionEditField {
     width: 100%;
@@ -8668,7 +8813,51 @@ body.theme-dark .recentSquare.isPinned {
 
   .dashboardStatus {
     min-width: 0;
+    width: auto;
+    flex: 0 0 auto;
     align-items: flex-start;
+  }
+
+  .dashboardHeader {
+    gap: 8px;
+    margin-bottom: 30px;
+  }
+
+  .dashboardTitleRow h1 {
+    font-size: clamp(25px, 7.2vw, 30px);
+  }
+
+  .streakBadge {
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+
+  .weeklyOverviewSection {
+    margin-bottom: 20px;
+  }
+
+  .weeklyOverviewGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .weeklyOverviewGrid > * {
+    min-width: 0;
+  }
+
+  .weeklyOverviewCard {
+    min-height: 72px;
+    padding: 7px;
+    border-radius: 9px;
+  }
+
+  .weeklyOverviewLabel {
+    font-size: 7.5px;
+    line-height: 1.15;
+  }
+
+  .weeklyOverviewValue {
+    font-size: 18px;
   }
 
   .streakStatusText,
@@ -8709,8 +8898,27 @@ body.theme-dark .recentSquare.isPinned {
     border-radius: 14px;
   }
 
+  .wordRow p {
+    margin-top: 4px;
+  }
+
   .definitionRow {
     gap: 8px;
+  }
+
+  .exampleList {
+    margin-top: 0;
+    gap: 4px;
+  }
+
+  .wordRow .exampleItem {
+    font-size: 12px;
+    padding-left: 9px;
+    line-height: 1.42;
+  }
+
+  .wordRow .exampleTranslation {
+    font-size: 11px;
   }
 
   .definitionActionBtn {
@@ -8745,37 +8953,6 @@ body.theme-dark .recentSquare.isPinned {
     flex-basis: auto;
   }
 
-  .guidedCoach {
-    width: auto;
-    padding: 14px;
-  }
-
-  .guidedCoach-floating {
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-  }
-
-  .guidedCoach-inline {
-    width: 100%;
-    top: calc(100% + 10px);
-    margin: 0;
-  }
-
-  .guidedCoach-below,
-  .guidedCoach-inlineRight {
-    left: 0;
-    right: auto;
-    width: min(330px, calc(100vw - 28px));
-    top: calc(100% + 10px);
-  }
-
-  .addWordGuidedAnchor .guidedCoach-below {
-    left: auto;
-    right: 0;
-    width: min(330px, calc(100vw - 28px));
-  }
-
   .addWordGuidedAnchor .guidedCoach-below::before {
     left: auto;
     right: 22px;
@@ -8793,15 +8970,6 @@ body.theme-dark .recentSquare.isPinned {
   .recentScroll.hasGuidedCoach {
     overflow-x: auto;
     overflow-y: hidden;
-  }
-
-  .guidedCoach-dashboard-add-book.guidedCoach-below {
-    position: fixed;
-    top: auto;
-    right: 10px;
-    bottom: 10px;
-    left: 10px;
-    width: auto;
   }
 
   .guidedCoach::before,

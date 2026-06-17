@@ -2065,6 +2065,19 @@ function isDevTutorialAccount(username) {
   return String(username || "").trim().toLowerCase() === "dev";
 }
 
+function getGuidedTourTargetSelector(step) {
+  if (step === "dashboard-add-book") return ".recentSquare.addSquare";
+  if (step === "book-name") return ".createBookFields input";
+  if (step === "book-create") return ".createBookModalCard .modalBtn.primary";
+  if (step === "book-definitions") return ".bookModeGrid .bookModeCard";
+  if (step === "word-type") return ".addWordFieldGroup input";
+  if (step === "word-add" || step === "word-saving") return ".addWordBtn";
+  if (step === "definitions-back") return ".pageHeader .backBtn";
+  if (step === "book-quiz") return ".bookModeGrid .guidedControlAnchor:last-child .bookModeCard";
+  if (step === "quiz-start") return ".quizFastStartActions .primaryBtn";
+  return "";
+}
+
 export default function App() {
   const [screen, setScreen] = useState("dashboard");
   const [theme, setTheme] = useState(() => {
@@ -2114,6 +2127,9 @@ export default function App() {
   const [hasCompletedOnboardingThisSession, setHasCompletedOnboardingThisSession] = useState(false);
   const [guidedTourStep, setGuidedTourStep] = useState("");
   const [isGuidedTourDismissed, setIsGuidedTourDismissed] = useState(false);
+  const [isGuidedTourMobile, setIsGuidedTourMobile] = useState(() =>
+    Boolean(window.matchMedia?.("(max-width: 700px)")?.matches)
+  );
   const [quizBackScreen, setQuizBackScreen] = useState("dashboard");
   const [quizMode, setQuizMode] = useState("normal");
   const [quizSetupStep, setQuizSetupStep] = useState(0);
@@ -5053,6 +5069,43 @@ export default function App() {
   }, [guidedTourStep, loading, currentBookWordCount]);
 
   useEffect(() => {
+    if (!window.matchMedia) return undefined;
+
+    const mediaQuery = window.matchMedia("(max-width: 700px)");
+    const syncGuidedTourViewport = () => setIsGuidedTourMobile(mediaQuery.matches);
+
+    syncGuidedTourViewport();
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", syncGuidedTourViewport);
+      return () => mediaQuery.removeEventListener("change", syncGuidedTourViewport);
+    }
+    mediaQuery.addListener(syncGuidedTourViewport);
+    return () => mediaQuery.removeListener(syncGuidedTourViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!guidedTourStep) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const targetSelector = getGuidedTourTargetSelector(guidedTourStep);
+      const target = targetSelector ? document.querySelector(targetSelector) : null;
+      if (!target) return;
+
+      target.scrollIntoView({
+        behavior: "smooth",
+        block: isGuidedTourMobile ? "center" : "nearest",
+        inline: "nearest",
+      });
+
+      if (guidedTourStep === "word-type" || guidedTourStep === "book-name") {
+        target.focus?.({ preventScroll: true });
+      }
+    }, isGuidedTourMobile ? 180 : 80);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [guidedTourStep, screen, isAddBookModalOpen, isGuidedTourMobile]);
+
+  useEffect(() => {
     if (!authToken || !authUsername) return;
     if (isDevTutorialAccount(authUsername)) {
       if (hasCompletedOnboardingThisSession) return;
@@ -7977,7 +8030,9 @@ export default function App() {
                   </div>
                   {exampleSentence ? (
                     <div className="exampleList">
-                      <p className="exampleItem">{exampleSentence}</p>
+                      <p className={`exampleItem ${currentBookLanguageMode === "ja_en" ? "isJapaneseText" : ""}`}>
+                        {exampleSentence}
+                      </p>
                       {exampleTranslation ? (
                         <p className="exampleItem exampleTranslation">{exampleTranslation}</p>
                       ) : null}
