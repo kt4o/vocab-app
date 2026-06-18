@@ -3,6 +3,7 @@ import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { AdaptiveReviewSession } from "./components/AdaptiveReviewSession";
 import { JapaneseWordDisplay } from "./components/JapaneseWordDisplay";
+import { AudioButton } from "./components/AudioButton";
 import { Info, Settings } from "lucide-react";
 import { PREMIUM_UPGRADE_ENABLED } from "./config/premium";
 import { identifyAnalyticsUser, resetAnalyticsIdentity, trackEvent } from "./lib/analytics.js";
@@ -1167,18 +1168,52 @@ async function fetchJapaneseToEnglishTranslations(word) {
   return directResult;
 }
 
-async function fetchExampleSentence({ word, definitions, languageMode }) {
-  const input = String(word || "").trim();
-  if (!input) return null;
-
-  const endpointCandidates = [`${EXAMPLE_API_PATH}/sentence`];
+function getExampleEndpointCandidates(path) {
+  const endpointCandidates = [`${EXAMPLE_API_PATH}${path}`];
   const onLocalhost =
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   if (!API_BASE_URL && onLocalhost) {
-    endpointCandidates.push("http://localhost:4000/api/examples/sentence");
+    endpointCandidates.push(`http://localhost:4000/api/examples${path}`);
+  }
+  return endpointCandidates;
+}
+
+async function fetchExampleFurigana(sentence) {
+  const input = String(sentence || "").trim();
+  if (!input || !hasKanjiText(input)) return [];
+
+  const endpointCandidates = getExampleEndpointCandidates("/furigana");
+  const triedEndpoints = new Set();
+  for (const endpoint of endpointCandidates) {
+    const normalizedEndpoint = String(endpoint || "").trim();
+    if (!normalizedEndpoint || triedEndpoints.has(normalizedEndpoint)) continue;
+    triedEndpoints.add(normalizedEndpoint);
+
+    try {
+      const res = await fetchWithRetry(normalizedEndpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sentence: input }),
+        timeoutMs: 14000,
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) continue;
+      return normalizeExampleFuriganaSegments(payload?.furigana);
+    } catch {
+      // Furigana is enrichment; the example sentence can still be shown.
+    }
   }
 
+  return [];
+}
+
+async function fetchExampleSentence({ word, definitions, languageMode }) {
+  const input = String(word || "").trim();
+  if (!input) return null;
+
+  const endpointCandidates = getExampleEndpointCandidates("/sentence");
   const triedEndpoints = new Set();
   for (const endpoint of endpointCandidates) {
     const normalizedEndpoint = String(endpoint || "").trim();
@@ -1199,11 +1234,29 @@ async function fetchExampleSentence({ word, definitions, languageMode }) {
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) continue;
-      const sentence = String(payload?.sentence || "").trim();
+      const rawSentence = String(payload?.sentence || "").trim();
+      const sentence = stripInlineJapaneseReadings(rawSentence);
       if (!sentence) continue;
+      const safeLanguageMode = parseBookLanguageMode(languageMode, DEFAULT_BOOK_LANGUAGE_MODE);
+      let furigana = mergeExampleFuriganaSegments(
+        sentence,
+        getInlineJapaneseReadingSegments(rawSentence),
+        payload?.furigana
+      );
+      if (
+        (safeLanguageMode === "en_ja" || safeLanguageMode === "ja_en") &&
+        getMissingKanjiCount(sentence, furigana) > 0
+      ) {
+        const repairedFurigana = await fetchExampleFurigana(sentence);
+        const mergedFurigana = mergeExampleFuriganaSegments(sentence, furigana, repairedFurigana);
+        if (getMissingKanjiCount(sentence, mergedFurigana) < getMissingKanjiCount(sentence, furigana)) {
+          furigana = mergedFurigana;
+        }
+      }
       return {
         sentence,
         translation: String(payload?.translation || "").trim(),
+        furigana,
         provider: String(payload?.provider || "openai").trim().toLowerCase() || "openai",
       };
     } catch {
@@ -1854,6 +1907,8 @@ function ensureBookChapters(book) {
       exampleSentence: String(wordEntry?.exampleSentence || "").trim(),
       exampleTranslation: String(wordEntry?.exampleTranslation || "").trim(),
       exampleProvider: String(wordEntry?.exampleProvider || "").trim().toLowerCase(),
+      exampleFurigana: normalizeExampleFuriganaSegments(wordEntry?.exampleFurigana),
+      examplePending: Boolean(wordEntry?.examplePending) && !String(wordEntry?.exampleSentence || "").trim(),
       quizPerformanceHistory: sanitizeWordQuizPerformanceHistory(wordEntry?.quizPerformanceHistory),
     };
   });
@@ -2076,6 +2131,232 @@ function getGuidedTourTargetSelector(step) {
   if (step === "book-quiz") return ".bookModeGrid .guidedControlAnchor:last-child .bookModeCard";
   if (step === "quiz-start") return ".quizFastStartActions .primaryBtn";
   return "";
+}
+
+function normalizeExampleFuriganaSegments(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value
+    .map((segment) => limitFuriganaSegmentToKanji(segment))
+    .filter(Boolean)
+    .filter((segment) => {
+      const key = `${segment.text}\n${segment.reading}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 80);
+}
+
+function hasKanjiText(value) {
+  return /[\u3400-\u9fff]/.test(String(value || ""));
+}
+
+function stripInlineJapaneseReadings(value) {
+  return String(value || "")
+    .replace(/([\u3400-\u9fff々〆ヶ]+)[(（]([\u3040-\u30ffー\s]+)[)）]/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function toReadingHiragana(value) {
+  return String(value || "").replace(/[\u30a1-\u30f6]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) - 0x30a1 + 0x3041)
+  );
+}
+
+function trimReadingAffix(reading, affix, side) {
+  const normalizedReading = toReadingHiragana(reading).replace(/\s+/g, "");
+  const normalizedAffix = toReadingHiragana(affix).replace(/\s+/g, "");
+  if (!normalizedReading || !normalizedAffix) return normalizedReading;
+  if (side === "start" && normalizedReading.startsWith(normalizedAffix)) {
+    return normalizedReading.slice(normalizedAffix.length);
+  }
+  if (side === "end" && normalizedReading.endsWith(normalizedAffix)) {
+    return normalizedReading.slice(0, -normalizedAffix.length);
+  }
+  return normalizedReading;
+}
+
+function limitFuriganaSegmentToKanji(segment) {
+  const text = stripInlineJapaneseReadings(segment?.text);
+  let reading = String(segment?.reading || "").trim();
+  if (!text || !reading || !hasKanjiText(text)) return null;
+
+  const chars = Array.from(text);
+  const firstKanjiIndex = chars.findIndex((char) => hasKanjiText(char));
+  let lastKanjiIndex = -1;
+  chars.forEach((char, index) => {
+    if (hasKanjiText(char)) lastKanjiIndex = index;
+  });
+  if (firstKanjiIndex < 0 || lastKanjiIndex < firstKanjiIndex) return null;
+
+  const before = chars.slice(0, firstKanjiIndex).join("");
+  const after = chars.slice(lastKanjiIndex + 1).join("");
+  const kanjiText = chars.slice(firstKanjiIndex, lastKanjiIndex + 1).join("");
+  reading = trimReadingAffix(reading, before, "start");
+  reading = trimReadingAffix(reading, after, "end");
+
+  return reading ? { text: kanjiText, reading } : null;
+}
+
+function getInlineJapaneseReadingSegments(value) {
+  const text = String(value || "");
+  const segments = [];
+  const pattern = /([\u3400-\u9fff々〆ヶ]+)[(（]([\u3040-\u30ffー\s]+)[)）]/g;
+  let match = pattern.exec(text);
+
+  while (match) {
+    const surface = String(match[1] || "").trim();
+    const reading = String(match[2] || "").replace(/\s+/g, "").trim();
+    if (surface && reading) {
+      segments.push({ text: surface, reading });
+    }
+    match = pattern.exec(text);
+  }
+
+  return normalizeExampleFuriganaSegments(segments);
+}
+
+function mergeExampleFuriganaSegments(sentence, ...segmentGroups) {
+  const text = String(sentence || "");
+  const seen = new Set();
+  return segmentGroups
+    .flatMap((segments) => normalizeExampleFuriganaSegments(segments))
+    .filter((segment) => text.includes(segment.text))
+    .filter((segment) => {
+      const key = `${segment.text}\n${segment.reading}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 80);
+}
+
+function getMissingKanjiCount(sentence, furiganaSegments) {
+  const text = String(sentence || "");
+  const covered = new Set();
+  normalizeExampleFuriganaSegments(furiganaSegments).forEach((segment) => {
+    let index = text.indexOf(segment.text);
+    while (index !== -1) {
+      for (let offset = 0; offset < segment.text.length; offset += 1) {
+        if (hasKanjiText(segment.text[offset])) covered.add(index + offset);
+      }
+      index = text.indexOf(segment.text, index + segment.text.length);
+    }
+  });
+
+  return Array.from(text).reduce(
+    (count, char, index) => count + (hasKanjiText(char) && !covered.has(index) ? 1 : 0),
+    0
+  );
+}
+
+function JapaneseExampleSentence({ sentence, wordEntry }) {
+  const rawText = String(sentence || "").trim();
+  const text = stripInlineJapaneseReadings(rawText);
+  let furiganaSegments = mergeExampleFuriganaSegments(
+    text,
+    getInlineJapaneseReadingSegments(rawText),
+    wordEntry?.exampleFurigana
+  );
+  const word = String(wordEntry?.word || "").trim();
+  const reading = String(
+    wordEntry?.japaneseReading ||
+      wordEntry?.reading ||
+      wordEntry?.pronunciation ||
+      wordEntry?.pronounciation ||
+      ""
+  ).trim();
+
+  if (
+    text &&
+    word &&
+    reading &&
+    reading !== word &&
+    text.includes(word) &&
+    !furiganaSegments.some((segment) => segment.text === word)
+  ) {
+    const withSavedWord = mergeExampleFuriganaSegments(text, furiganaSegments, [{ text: word, reading }]);
+    if (getMissingKanjiCount(text, withSavedWord) < getMissingKanjiCount(text, furiganaSegments)) {
+      furiganaSegments = withSavedWord;
+    }
+  }
+
+  if (text && furiganaSegments.length) {
+    const joined = furiganaSegments.map((segment) => segment.text).join("");
+    if (joined === text) {
+      return furiganaSegments.map((segment, index) =>
+        <ruby className="exampleFuriganaRuby" key={`${segment.text}-${index}`}>
+          {segment.text}
+          <rt>{segment.reading}</rt>
+        </ruby>
+      );
+    }
+
+    const parts = [];
+    let cursor = 0;
+    let partIndex = 0;
+    const remainingSegments = [...furiganaSegments].sort((a, b) => b.text.length - a.text.length);
+
+    while (cursor < text.length) {
+      let nextMatch = null;
+      for (const segment of remainingSegments) {
+        const index = text.indexOf(segment.text, cursor);
+        if (index === -1) continue;
+        if (!nextMatch || index < nextMatch.index || (index === nextMatch.index && segment.text.length > nextMatch.segment.text.length)) {
+          nextMatch = { index, segment };
+        }
+      }
+
+      if (!nextMatch) {
+        parts.push(text.slice(cursor));
+        break;
+      }
+
+      if (nextMatch.index > cursor) {
+        parts.push(text.slice(cursor, nextMatch.index));
+      }
+      parts.push(
+        <ruby className="exampleFuriganaRuby" key={`${nextMatch.segment.text}-${partIndex}`}>
+          {nextMatch.segment.text}
+          <rt>{nextMatch.segment.reading}</rt>
+        </ruby>
+      );
+      cursor = nextMatch.index + nextMatch.segment.text.length;
+      partIndex += 1;
+    }
+
+    return parts;
+  }
+
+  if (!text || !word || !reading || reading === word || !text.includes(word)) {
+    return text;
+  }
+
+  const parts = [];
+  let cursor = 0;
+  let matchIndex = text.indexOf(word, cursor);
+
+  while (matchIndex !== -1) {
+    if (matchIndex > cursor) {
+      parts.push(text.slice(cursor, matchIndex));
+    }
+    parts.push(
+      <ruby className="exampleFuriganaRuby" key={`${word}-${matchIndex}`}>
+        {word}
+        <rt>{reading}</rt>
+      </ruby>
+    );
+    cursor = matchIndex + word.length;
+    matchIndex = text.indexOf(word, cursor);
+  }
+
+  if (cursor < text.length) {
+    parts.push(text.slice(cursor));
+  }
+
+  return parts;
 }
 
 export default function App() {
@@ -6470,13 +6751,6 @@ export default function App() {
         openNoticeModal(uiText.definitionRequired, uiText.definitionRequiredTitle);
         return;
       }
-      lookupSucceeded = true;
-      const exampleResult = await fetchExampleSentence({
-        word: savedWord,
-        definitions,
-        languageMode: currentBookLanguageMode,
-      });
-
       const normalizedSavedWord = savedWord.toLowerCase();
       const duplicateResolvedWord = savedWord !== cleanWord && currentBook.words.some(
         (w) =>
@@ -6489,6 +6763,7 @@ export default function App() {
         return;
       }
       savedWordForLastAdded = savedWord;
+      lookupSucceeded = true;
 
       const updatedBooks = books.map((book) =>
         book.id === currentBookId
@@ -6529,9 +6804,11 @@ export default function App() {
                     useEnglishToJapaneseDictionary || useJapaneseToEnglishDictionary
                       ? ""
                       : definitionProvider || "unknown",
-                  exampleSentence: exampleResult?.sentence || "",
-                  exampleTranslation: exampleResult?.translation || "",
-                  exampleProvider: exampleResult?.provider || "",
+                  exampleSentence: "",
+                  exampleTranslation: "",
+                  exampleProvider: "",
+                  exampleFurigana: [],
+                  examplePending: true,
                   chapterId: safeSelectedChapterIdForNewWords,
                   quizPerformanceHistory: [],
                 },
@@ -6564,6 +6841,69 @@ export default function App() {
       setInputWord("");
       setLastAddedWord(savedWordForLastAdded);
       void loadAdaptiveReviewSummary({ silent: true, books: updatedBooks });
+      void fetchExampleSentence({
+        word: savedWord,
+        definitions,
+        languageMode: currentBookLanguageMode,
+      }).then((exampleResult) => {
+        const exampleSentence = String(exampleResult?.sentence || "").trim();
+        const exampleTranslation = String(exampleResult?.translation || "").trim();
+        const exampleProvider = String(exampleResult?.provider || "").trim();
+        const exampleFurigana = Array.isArray(exampleResult?.furigana) ? exampleResult.furigana : [];
+        setBooks((prevBooks) => {
+          let didUpdate = false;
+          const nextBooks = prevBooks.map((book) => {
+            if (book.id !== currentBookId) return book;
+            let didUpdateWord = false;
+            const nextWords = book.words.map((wordEntry) => {
+              const isTargetWord =
+                String(wordEntry?.word || "").trim().toLowerCase() === normalizedSavedWord &&
+                (wordEntry?.chapterId || fallbackChapterId) === safeSelectedChapterIdForNewWords;
+              if (!isTargetWord || String(wordEntry?.exampleSentence || "").trim()) return wordEntry;
+              didUpdate = true;
+              didUpdateWord = true;
+              return {
+                ...wordEntry,
+                examplePending: false,
+                exampleSentence,
+                exampleTranslation,
+                exampleProvider,
+                exampleFurigana,
+              };
+            });
+            return didUpdateWord ? { ...book, words: nextWords } : book;
+          });
+          if (didUpdate) {
+            latestBooksRef.current = nextBooks;
+          }
+          return didUpdate ? nextBooks : prevBooks;
+        });
+      }).catch(() => {
+        setBooks((prevBooks) => {
+          let didUpdate = false;
+          const nextBooks = prevBooks.map((book) => {
+            if (book.id !== currentBookId) return book;
+            let didUpdateWord = false;
+            const nextWords = book.words.map((wordEntry) => {
+              const isTargetWord =
+                String(wordEntry?.word || "").trim().toLowerCase() === normalizedSavedWord &&
+                (wordEntry?.chapterId || fallbackChapterId) === safeSelectedChapterIdForNewWords;
+              if (!isTargetWord || !wordEntry?.examplePending) return wordEntry;
+              didUpdate = true;
+              didUpdateWord = true;
+              return {
+                ...wordEntry,
+                examplePending: false,
+              };
+            });
+            return didUpdateWord ? { ...book, words: nextWords } : book;
+          });
+          if (didUpdate) {
+            latestBooksRef.current = nextBooks;
+          }
+          return didUpdate ? nextBooks : prevBooks;
+        });
+      });
     } catch (error) {
       if (lookupSucceeded) {
         console.warn("Word was added, but post-save bookkeeping failed.", error);
@@ -7896,8 +8236,15 @@ export default function App() {
               Math.max((w.currentDefinitionIndex ?? 0) + 1, 1),
               Math.max(totalDefinitionVariants, 1)
             );
-            const exampleSentence = String(w.exampleSentence || "").trim();
+            const selectedDefinition = getSelectedDefinition(w);
+            const wordAudioText =
+              currentBookLanguageMode === "ja_en"
+                  ? String(w.word || "").trim()
+                  : "";
+            const rawExampleSentence = String(w.exampleSentence || "").trim();
+            const exampleSentence = stripInlineJapaneseReadings(rawExampleSentence);
             const exampleTranslation = String(w.exampleTranslation || "").trim();
+            const isExamplePending = Boolean(w.examplePending) && !exampleSentence;
 
             return (
               <div
@@ -7911,6 +8258,14 @@ export default function App() {
                       <strong>
                         <JapaneseWordDisplay wordEntry={w} />
                       </strong>
+                      {wordAudioText ? (
+                        <AudioButton
+                          text={wordAudioText}
+                          language="ja-JP"
+                          label={`Play ${w.word}`}
+                          className="wordAudioButton"
+                        />
+                      ) : null}
                       {(w.pronunciation || w.pronounciation) && !w.japaneseRomaji && (
                         <span className="wordPronunciation">{w.pronunciation || w.pronounciation}</span>
                       )}
@@ -7955,7 +8310,17 @@ export default function App() {
                         rows={3}
                       />
                     ) : (
-                      <p>{getSelectedDefinition(w)}</p>
+                      <p>
+                        <span>{selectedDefinition}</span>
+                        {currentBookLanguageMode === "en_ja" && selectedDefinition ? (
+                          <AudioButton
+                            text={selectedDefinition}
+                            language="ja-JP"
+                            label={`Play definition for ${w.word}`}
+                            className="definitionAudioButton"
+                          />
+                        ) : null}
+                      </p>
                     )}
                     <div className="definitionControls">
                       {editingDefinitionKey === getDefinitionEditKey(w) ? (
@@ -8028,10 +8393,27 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                  {exampleSentence ? (
+                  {isExamplePending ? (
+                    <div className="exampleList exampleListLoading" aria-label={tr("Loading example sentence", "例文を読み込み中")}>
+                      <div className="exampleLoadingLine"></div>
+                      <div className="exampleLoadingLine short"></div>
+                    </div>
+                  ) : exampleSentence ? (
                     <div className="exampleList">
-                      <p className={`exampleItem ${currentBookLanguageMode === "ja_en" ? "isJapaneseText" : ""}`}>
-                        {exampleSentence}
+                      <p className={`exampleItem ${currentBookLanguageMode !== "en_en" ? "isJapaneseText" : ""}`}>
+                        {currentBookLanguageMode !== "en_en" ? (
+                          <JapaneseExampleSentence sentence={rawExampleSentence} wordEntry={w} />
+                        ) : (
+                          exampleSentence
+                        )}{" "}
+                        {currentBookLanguageMode !== "en_en" ? (
+                          <AudioButton
+                            text={exampleSentence}
+                            language="ja-JP"
+                            label={`Play example sentence for ${w.word}`}
+                            className="exampleAudioButton"
+                          />
+                        ) : null}
                       </p>
                       {exampleTranslation ? (
                         <p className="exampleItem exampleTranslation">{exampleTranslation}</p>

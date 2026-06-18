@@ -4,6 +4,7 @@ import { createTestApp } from "./helpers/createTestApp.js";
 
 const openAiMocks = vi.hoisted(() => ({
   generateExampleSentenceWithOpenAI: vi.fn(),
+  generateFuriganaAnnotationsWithOpenAI: vi.fn(),
 }));
 
 vi.mock("../lib/openaiTranslate.js", () => openAiMocks);
@@ -11,12 +12,14 @@ vi.mock("../lib/openaiTranslate.js", () => openAiMocks);
 describe("example sentence route", () => {
   beforeEach(() => {
     openAiMocks.generateExampleSentenceWithOpenAI.mockReset();
+    openAiMocks.generateFuriganaAnnotationsWithOpenAI.mockReset();
   });
 
   it("returns an AI-generated example sentence", async () => {
     openAiMocks.generateExampleSentenceWithOpenAI.mockResolvedValue({
       sentence: "彼女は毎朝りんごを食べます。",
       translation: "She eats an apple every morning.",
+      furigana: [{ text: "毎朝", reading: "まいあさ" }],
       provider: "openai",
     });
 
@@ -33,6 +36,7 @@ describe("example sentence route", () => {
     expect(response.body).toEqual({
       sentence: "彼女は毎朝りんごを食べます。",
       translation: "She eats an apple every morning.",
+      furigana: [{ text: "毎朝", reading: "まいあさ" }],
       provider: "openai",
     });
     expect(openAiMocks.generateExampleSentenceWithOpenAI).toHaveBeenCalledWith({

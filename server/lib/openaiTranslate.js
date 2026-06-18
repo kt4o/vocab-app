@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 
 const DEFAULT_OPENAI_TRANSLATION_MODEL = "gpt-5-mini";
+const DEFAULT_OPENAI_TTS_MODEL = "gpt-4o-mini-tts";
+const DEFAULT_OPENAI_TTS_VOICE = "marin";
 
 let openAiClient = null;
 
@@ -17,6 +19,10 @@ function isOpenAiTranslationEnabled() {
   return String(process.env.OPENAI_TRANSLATION_ENABLED || "true").trim().toLowerCase() !== "false";
 }
 
+function isOpenAiTtsEnabled() {
+  return String(process.env.OPENAI_TTS_ENABLED || "true").trim().toLowerCase() !== "false";
+}
+
 function normalizeConfidence(value) {
   const normalized = String(value || "").trim().toLowerCase();
   return normalized === "high" || normalized === "medium" || normalized === "low"
@@ -28,6 +34,122 @@ function normalizeText(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function stripInlineJapaneseReadings(value) {
+  return normalizeText(
+    String(value || "").replace(/([\u3400-\u9fff々〆ヶ]+)[(（]([\u3040-\u30ffー\s]+)[)）]/g, "$1")
+  );
+}
+
+function getInlineJapaneseReadingSegments(value) {
+  const text = String(value || "");
+  const segments = [];
+  const pattern = /([\u3400-\u9fff々〆ヶ]+)[(（]([\u3040-\u30ffー\s]+)[)）]/g;
+  let match = pattern.exec(text);
+
+  while (match) {
+    const surface = normalizeText(match[1]);
+    const reading = String(match[2] || "").replace(/\s+/g, "").trim();
+    if (surface && reading) {
+      segments.push({ text: surface, reading });
+    }
+    match = pattern.exec(text);
+  }
+
+  return segments;
+}
+
+function hasKanjiText(value) {
+  return /[\u3400-\u9fff]/.test(String(value || ""));
+}
+
+function toReadingHiragana(value) {
+  return String(value || "").replace(/[\u30a1-\u30f6]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) - 0x30a1 + 0x3041)
+  );
+}
+
+function trimReadingAffix(reading, affix, side) {
+  const normalizedReading = toReadingHiragana(reading).replace(/\s+/g, "");
+  const normalizedAffix = toReadingHiragana(affix).replace(/\s+/g, "");
+  if (!normalizedReading || !normalizedAffix) return normalizedReading;
+  if (side === "start" && normalizedReading.startsWith(normalizedAffix)) {
+    return normalizedReading.slice(normalizedAffix.length);
+  }
+  if (side === "end" && normalizedReading.endsWith(normalizedAffix)) {
+    return normalizedReading.slice(0, -normalizedAffix.length);
+  }
+  return normalizedReading;
+}
+
+function limitFuriganaSegmentToKanji(segment) {
+  const text = stripInlineJapaneseReadings(segment?.text);
+  let reading = normalizeText(segment?.reading);
+  if (!text || !reading || !hasKanjiText(text)) return null;
+
+  const chars = Array.from(text);
+  const firstKanjiIndex = chars.findIndex((char) => hasKanjiText(char));
+  let lastKanjiIndex = -1;
+  chars.forEach((char, index) => {
+    if (hasKanjiText(char)) lastKanjiIndex = index;
+  });
+  if (firstKanjiIndex < 0 || lastKanjiIndex < firstKanjiIndex) return null;
+
+  const before = chars.slice(0, firstKanjiIndex).join("");
+  const after = chars.slice(lastKanjiIndex + 1).join("");
+  const kanjiText = chars.slice(firstKanjiIndex, lastKanjiIndex + 1).join("");
+  reading = trimReadingAffix(reading, before, "start");
+  reading = trimReadingAffix(reading, after, "end");
+
+  return reading ? { text: kanjiText, reading } : null;
+}
+
+function normalizeFuriganaSegments(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value
+    .map((segment) => limitFuriganaSegmentToKanji(segment))
+    .filter(Boolean)
+    .filter((segment) => {
+      const key = `${segment.text}\n${segment.reading}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 80);
+}
+
+function getMissingKanjiCharacters(sentence, furiganaSegments) {
+  const text = String(sentence || "");
+  const covered = new Set();
+  normalizeFuriganaSegments(furiganaSegments).forEach((segment) => {
+    let index = text.indexOf(segment.text);
+    while (index !== -1) {
+      for (let offset = 0; offset < segment.text.length; offset += 1) {
+        const char = segment.text[offset];
+        if (hasKanjiText(char)) covered.add(index + offset);
+      }
+      index = text.indexOf(segment.text, index + segment.text.length);
+    }
+  });
+
+  return Array.from(text).filter((char, index) => hasKanjiText(char) && !covered.has(index));
+}
+
+function mergeFuriganaSegments(sentence, ...segmentGroups) {
+  const text = String(sentence || "");
+  const seen = new Set();
+  return segmentGroups
+    .flatMap((segments) => normalizeFuriganaSegments(segments))
+    .filter((segment) => text.includes(segment.text))
+    .filter((segment) => {
+      const key = `${segment.text}\n${segment.reading}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 80);
 }
 
 function parseResponseJson(response) {
@@ -283,6 +405,69 @@ function normalizeLanguageMode(value) {
     : "en_en";
 }
 
+export async function generateFuriganaAnnotationsWithOpenAI(sentence) {
+  const text = stripInlineJapaneseReadings(sentence);
+  if (!text || !hasKanjiText(text) || !isOpenAiTranslationEnabled()) return [];
+
+  const client = getOpenAiClient();
+  if (!client) return [];
+
+  const response = await client.responses.create({
+    model: String(process.env.OPENAI_TRANSLATION_MODEL || DEFAULT_OPENAI_TRANSLATION_MODEL).trim() ||
+      DEFAULT_OPENAI_TRANSLATION_MODEL,
+    input: [
+      {
+        role: "system",
+        content:
+          "You add furigana to Japanese sentences for language learners. Return annotations for every kanji-containing word or expression in the sentence. Each text must exactly match a surface substring in the sentence. Reading must be kana. Do not omit any kanji.",
+      },
+      {
+        role: "user",
+        content: `Japanese sentence: ${text}`,
+      },
+    ],
+    reasoning: {
+      effort: "minimal",
+    },
+    max_output_tokens: 700,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "japanese_sentence_furigana",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            furigana: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  text: {
+                    type: "string",
+                    description: "Kanji-containing surface text exactly as it appears in the sentence.",
+                  },
+                  reading: {
+                    type: "string",
+                    description: "Kana reading for this text.",
+                  },
+                },
+                required: ["text", "reading"],
+              },
+            },
+          },
+          required: ["furigana"],
+        },
+      },
+    },
+  });
+
+  const parsed = parseResponseJson(response);
+  return normalizeFuriganaSegments(parsed?.furigana).filter((segment) => text.includes(segment.text));
+}
+
 export async function generateExampleSentenceWithOpenAI({ word, definitions, languageMode } = {}) {
   const text = normalizeText(word);
   if (!text || !isOpenAiTranslationEnabled()) return null;
@@ -296,9 +481,9 @@ export async function generateExampleSentenceWithOpenAI({ word, definitions, lan
     : [];
   const modeInstruction =
     mode === "en_ja"
-      ? "Create one natural Japanese example sentence using the most likely Japanese translation. Also provide a concise English translation."
+      ? "Create one natural Japanese example sentence using the most likely Japanese translation. Also provide a concise English translation. Do not put readings in parentheses inside the sentence. Include furigana annotations for every kanji-containing word or expression in the Japanese sentence. Each annotation text must exactly match the surface text in the sentence, and reading must be kana. Do not include kana-only particles, punctuation, or duplicate annotations."
       : mode === "ja_en"
-        ? "Create one natural Japanese example sentence using the Japanese vocabulary item. Also provide a concise English translation."
+        ? "Create one natural Japanese example sentence using the Japanese vocabulary item. Also provide a concise English translation. Do not put readings in parentheses inside the sentence. Include furigana annotations for every kanji-containing word or expression in the Japanese sentence. Each annotation text must exactly match the surface text in the sentence, and reading must be kana. Do not include kana-only particles, punctuation, or duplicate annotations."
         : "Create one natural English example sentence using the English vocabulary item. Leave translation empty.";
 
   const response = await client.responses.create({
@@ -342,20 +527,81 @@ export async function generateExampleSentenceWithOpenAI({ word, definitions, lan
               type: "string",
               description: "English translation if the example sentence is Japanese; otherwise empty string.",
             },
+            furigana: {
+              type: "array",
+              description: "Ordered annotations for every kanji-containing word or expression in the Japanese sentence. Empty for English examples.",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  text: {
+                    type: "string",
+                    description: "Kanji-containing surface text exactly as it appears in the sentence.",
+                  },
+                  reading: {
+                    type: "string",
+                    description: "Kana reading for this text.",
+                  },
+                },
+                required: ["text", "reading"],
+              },
+            },
           },
-          required: ["sentence", "translation"],
+          required: ["sentence", "translation", "furigana"],
         },
       },
     },
   });
 
   const parsed = parseResponseJson(response);
-  const sentence = normalizeText(parsed?.sentence);
+  const rawSentence = normalizeText(parsed?.sentence);
+  const sentence = stripInlineJapaneseReadings(rawSentence);
   if (!sentence) return null;
+  let furigana = mergeFuriganaSegments(
+    sentence,
+    getInlineJapaneseReadingSegments(rawSentence),
+    parsed?.furigana
+  );
+  if ((mode === "en_ja" || mode === "ja_en") && getMissingKanjiCharacters(sentence, furigana).length > 0) {
+    const repairedFurigana = await generateFuriganaAnnotationsWithOpenAI(sentence);
+    const mergedFurigana = mergeFuriganaSegments(sentence, furigana, repairedFurigana);
+    if (getMissingKanjiCharacters(sentence, mergedFurigana).length < getMissingKanjiCharacters(sentence, furigana).length) {
+      furigana = mergedFurigana;
+    }
+  }
 
   return {
     sentence,
     translation: normalizeText(parsed?.translation),
+    furigana,
     provider: "openai",
   };
+}
+
+export async function generateSpeechAudioWithOpenAI({ text, language } = {}) {
+  const input = normalizeText(text);
+  if (!input || !isOpenAiTtsEnabled()) return null;
+
+  const client = getOpenAiClient();
+  if (!client) return null;
+
+  const normalizedLanguage = String(language || "").trim().toLowerCase();
+  const voice = String(
+    normalizedLanguage.startsWith("ja")
+      ? process.env.OPENAI_TTS_JAPANESE_VOICE || process.env.OPENAI_TTS_VOICE || DEFAULT_OPENAI_TTS_VOICE
+      : process.env.OPENAI_TTS_ENGLISH_VOICE || process.env.OPENAI_TTS_VOICE || DEFAULT_OPENAI_TTS_VOICE
+  ).trim() || DEFAULT_OPENAI_TTS_VOICE;
+  const instructions = normalizedLanguage.startsWith("ja")
+    ? "Speak clearly in natural Japanese for a language learner. Use careful pronunciation and a calm study pace."
+    : "Speak clearly and naturally for a vocabulary learner. Use careful pronunciation and a calm study pace.";
+
+  const response = await client.audio.speech.create({
+    model: String(process.env.OPENAI_TTS_MODEL || DEFAULT_OPENAI_TTS_MODEL).trim() || DEFAULT_OPENAI_TTS_MODEL,
+    voice,
+    input,
+    instructions,
+    response_format: "mp3",
+  });
+
+  return Buffer.from(await response.arrayBuffer());
 }

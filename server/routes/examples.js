@@ -1,10 +1,14 @@
 import { Router } from "express";
-import { generateExampleSentenceWithOpenAI } from "../lib/openaiTranslate.js";
+import {
+  generateExampleSentenceWithOpenAI,
+  generateFuriganaAnnotationsWithOpenAI,
+} from "../lib/openaiTranslate.js";
 
 export const examplesRouter = Router();
 
 const EXAMPLE_INPUT_MAX_LENGTH = 64;
 const EXAMPLE_DEFINITION_MAX_LENGTH = 180;
+const EXAMPLE_SENTENCE_MAX_LENGTH = 240;
 
 function normalizeText(value) {
   return String(value || "")
@@ -53,10 +57,34 @@ examplesRouter.post("/sentence", async (req, res) => {
     res.json({
       sentence: example.sentence,
       translation: example.translation || "",
+      furigana: Array.isArray(example.furigana) ? example.furigana : [],
       provider: example.provider || "openai",
     });
   } catch (error) {
     console.error("Example sentence generation failed", error);
     res.status(502).json({ error: "example-provider-failed" });
+  }
+});
+
+examplesRouter.post("/furigana", async (req, res) => {
+  const sentence = normalizeText(req.body?.sentence);
+  if (!sentence) {
+    res.status(400).json({ error: "example-sentence-required" });
+    return;
+  }
+  if (sentence.length > EXAMPLE_SENTENCE_MAX_LENGTH) {
+    res.status(400).json({ error: "invalid-example-sentence" });
+    return;
+  }
+
+  try {
+    const furigana = await generateFuriganaAnnotationsWithOpenAI(sentence);
+    res.json({
+      furigana: Array.isArray(furigana) ? furigana : [],
+      provider: "openai",
+    });
+  } catch (error) {
+    console.error("Example furigana generation failed", error);
+    res.status(502).json({ error: "example-furigana-provider-failed" });
   }
 });

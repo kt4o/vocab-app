@@ -1989,6 +1989,10 @@ body.theme-dark .accountFoundingBadge {
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .adaptiveReviewDisplayValue {
@@ -4487,6 +4491,56 @@ body.theme-dark .inputRow .addWordBtn {
   line-height: 1.2;
   transform: translateY(-1px);
 }
+.audioButton {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 1;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease;
+  opacity: 0.74;
+  transform: translateY(-1px);
+}
+.audioButton:hover {
+  color: var(--text);
+  background: transparent;
+  opacity: 1;
+}
+.audioButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 2px;
+}
+.audioButton.isSpeaking {
+  color: var(--text);
+  background: transparent;
+  opacity: 1;
+}
+.audioButton-sm {
+  width: 24px;
+  height: 24px;
+}
+.audioButton-lg {
+  width: 34px;
+  height: 34px;
+}
+.wordAudioButton {
+  align-self: center;
+}
+.definitionAudioButton {
+  margin-left: 4px;
+  vertical-align: -0.28em;
+}
 .wordRow p {
   font-size: 14px;
   color: var(--muted);
@@ -4649,6 +4703,41 @@ body.theme-dark .wordRow .deleteBtn {
   flex-direction: column;
   gap: 5px;
 }
+.exampleAudioButton {
+  margin-left: 2px;
+  vertical-align: -0.28em;
+}
+.exampleListLoading {
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}
+.exampleLoadingLine {
+  width: min(100%, 360px);
+  height: 12px;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--surface-alt) 84%, var(--muted) 16%) 0%,
+      color-mix(in srgb, var(--surface-alt) 58%, var(--muted) 42%) 45%,
+      color-mix(in srgb, var(--surface-alt) 84%, var(--muted) 16%) 100%
+    );
+  background-size: 220% 100%;
+  opacity: 0.58;
+  animation: exampleLoadingShimmer 1.15s ease-in-out infinite;
+}
+.exampleLoadingLine.short {
+  width: min(74%, 260px);
+}
+@keyframes exampleLoadingShimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
 .exampleToggleBtn {
   margin-top: 10px;
   border: none;
@@ -4688,6 +4777,15 @@ body.theme-dark .wordRow .deleteBtn {
 }
 .exampleItem.isJapaneseText {
   font-family: var(--font-japanese);
+}
+.exampleFuriganaRuby {
+  ruby-position: over;
+}
+.exampleFuriganaRuby rt {
+  color: color-mix(in srgb, var(--muted) 84%, var(--text) 16%);
+  font-size: 0.52em;
+  font-weight: 600;
+  line-height: 1;
 }
 .exampleTranslation {
   color: color-mix(in srgb, var(--muted) 82%, var(--text) 18%);
@@ -4803,6 +4901,20 @@ body.theme-dark .definitionArrowBtn {
   cursor: pointer;
   transition: 0.2s ease;
   box-shadow: var(--shadow-soft);
+  position: relative;
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+}
+.flashcardAudioControls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+}
+.flashcardContent {
+  min-width: 0;
+  max-width: 100%;
 }
 .flashcard .japaneseWordDisplay {
   justify-content: center;
@@ -8909,6 +9021,10 @@ body.theme-dark .recentSquare.isPinned {
   .exampleList {
     margin-top: 0;
     gap: 4px;
+  }
+
+  .exampleLoadingLine {
+    height: 10px;
   }
 
   .wordRow .exampleItem {

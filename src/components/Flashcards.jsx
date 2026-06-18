@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AudioButton } from "./AudioButton";
 import { JapaneseWordDisplay } from "./JapaneseWordDisplay";
 
 export function Flashcards({
@@ -81,6 +82,34 @@ export function Flashcards({
     return cardPromptMode === "definition-to-word"
       ? renderWord(current, "flashcardJapaneseWord")
       : currentDefinition || copy.noDefinition;
+  }
+
+  function getFlashcardAudioText() {
+    if (!current) return "";
+    if (languageMode === "en_en") return "";
+    if (languageMode === "en_ja") {
+      const isShowingJapaneseDefinition =
+        (!showDef && cardPromptMode === "definition-to-word") ||
+        (showDef && cardPromptMode === "word-to-definition");
+      return isShowingJapaneseDefinition ? String(currentDefinition || "").trim() : "";
+    }
+
+    if (!showDef) {
+      return cardPromptMode === "definition-to-word"
+        ? ""
+        : String(current.word || "").trim();
+    }
+
+    return cardPromptMode === "definition-to-word"
+      ? String(current.word || "").trim()
+      : "";
+  }
+
+  function getFlashcardAudioLanguage() {
+    if (languageMode === "en_ja") return "ja-JP";
+    if (languageMode === "ja_en" && cardPromptMode !== "definition-to-word") return "ja-JP";
+    if (languageMode === "ja_en" && showDef) return "ja-JP";
+    return languageMode === "ja_en" ? "ja-JP" : "en-US";
   }
 
   const goToPreviousCard = useCallback(() => {
@@ -253,7 +282,15 @@ export function Flashcards({
               }
             }}
           >
-            {renderFlashcardText()}
+            <div className="flashcardAudioControls">
+              <AudioButton
+                text={getFlashcardAudioText()}
+                language={getFlashcardAudioLanguage()}
+                label={languageMode === "en_ja" ? "Play flashcard definition" : "Play flashcard word"}
+                size="lg"
+              />
+            </div>
+            <div className="flashcardContent">{renderFlashcardText()}</div>
           </div>
           <div className="flashControls">
             <button onClick={goToPreviousCard}>

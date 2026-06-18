@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AudioButton } from "./AudioButton";
 import { JapaneseWordDisplay } from "./JapaneseWordDisplay";
 
 const ADAPTIVE_REVIEW_RATINGS = [
@@ -187,32 +188,72 @@ function buildDisplayRows(item, sideSettings, selectedDefinition) {
   if (!item) return [];
 
   const rows = [];
-  const pushRow = (key, label, value, className = "", rawText = value) => {
+  const languageMode = String(item?.languageMode || "en_en").toLowerCase();
+  const pushRow = (key, label, value, className = "", rawText = value, audioText = "", audioLanguage = "") => {
     if (!sideSettings?.[key] || !value) return;
-    rows.push({ key, label, value, className, rawText: getDisplayValueText(rawText) });
+    rows.push({
+      key,
+      label,
+      value,
+      className,
+      rawText: getDisplayValueText(rawText),
+      audioText,
+      audioLanguage,
+    });
   };
 
   const wordText = String(item.word || "").trim();
   const readingText = getReadingText(item);
   const pronunciationText = getPronunciationText(item);
+  const shouldSpeakJapaneseWord = languageMode === "ja_en";
+  const shouldSpeakJapaneseMeaning = languageMode === "en_ja";
+  const shouldSpeakJapaneseExample = languageMode !== "en_en";
 
   pushRow(
     "word",
     "Word",
     <JapaneseWordDisplay wordEntry={item} />,
     "adaptiveReviewDisplayValueWord",
-    [wordText, readingText, pronunciationText].filter(Boolean).join(" ")
+    [wordText, readingText, pronunciationText].filter(Boolean).join(" "),
+    shouldSpeakJapaneseWord ? wordText : "",
+    shouldSpeakJapaneseWord ? "ja-JP" : ""
   );
-  pushRow("meaning", "Meaning", selectedDefinition, "adaptiveReviewDisplayValueMeaning");
-  pushRow("kanji", "Kanji", wordText, "adaptiveReviewDisplayValueWord");
-  pushRow("furigana", "Reading", readingText, "adaptiveReviewDisplayValueReading");
+  pushRow(
+    "meaning",
+    "Meaning",
+    selectedDefinition,
+    "adaptiveReviewDisplayValueMeaning",
+    selectedDefinition,
+    shouldSpeakJapaneseMeaning ? selectedDefinition : "",
+    shouldSpeakJapaneseMeaning ? "ja-JP" : ""
+  );
+  pushRow(
+    "kanji",
+    "Kanji",
+    wordText,
+    "adaptiveReviewDisplayValueWord",
+    wordText,
+    shouldSpeakJapaneseWord ? wordText : "",
+    shouldSpeakJapaneseWord ? "ja-JP" : ""
+  );
+  pushRow(
+    "furigana",
+    "Reading",
+    readingText,
+    "adaptiveReviewDisplayValueReading",
+    readingText,
+    shouldSpeakJapaneseWord ? readingText : "",
+    shouldSpeakJapaneseWord ? "ja-JP" : ""
+  );
   pushRow("pronunciation", "Pronunciation", pronunciationText, "adaptiveReviewDisplayValueReading");
   pushRow(
     "exampleSentence",
     "Example",
     highlightReviewWord(item.exampleSentence, item),
     "adaptiveReviewDisplayValueExample",
-    item.exampleSentence
+    item.exampleSentence,
+    shouldSpeakJapaneseExample ? item.exampleSentence : "",
+    shouldSpeakJapaneseExample ? "ja-JP" : ""
   );
   pushRow("exampleTranslation", "Translation", String(item.exampleTranslation || "").trim());
   pushRow("chapter", "Chapter", String(item.chapterName || "").trim());
@@ -417,7 +458,15 @@ export function AdaptiveReviewSession({
                   <div className={`adaptiveReviewDisplayRows ${displayRowCountClass}`}>
                     {visibleRows.map((row) => (
                       <div className={`adaptiveReviewDisplayRow ${row.className}`} key={row.key}>
-                        <span className="adaptiveReviewDisplayLabel">{row.label}</span>
+                        <span className="adaptiveReviewDisplayLabel">
+                          {row.label}
+                          <AudioButton
+                            text={row.audioText}
+                            language={row.audioLanguage}
+                            label={`Play ${row.label.toLowerCase()}`}
+                            className="adaptiveReviewAudioButton"
+                          />
+                        </span>
                         <div className="adaptiveReviewDisplayValue">{row.value}</div>
                       </div>
                     ))}
