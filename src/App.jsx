@@ -3460,36 +3460,12 @@ export default function App() {
               onClick={() => setIsSidebarHidden((prev) => !prev)}
               aria-label={isSidebarHidden ? "Show sidebar" : "Hide sidebar"}
             >
-              {theme === "dark" ? (
-                <svg
-                  className="sidebarToggleLogo"
-                  viewBox="8 14 174 102"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                  focusable="false" preserveAspectRatio="xMidYMid meet"
-                >
-                  <path d="M22 36h20l31 69h-20z" fill="#ffffff" />
-                  <path d="M74 106h68c4.3 0 8.1-2.8 9.4-6.9l20-63c2-6.4-2.7-13.1-9.4-13.1H91z" fill="#e6e6e6" />
-                </svg>
-              ) : (
-                <svg
-                  className="sidebarToggleLogo"
-                  viewBox="8 14 174 102"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                  focusable="false" preserveAspectRatio="xMidYMid meet"
-                >
-                  <defs>
-                    <linearGradient id="sidebarToggleGradient" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="#12b9ff" />
-                      <stop offset="45%" stopColor="#0a7ed9" />
-                      <stop offset="100%" stopColor="#230067" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M22 36h20l31 69h-20z" fill="url(#sidebarToggleGradient)" />
-                  <path d="M74 106h68c4.3 0 8.1-2.8 9.4-6.9l20-63c2-6.4-2.7-13.1-9.4-13.1H91z" fill="url(#sidebarToggleGradient)" />
-                </svg>
-              )}
+              <img
+                src={theme === "dark" ? "/vocab-logo-light-icon.png" : "/vocab-logo-black.png"}
+                className="sidebarToggleLogo"
+                alt=""
+                aria-hidden="true"
+              />
             </button>
           </div>
 

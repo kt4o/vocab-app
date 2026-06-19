@@ -5860,7 +5860,7 @@ body.theme-dark .recentSquare.isPinned {
 
 .dashboardPanelGrid.clean,
 .dashboardPanelGrid {
-  gap: 8px;
+  gap: 10px;
 }
 
 .dashboardPanelGrid .panelCard.wide,
@@ -5868,13 +5868,13 @@ body.theme-dark .recentSquare.isPinned {
   width: 100%;
   max-width: none;
   height: auto;
-  min-height: 52px;
+  min-height: 72px;
   align-items: flex-start;
   justify-content: center;
   text-align: left;
-  padding: 10px 14px;
+  padding: 14px 18px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface);
   box-shadow: none;
   transition:
@@ -5890,14 +5890,13 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .dashboardPanelGrid .panelCard span {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0;
 }
 
 .dashboardPanelGrid .panelCard small {
-  margin: 1px 0 0;
-  font-size: 12px;
+  margin: 2px 0 0;
   text-align: left;
 }
 
@@ -6006,9 +6005,9 @@ body.theme-dark .recentSquare.isPinned {
     width: 100%;
     aspect-ratio: auto;
     height: auto;
-    min-height: 52px;
-    border-radius: 10px;
-    padding: 10px 12px;
+    min-height: 72px;
+    border-radius: 14px;
+    padding: 12px 14px;
   }
   .dashboardPanelGrid .panelCard span {
     font-size: 15px;
@@ -8996,8 +8995,8 @@ body.theme-dark .recentSquare.isPinned {
 
   .dashboardPanelGrid .panelCard.wide {
     height: auto;
-    min-height: 48px;
-    border-radius: 10px;
+    min-height: 66px;
+    border-radius: 12px;
   }
 
   .dashboardPanelGrid .panelCard span {
