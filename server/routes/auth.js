@@ -442,6 +442,7 @@ function verifyPassword(password, passwordHash) {
   const [salt, expected] = String(passwordHash || "").split(":");
   if (!salt || !expected) return false;
   const actual = hashPassword(password, salt);
+  if (actual.length !== expected.length) return false;
   return crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
 }
 
@@ -1245,7 +1246,8 @@ authRouter.post("/login", async (req, res) => {
       plan,
       isLifetimePro,
     });
-  } catch {
+  } catch (err) {
+    console.error("[login] 500 error:", err);
     res.status(500).json({ error: "login-failed" });
   }
 });

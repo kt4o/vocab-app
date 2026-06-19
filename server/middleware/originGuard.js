@@ -21,7 +21,12 @@ function getRequestOrigin(req) {
   }
 }
 
-export function createCookieOriginGuard({ allowedOrigins, sessionCookieName }) {
+export function createCookieOriginGuard({ allowedOrigins, sessionCookieName, isAllowedOrigin }) {
+  const originIsAllowed =
+    typeof isAllowedOrigin === "function"
+      ? isAllowedOrigin
+      : (origin) => allowedOrigins.has(origin);
+
   return function cookieOriginGuard(req, res, next) {
     if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
       next();
@@ -34,7 +39,7 @@ export function createCookieOriginGuard({ allowedOrigins, sessionCookieName }) {
     }
 
     const requestOrigin = getRequestOrigin(req);
-    if (!requestOrigin || !allowedOrigins.has(requestOrigin)) {
+    if (!requestOrigin || !originIsAllowed(requestOrigin)) {
       res.status(403).json({ error: "invalid-origin" });
       return;
     }
@@ -42,4 +47,3 @@ export function createCookieOriginGuard({ allowedOrigins, sessionCookieName }) {
     next();
   };
 }
-

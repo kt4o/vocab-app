@@ -47,6 +47,23 @@ describe("POST /api/auth/login", () => {
     expect(response.body).toEqual({ error: "invalid-credentials" });
   });
 
+  it("rejects malformed stored password hashes without a server error", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 42, username: "alice_123", password_hash: "legacy:short" }],
+    });
+
+    const { authRouter } = await import("../routes/auth.js");
+    const app = createTestApp("/api/auth", authRouter);
+
+    const response = await request(app).post("/api/auth/login").send({
+      identifier: "alice_123",
+      password: "strong-password-123",
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: "invalid-credentials" });
+  });
+
   it("defaults to SameSite=None cookies in production when not configured", async () => {
     process.env.NODE_ENV = "production";
     delete process.env.AUTH_COOKIE_SAMESITE;

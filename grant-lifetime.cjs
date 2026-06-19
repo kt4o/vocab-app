@@ -18,8 +18,8 @@ async function main() {
   });
 
   const username = "keitadev";
-
   try {
+
     await pool.query(`
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS lifetime_pro BOOLEAN NOT NULL DEFAULT FALSE

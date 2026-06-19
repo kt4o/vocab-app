@@ -67,6 +67,13 @@ const appBaseUrlOrigins = parseCsvEnv(
 );
 const allowedOrigins = new Set([...defaultAllowedOrigins, ...envAllowedOrigins, ...appBaseUrlOrigins]);
 
+function isAllowedRequestOrigin(origin) {
+  const normalizedOrigin = String(origin || "").trim();
+  if (!normalizedOrigin) return false;
+  if (allowedOrigins.has(normalizedOrigin)) return true;
+  return !isProduction && isLocalhostOrigin(normalizedOrigin);
+}
+
 if (isProduction && !allowLocalhostInProduction) {
   if (!envAllowedOrigins.length && !appBaseUrlOrigins.length) {
     throw new Error(
@@ -155,7 +162,7 @@ app.use(
   cors({
     credentials: true,
     origin(origin, callback) {
-      if (!origin || allowedOrigins.has(origin)) {
+      if (!origin || isAllowedRequestOrigin(origin)) {
         callback(null, true);
         return;
       }
@@ -163,7 +170,13 @@ app.use(
     },
   })
 );
-app.use(createCookieOriginGuard({ allowedOrigins, sessionCookieName: SESSION_COOKIE_NAME }));
+app.use(
+  createCookieOriginGuard({
+    allowedOrigins,
+    sessionCookieName: SESSION_COOKIE_NAME,
+    isAllowedOrigin: isAllowedRequestOrigin,
+  })
+);
 app.use((req, res, next) => {
   if (req.path === "/api/health") {
     next();

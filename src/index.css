@@ -133,9 +133,9 @@ textarea {
 }
 
 .sidebar {
-  width: 250px;
-  flex: 0 0 250px;
-  padding: 26px 18px;
+  width: 232px;
+  flex: 0 0 232px;
+  padding: 20px 14px;
   border-right: 1px solid var(--border);
   background: var(--surface);
   position: sticky;
@@ -154,9 +154,9 @@ textarea {
 }
 
 .sidebar.isCollapsed {
-  width: 64px;
-  flex-basis: 64px;
-  padding: 26px 10px;
+  width: 56px;
+  flex-basis: 56px;
+  padding: 20px 8px;
   overflow-y: hidden;
 }
 
@@ -178,9 +178,10 @@ textarea {
 }
 
 .sidebarBrand {
-  font-size: 23px;
-  font-weight: 650;
-  letter-spacing: -0.5px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text);
 }
 
 .sidebarBrandWrap {
@@ -194,9 +195,9 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 24px;
   position: relative;
-  min-height: 34px;
+  min-height: 28px;
 }
 
 .sidebarToggleBtn {
@@ -221,7 +222,7 @@ textarea {
 }
 
 .sidebarToggleLogo {
-  width: 44px;
+  width: 28px;
   height: auto;
   display: block;
   overflow: visible;
@@ -250,22 +251,24 @@ textarea {
 .sidebarNav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 1px;
 }
 
 .sidebarNavBtn {
-  border: 1px solid transparent;
+  border: none;
   background: transparent;
-  color: var(--text);
-  border-radius: 10px;
+  color: var(--muted);
+  border-radius: 8px;
   text-align: left;
-  padding: 10px 12px;
-  font-size: 14px;
+  padding: 7px 10px;
+  font-size: 13.5px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  width: 100%;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .sidebarNavBtnLabel {
@@ -273,48 +276,52 @@ textarea {
 }
 
 .sidebarNavBtnEmoji {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
-  opacity: 0.85;
+  opacity: 0.55;
 }
 
 .sidebarNavBtn:hover {
   background: var(--surface-alt);
+  color: var(--text);
 }
 
 .sidebarNavBtn.isActive {
   background: var(--surface-alt);
-  border-color: var(--border);
+  color: var(--text);
   font-weight: 600;
 }
 
 .sidebarSection {
-  margin-top: 22px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .sidebarSectionTitle {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
+  opacity: 0.7;
 }
 
 .sidebarBooks {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 1px;
 }
 
 .sidebarBookBtn {
-  border: 1px solid transparent;
+  border: none;
   background: transparent;
-  color: var(--text);
-  border-radius: 10px;
+  color: var(--muted);
+  border-radius: 8px;
   text-align: left;
-  padding: 9px 10px;
-  font-size: 13px;
+  padding: 6px 10px;
+  font-size: 12.5px;
   cursor: pointer;
   width: 100%;
   white-space: nowrap;
@@ -323,13 +330,13 @@ textarea {
 }
 
 .sidebarBookBtn:hover {
-  border-color: var(--border);
   background: var(--surface-alt);
+  color: var(--text);
 }
 
 .sidebarBookBtn.isActive {
-  border-color: var(--text);
   background: var(--surface-alt);
+  color: var(--text);
   font-weight: 600;
 }
 
@@ -1438,11 +1445,18 @@ body.theme-dark .accountFoundingBadge {
 
 .weeklyOverviewSection {
   width: min(100%, 708px);
-  margin: 0 auto 28px;
+  margin: 0 auto 20px;
 }
 
 .weeklyOverviewTitle {
-  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.7;
+  margin: 0 0 8px;
+  line-height: 1;
 }
 
 .weeklyOverviewGrid {
@@ -1454,25 +1468,27 @@ body.theme-dark .accountFoundingBadge {
 .weeklyOverviewCard {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px;
-  box-shadow: var(--shadow-soft);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: none;
 }
 
 .weeklyOverviewLabel {
-  margin: 0 0 8px;
-  font-size: 12px;
+  margin: 0 0 6px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--muted);
+  opacity: 0.8;
 }
 
 .weeklyOverviewValue {
   display: block;
-  font-size: 28px;
+  font-size: 24px;
+  font-weight: 600;
   line-height: 1.1;
-  margin-bottom: 6px;
+  margin-bottom: 0;
 }
 
 .analyticsSection {
@@ -5666,19 +5682,19 @@ body.theme-dark .quizResultProgressFill {
 }
 
 .recentBar {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 14px;
-  border-radius: 14px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
   overflow: hidden;
   width: 100%;
   margin: 0;
-  box-shadow: var(--shadow-soft);
+  box-shadow: none;
 }
 
 body.theme-dark .recentBar {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: none;
   box-shadow: none;
 }
 
@@ -5845,7 +5861,14 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .recentTitle {
-  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.7;
+  margin-bottom: 8px;
+  line-height: 1;
 }
 
 .panelCard.wide {
@@ -5867,12 +5890,11 @@ body.theme-dark .recentSquare.isPinned {
 .dashboardPanelGrid .panelCard {
   width: 100%;
   max-width: none;
-  height: auto;
-  min-height: 36px;
-  align-items: flex-start;
+  height: 144px;
+  align-items: center;
   justify-content: center;
-  text-align: left;
-  padding: 6px 18px;
+  text-align: center;
+  padding: 0 18px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -5896,8 +5918,8 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .dashboardPanelGrid .panelCard small {
-  margin: 2px 0 0;
-  text-align: left;
+  display: none;
+  text-align: center;
 }
 
 .pageHeader {
@@ -6005,9 +6027,9 @@ body.theme-dark .recentSquare.isPinned {
     width: 100%;
     aspect-ratio: auto;
     height: auto;
-    min-height: 36px;
+    min-height: 144px;
     border-radius: 14px;
-    padding: 6px 14px;
+    padding: 16px 14px;
   }
   .dashboardPanelGrid .panelCard span {
     font-size: 15px;
@@ -6028,9 +6050,9 @@ body.theme-dark .recentSquare.isPinned {
   }
 
   .weeklyOverviewTitle {
-    margin-bottom: 7px;
-    font-size: 18px;
-    line-height: 1.15;
+    margin-bottom: 6px;
+    font-size: 11px;
+    line-height: 1;
   }
 
   .weeklyOverviewCard {
@@ -8995,7 +9017,7 @@ body.theme-dark .recentSquare.isPinned {
 
   .dashboardPanelGrid .panelCard.wide {
     height: auto;
-    min-height: 36px;
+    min-height: 120px;
     border-radius: 12px;
   }
 
