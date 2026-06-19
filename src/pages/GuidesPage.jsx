@@ -2,6 +2,7 @@ import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 import { getBreadcrumbItems } from "../config/breadcrumbs.js";
 
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
 const BREADCRUMB_ITEMS = getBreadcrumbItems("guides");
 
 const GUIDE_CARDS = [
@@ -51,35 +52,44 @@ const GUIDE_CARDS = [
 
 export function GuidesPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main>
-        <section className="px-4 py-16">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-10 text-center">
-              <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
-              <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Learning Guides</p>
-              <h1 className="mb-4 text-4xl font-bold text-foreground md:text-5xl">Vocabulary guides and study strategies</h1>
-              <p className="mx-auto max-w-3xl text-lg text-muted-foreground">
-                Explore practical guides on how to improve vocabulary, memorize words, learn in context, and build a
-                study routine that actually lasts.
-              </p>
-            </div>
+        <section className="border-b border-[#ece8e1] px-4 py-16 sm:px-6 sm:py-20">
+          <div className="mx-auto max-w-[1180px] text-center">
+            <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
+            <p className="mb-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">
+              Learning guides
+            </p>
+            <h1
+              className="mx-auto mb-5 max-w-3xl text-[42px] leading-[1.06] tracking-tight text-[#111] sm:text-[54px]"
+              style={{ ...serif, fontWeight: 700 }}
+            >
+              Vocabulary guides and study strategies
+            </h1>
+            <p className="mx-auto max-w-2xl text-[17px] leading-relaxed text-[#666]">
+              Practical guides on how to improve vocabulary, memorize words, learn in context, and build a study
+              routine that actually lasts.
+            </p>
+          </div>
+        </section>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <section className="px-4 py-14 sm:px-6 sm:py-16">
+          <div className="mx-auto max-w-[1180px]">
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {GUIDE_CARDS.map((guide) => (
                 <article
                   key={guide.href}
-                  className="rounded-2xl border border-border bg-card p-6 shadow-[0_4px_14px_rgba(15,23,42,0.06)]"
+                  className="rounded-[10px] border border-[#e5e1db] bg-white p-7"
                 >
-                  <h2 className="mb-3 text-2xl font-semibold text-foreground">{guide.title}</h2>
-                  <p className="mb-4 text-muted-foreground">{guide.description}</p>
+                  <h2 className="mb-3 text-[17px] font-semibold leading-[1.3] text-[#111]">{guide.title}</h2>
+                  <p className="mb-5 text-[14px] leading-[1.75] text-[#666]">{guide.description}</p>
                   <a
                     href={guide.href}
-                    className="font-medium text-primary no-underline transition-colors hover:text-[#5d81d6]"
+                    className="text-[13px] font-semibold text-[#111] no-underline underline-offset-2 hover:underline"
                   >
-                    Read guide
+                    Read guide →
                   </a>
                 </article>
               ))}

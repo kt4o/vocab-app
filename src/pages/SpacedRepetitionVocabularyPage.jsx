@@ -2,6 +2,7 @@ import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 import { getBreadcrumbItems } from "../config/breadcrumbs.js";
 
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
 const BREADCRUMB_ITEMS = getBreadcrumbItems("spaced-repetition-vocabulary");
 
 const SPACING_STEPS = [
@@ -65,31 +66,31 @@ const RESEARCH_SOURCES = [
 
 export function SpacedRepetitionVocabularyPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main>
         <section className="px-4 py-16">
           <article className="mx-auto max-w-4xl">
             <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
-            <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Review Strategy Guide</p>
-            <h1 className="mb-6 text-4xl font-bold text-foreground md:text-5xl">Spaced repetition for vocabulary</h1>
-            <p className="mb-8 text-lg text-muted-foreground">
+            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">Review Strategy Guide</p>
+            <h1 className="mb-6 text-[36px] font-bold leading-[1.1] tracking-tight text-[#111] md:text-[48px]" style={serif}>Spaced repetition for vocabulary</h1>
+            <p className="mb-8 text-lg text-[#666]">
               Spaced repetition helps vocabulary last because it spreads review over time instead of relying on one
               intense study session. When you revisit a word just as memory starts to weaken, recall gets stronger.
               That is why spacing is one of the most useful principles behind long-term vocabulary retention.
             </p>
-            <section className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Quick answer</h2>
-              <p className="text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Quick answer</h2>
+              <p className="text-[#666]">
                 Use spaced repetition by reviewing new words soon after learning them, then increasing the delay as
                 recall gets easier. Pair that schedule with active recall so each review actually strengthens memory.
               </p>
             </section>
 
-            <section className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Why cramming gives weak results</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Why cramming gives weak results</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Cramming can make vocabulary feel familiar in the short term, but that familiarity is unstable. The
                   words seem available during the study session because they were just in front of you, not because
@@ -107,9 +108,9 @@ export function SpacedRepetitionVocabularyPage() {
               </div>
             </section>
 
-            <section className="mb-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Why spacing works so well with vocabulary</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Why spacing works so well with vocabulary</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Vocabulary learning depends on repetition, but not all repetition is equal. When you review too soon,
                   the answer may still be sitting in short-term memory. That can make the session feel successful even
@@ -128,29 +129,29 @@ export function SpacedRepetitionVocabularyPage() {
 
             <div className="space-y-5">
               {SPACING_STEPS.map((step) => (
-                <section key={step.title} className="rounded-2xl border border-border bg-card p-6">
-                  <h2 className="mb-2 text-2xl font-semibold text-foreground">{step.title}</h2>
-                  <p className="text-muted-foreground">{step.body}</p>
+                <section key={step.title} className="rounded-[10px] border border-[#e5e1db] bg-white p-7">
+                  <h2 className="mb-2 text-[18px] font-semibold text-[#111]">{step.title}</h2>
+                  <p className="text-[#666]">{step.body}</p>
                 </section>
               ))}
             </div>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">A simple spaced review routine</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">A simple spaced review routine</h2>
+              <p className="mb-4 text-[#666]">
                 You do not need a complicated algorithm to start using spacing well. A simple rhythm like this can
                 already improve retention.
               </p>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-[#666]">
                 {SPACING_PLAN.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">How to get better results from spaced repetition</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">How to get better results from spaced repetition</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Keep the review load manageable. If you keep adding new words without enough time to revisit older
                   ones, your spacing system will collapse under its own volume.
@@ -166,9 +167,9 @@ export function SpacedRepetitionVocabularyPage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Common mistakes with spaced repetition</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Common mistakes with spaced repetition</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Do not review so often that memory never has to work. If every review is effortless, the timing may
                   be too short.
@@ -184,43 +185,43 @@ export function SpacedRepetitionVocabularyPage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">FAQ: spaced repetition</h2>
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">FAQ: spaced repetition</h2>
               <div className="space-y-5">
                 {SPACING_FAQS.map((item) => (
                   <div key={item.question}>
-                    <h3 className="mb-2 text-lg font-semibold text-foreground">{item.question}</h3>
-                    <p className="text-muted-foreground">{item.answer}</p>
+                    <h3 className="mb-2 text-[16px] font-semibold text-[#111]">{item.question}</h3>
+                    <p className="text-[#666]">{item.answer}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Related guides</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Related guides</h2>
+              <p className="mb-4 text-[#666]">
                 Read our main guide on{" "}
-                <a href="/how-to-expand-your-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-expand-your-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to expand your vocabulary
                 </a>{" "}
                 or see{" "}
-                <a href="/how-to-memorize-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-memorize-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to memorize vocabulary
                 </a>{" "}
                 for a fuller memory strategy.
               </p>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Sources and further reading</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Sources and further reading</h2>
+              <p className="mb-4 text-[#666]">
                 This article is informed by research on retrieval practice and vocabulary learning during reading,
                 especially the role of retrieval opportunities in stronger retention.
               </p>
-              <ul className="space-y-3 text-muted-foreground">
+              <ul className="space-y-3 text-[#666]">
                 {RESEARCH_SOURCES.map((source) => (
                   <li key={source.href}>
-                    <a href={source.href} className="font-medium text-primary no-underline hover:underline" target="_blank" rel="noreferrer">
+                    <a href={source.href} className="font-medium text-[#111] no-underline underline-offset-2 hover:underline" target="_blank" rel="noreferrer">
                       {source.title}
                     </a>
                   </li>
@@ -228,23 +229,23 @@ export function SpacedRepetitionVocabularyPage() {
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Build spaced review into your workflow</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Build spaced review into your workflow</h2>
+              <p className="mb-4 text-[#666]">
                 Spacing is easier to maintain when your words, review sessions, and weak-word tracking are organized
                 in one place. Explore the full study workflow on the{" "}
-                <a href="/features" className="font-medium text-primary no-underline hover:underline">
+                <a href="/features" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Features page
                 </a>
                 , or compare options on{" "}
-                <a href="/pricing" className="font-medium text-primary no-underline hover:underline">
+                <a href="/pricing" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Pricing
                 </a>
                 .
               </p>
               <a
                 href="/register"
-                className="inline-flex rounded-lg bg-primary px-6 py-3 font-medium text-white no-underline transition-colors hover:bg-[#5d81d6]"
+                className="inline-flex h-[46px] items-center rounded-[10px] bg-[#111] px-7 text-[15px] font-semibold text-white no-underline transition-colors hover:bg-[#2d2d2d]"
               >
                 Start free and review smarter
               </a>

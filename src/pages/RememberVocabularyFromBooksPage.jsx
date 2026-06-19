@@ -2,6 +2,7 @@ import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 import { getBreadcrumbItems } from "../config/breadcrumbs.js";
 
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
 const BREADCRUMB_ITEMS = getBreadcrumbItems("remember-vocabulary-from-books");
 
 const BOOK_MEMORY_STEPS = [
@@ -74,35 +75,35 @@ const RESEARCH_SOURCES = [
 
 export function RememberVocabularyFromBooksPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main>
         <section className="px-4 py-16">
           <article className="mx-auto max-w-4xl">
             <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
-            <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Book Vocabulary Guide</p>
-            <h1 className="mb-6 text-4xl font-bold text-foreground md:text-5xl">
+            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">Book Vocabulary Guide</p>
+            <h1 className="mb-6 text-[36px] font-bold leading-[1.1] tracking-tight text-[#111] md:text-[48px]" style={serif}>
               How to remember vocabulary from books
             </h1>
-            <p className="mb-8 text-lg text-muted-foreground">
+            <p className="mb-8 text-lg text-[#666]">
               Books are one of the richest sources of vocabulary growth because they give you words in real context,
               with tone, nuance, and repeated exposure. But many readers still forget the words they notice or look up.
               The solution is usually not to read less or study harder. It is to add a small memory system after the
               reading moment so useful words have a chance to stick.
             </p>
 
-            <section className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Quick answer</h2>
-              <p className="text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Quick answer</h2>
+              <p className="text-[#666]">
                 To remember vocabulary from books, save useful words in context, review them with active recall, revisit
                 weak words on a spaced schedule, and use the strongest words in your own writing or speech.
               </p>
             </section>
 
-            <section className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Why books are powerful for vocabulary growth</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Why books are powerful for vocabulary growth</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Books do something isolated word lists cannot do well: they show vocabulary in action. You see how a
                   word behaves in a sentence, what tone it carries, which words it tends to appear with, and what kind of
@@ -119,9 +120,9 @@ export function RememberVocabularyFromBooksPage() {
               </div>
             </section>
 
-            <section className="mb-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Why words from books often get forgotten</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Why words from books often get forgotten</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   During reading, your main job is understanding the text. Even when you stop to look up a word, your
                   attention quickly returns to the story or argument. That means the word may be understood, but not
@@ -142,29 +143,29 @@ export function RememberVocabularyFromBooksPage() {
 
             <div className="space-y-5">
               {BOOK_MEMORY_STEPS.map((step) => (
-                <section key={step.title} className="rounded-2xl border border-border bg-card p-6">
-                  <h2 className="mb-2 text-2xl font-semibold text-foreground">{step.title}</h2>
-                  <p className="text-muted-foreground">{step.body}</p>
+                <section key={step.title} className="rounded-[10px] border border-[#e5e1db] bg-white p-7">
+                  <h2 className="mb-2 text-[18px] font-semibold text-[#111]">{step.title}</h2>
+                  <p className="text-[#666]">{step.body}</p>
                 </section>
               ))}
             </div>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">A practical routine for book vocabulary</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">A practical routine for book vocabulary</h2>
+              <p className="mb-4 text-[#666]">
                 You do not need to interrupt reading constantly or build a giant study spreadsheet. A simple routine is
                 enough if you stay consistent.
               </p>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-[#666]">
                 {BOOK_ROUTINE.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">How to decide which words are worth reviewing</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">How to decide which words are worth reviewing</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Good candidates are usually words that you are likely to see again, words that sharpen your sense of
                   tone, or words that would help you express yourself more precisely.
@@ -180,9 +181,9 @@ export function RememberVocabularyFromBooksPage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Common mistakes readers make</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Common mistakes readers make</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Do not confuse noticing a word with learning it. The reading moment is valuable, but it is often only
                   the start of memory.
@@ -197,47 +198,47 @@ export function RememberVocabularyFromBooksPage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">FAQ: remembering vocabulary from books</h2>
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">FAQ: remembering vocabulary from books</h2>
               <div className="space-y-5">
                 {BOOK_FAQS.map((item) => (
                   <div key={item.question}>
-                    <h3 className="mb-2 text-lg font-semibold text-foreground">{item.question}</h3>
-                    <p className="text-muted-foreground">{item.answer}</p>
+                    <h3 className="mb-2 text-[16px] font-semibold text-[#111]">{item.question}</h3>
+                    <p className="text-[#666]">{item.answer}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Related guides</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Related guides</h2>
+              <p className="mb-4 text-[#666]">
                 If you often forget the words you look up, read{" "}
-                <a href="/why-you-forget-words-you-look-up-while-reading" className="font-medium text-primary no-underline hover:underline">
+                <a href="/why-you-forget-words-you-look-up-while-reading" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   why you forget words you look up while reading
                 </a>
                 . For the bigger system, also see{" "}
-                <a href="/how-to-expand-your-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-expand-your-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to expand your vocabulary
                 </a>{" "}
                 and{" "}
-                <a href="/how-to-memorize-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-memorize-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to memorize vocabulary
                 </a>
                 .
               </p>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Sources and further reading</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Sources and further reading</h2>
+              <p className="mb-4 text-[#666]">
                 This article is based on research about contextualized vocabulary learning, extensive reading, and
                 retrieval-based retention.
               </p>
-              <ul className="space-y-3 text-muted-foreground">
+              <ul className="space-y-3 text-[#666]">
                 {RESEARCH_SOURCES.map((source) => (
                   <li key={source.href}>
-                    <a href={source.href} className="font-medium text-primary no-underline hover:underline" target="_blank" rel="noreferrer">
+                    <a href={source.href} className="font-medium text-[#111] no-underline underline-offset-2 hover:underline" target="_blank" rel="noreferrer">
                       {source.title}
                     </a>
                   </li>
@@ -245,23 +246,23 @@ export function RememberVocabularyFromBooksPage() {
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Build a better system for words from books</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Build a better system for words from books</h2>
+              <p className="mb-4 text-[#666]">
                 The easier it is to save words from reading, review them later, and revisit weak vocabulary, the more
                 likely those words are to stay with you. Explore the full workflow on the{" "}
-                <a href="/features" className="font-medium text-primary no-underline hover:underline">
+                <a href="/features" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Features page
                 </a>
                 , or compare options on{" "}
-                <a href="/pricing" className="font-medium text-primary no-underline hover:underline">
+                <a href="/pricing" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Pricing
                 </a>
                 .
               </p>
               <a
                 href="/register"
-                className="inline-flex rounded-lg bg-primary px-6 py-3 font-medium text-white no-underline transition-colors hover:bg-[#5d81d6]"
+                className="inline-flex h-[46px] items-center rounded-[10px] bg-[#111] px-7 text-[15px] font-semibold text-white no-underline transition-colors hover:bg-[#2d2d2d]"
               >
                 Start free and remember more from reading
               </a>

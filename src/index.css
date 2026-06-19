@@ -18,26 +18,26 @@
   --background: #ffffff;
   --foreground: #111111;
   --card: #ffffff;
-  --primary: #6f92e8;
+  --primary: #111111;
   --primary-foreground: #ffffff;
-  --secondary: #f6f9ff;
-  --muted: #f4f8ff;
-  --muted-foreground: #4f5b6f;
-  --accent: #8fb0ff;
-  --border: #dbe4f2;
+  --secondary: #f0ede9;
+  --muted: #f5f3f0;
+  --muted-foreground: #666666;
+  --accent: #111111;
+  --border: #e5e1db;
 }
 
 body {
-  --bg: #f2f6fb;
-  --text: #1f2a37;
-  --muted: #5d6c80;
+  --bg: #faf8f5;
+  --text: #111111;
+  --muted: #666666;
   --surface: #ffffff;
-  --surface-alt: #edf3fa;
-  --surface-strong: #e0eaf5;
-  --border: #d2ddea;
-  --shadow-soft: 0 1px 2px rgba(17, 24, 39, 0.07);
-  --shadow-card: 0 12px 28px rgba(17, 24, 39, 0.14);
-  --accent: #1d4f8f;
+  --surface-alt: #f0ede9;
+  --surface-strong: #e5e1db;
+  --border: #e5e1db;
+  --shadow-soft: 0 1px 3px rgba(17, 17, 17, 0.06);
+  --shadow-card: 0 8px 28px rgba(17, 17, 17, 0.09);
+  --accent: #111111;
   --star-fill: #ffffff;
   --star-level: #3f434a;
   font-family: var(--font-sans);
@@ -1078,20 +1078,22 @@ body.theme-dark .accountLauncherAction {
 
 .guideBreadcrumbItem:not(:last-child)::after {
   content: "/";
-  color: color-mix(in srgb, var(--muted) 80%, var(--border) 20%);
+  color: #ccc;
 }
 
 .guideBreadcrumbLink {
-  color: var(--accent-strong);
+  color: #666666;
   text-decoration: none;
 }
 
 .guideBreadcrumbLink:hover {
+  color: #111111;
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .guideBreadcrumbCurrent {
-  color: var(--text);
+  color: #111111;
   font-weight: 600;
 }
 
@@ -1415,9 +1417,16 @@ body.theme-dark .accountFoundingBadge {
 .panelGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 220px));
-  gap: 24px;
+  gap: 16px;
   justify-content: center;
-  margin-top: 40px; /* increases vertical space */
+  margin-top: 28px;
+}
+
+.dashboardPanelGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  justify-content: stretch;
+  margin-top: 24px;
 }
 
 .dashboardPanelGrid,
@@ -2396,9 +2405,9 @@ body.theme-dark .trendBar.isQuestions {
 .bookCard,
 .panelCard {
   background: var(--surface);
-  border: 0;
+  border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 16px;
+  border-radius: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -2412,8 +2421,9 @@ body.theme-dark .trendBar.isQuestions {
 }
 .bookCard:hover,
 .panelCard:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-card);
+  border-color: var(--surface-strong);
 }
 .addCard {
   font-size: 20px;
@@ -2504,11 +2514,11 @@ body.theme-dark .trendBar.isQuestions {
 }
 
 .bookModeCard:hover {
-  transform: translateY(-5px);
-  border-color: color-mix(in srgb, var(--border) 72%, var(--accent) 28%);
+  transform: translateY(-3px);
+  border-color: var(--surface-strong);
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.08),
-    0 18px 32px rgba(29, 79, 143, 0.16);
+    0 1px 2px rgba(17, 17, 17, 0.06),
+    0 12px 28px rgba(17, 17, 17, 0.10);
 }
 
 .bookModeCard:focus-visible {
@@ -3910,7 +3920,6 @@ body.theme-dark .inputRow .addWordBtn {
   gap: 12px;
 }
 
-.dashboardPanelGrid .panelCard,
 .bookModeGrid .bookModeCard {
   max-width: none;
   aspect-ratio: auto;
@@ -3919,18 +3928,17 @@ body.theme-dark .inputRow .addWordBtn {
   justify-content: center;
   text-align: left;
   padding: 16px 18px;
-  border: 1px solid transparent;
-  border-radius: 14px;
-  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
   box-shadow: none;
 }
 
-.dashboardPanelGrid .panelCard:hover,
 .bookModeGrid .bookModeCard:hover {
-  transform: none;
-  border-color: var(--border);
-  background: var(--surface);
-  box-shadow: none;
+  transform: translateY(-2px);
+  border-color: var(--surface-strong);
+  background: var(--surface-alt);
+  box-shadow: var(--shadow-card);
 }
 
 .dashboardPanelGrid .panelCard span,
@@ -5850,86 +5858,47 @@ body.theme-dark .recentSquare.isPinned {
   border-radius: 12px;
 }
 
-.dashboardPanelGrid .panelCard {
-  border: 1px solid color-mix(in srgb, var(--border) 90%, #b6caf0 10%);
-  background: var(--surface);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  transition:
-    background-color 0.18s ease,
-    box-shadow 0.18s ease,
-    border-color 0.18s ease;
-}
-
-.dashboardPanelGrid .panelCard:hover {
-  transform: none;
-  border-color: color-mix(in srgb, var(--border) 76%, #97b7ea 24%);
-  background: color-mix(in srgb, var(--surface) 96%, var(--surface-alt) 4%);
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
-}
-
-.dashboardPanelGrid .panelCard span {
-  font-weight: 600;
-  letter-spacing: 0.1px;
-}
-
 .dashboardPanelGrid.clean,
 .dashboardPanelGrid {
-  gap: 12px;
-}
-
-.dashboardPanelGrid .panelCard.wide,
-.dashboardPanelGrid .panelCard {
-  max-width: none;
-  height: auto;
-  min-height: 76px;
-  align-items: flex-start;
-  justify-content: center;
-  text-align: left;
-  padding: 16px 18px;
-  border: 1px solid transparent;
-  border-radius: 14px;
-  background: transparent;
-  box-shadow: none;
-}
-
-.dashboardPanelGrid .panelCard:hover {
-  border-color: var(--border);
-  background: var(--surface);
-  box-shadow: none;
-}
-
-.dashboardPanelGrid .panelCard span {
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: 0;
+  gap: 8px;
 }
 
 .dashboardPanelGrid .panelCard.wide,
 .dashboardPanelGrid .panelCard {
   width: 100%;
-  max-width: 220px;
-  min-height: 92px;
-  height: 92px;
-  align-items: center;
+  max-width: none;
+  height: auto;
+  min-height: 52px;
+  align-items: flex-start;
   justify-content: center;
-  text-align: center;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--border) 86%, var(--accent) 14%);
-  border-radius: 12px;
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
   background: var(--surface);
   box-shadow: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .dashboardPanelGrid .panelCard:hover {
   transform: none;
-  border-color: color-mix(in srgb, var(--border) 66%, var(--accent) 34%);
-  background: color-mix(in srgb, var(--surface) 90%, var(--surface-alt) 10%);
+  border-color: var(--surface-strong);
+  background: var(--surface-alt);
   box-shadow: none;
 }
 
+.dashboardPanelGrid .panelCard span {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
 .dashboardPanelGrid .panelCard small {
-  margin: 2px 0 0;
-  text-align: center;
+  margin: 1px 0 0;
+  font-size: 12px;
+  text-align: left;
 }
 
 .pageHeader {
@@ -6036,9 +6005,10 @@ body.theme-dark .recentSquare.isPinned {
     max-width: none;
     width: 100%;
     aspect-ratio: auto;
-    height: 108px;
-    border-radius: 14px;
-    padding: 12px;
+    height: auto;
+    min-height: 52px;
+    border-radius: 10px;
+    padding: 10px 12px;
   }
   .dashboardPanelGrid .panelCard span {
     font-size: 15px;
@@ -6313,6 +6283,20 @@ body.theme-dark .recentSquare.isPinned {
   color: #ffffff;
 }
 
+.publicPrimaryBtn {
+  background: #111111;
+  border-color: #111111;
+  border-radius: 10px;
+  color: #ffffff;
+}
+
+.publicPrimaryBtn:hover {
+  background: #2d2d2d;
+  border-color: #2d2d2d;
+  transform: none;
+  box-shadow: none;
+}
+
 .publicNav a.publicHeaderCta,
 .publicNav a.publicHeaderCta:hover {
   color: #ffffff;
@@ -6359,11 +6343,12 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .heroEyebrow {
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: #9c5a00;
-  margin-bottom: 10px;
+  letter-spacing: 0.18em;
+  color: #999999;
+  margin-bottom: 12px;
 }
 
 .heroSection h1 {
@@ -6374,9 +6359,9 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .heroCopy {
-  color: var(--muted);
-  font-size: 18px;
-  line-height: 1.6;
+  color: #666666;
+  font-size: 16px;
+  line-height: 1.7;
   max-width: 650px;
 }
 
@@ -7322,8 +7307,9 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .legalUpdated {
-  color: var(--muted);
+  color: #999999;
   margin-bottom: 24px;
+  font-size: 13px;
 }
 
 .legalMain section + section {
@@ -7332,22 +7318,28 @@ body.theme-dark .recentSquare.isPinned {
 
 .legalMain h2 {
   margin-bottom: 8px;
-  color: var(--text);
-  font-size: 18px;
+  color: #111111;
+  font-size: 17px;
+  font-weight: 600;
 }
 
 .legalMain p {
-  color: var(--muted);
-  line-height: 1.65;
+  color: #666666;
+  line-height: 1.75;
+}
+
+.legalMain a {
+  color: #111111;
+  text-underline-offset: 2px;
 }
 
 .publicAuthCard {
   width: min(100%, 520px);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: var(--shadow-card);
+  background: #ffffff;
+  border: 1px solid #e5e1db;
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
 }
 
 .publicAuthCard h1 {
@@ -7363,18 +7355,18 @@ body.theme-dark .recentSquare.isPinned {
 .publicAuthModeSwitch {
   margin-top: 14px;
   display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  border: 1px solid #e5e1db;
+  border-radius: 10px;
   padding: 3px;
   gap: 4px;
-  background: var(--surface-alt);
+  background: #f0ede9;
 }
 
 .publicAuthModeBtn {
   border: 1px solid transparent;
   background: transparent;
-  color: var(--muted);
-  border-radius: 999px;
+  color: #999999;
+  border-radius: 8px;
   padding: 7px 12px;
   font-size: 13px;
   font-weight: 600;
@@ -7382,15 +7374,15 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .publicAuthModeBtn.isActive {
-  background: var(--surface);
-  color: var(--text);
-  border-color: var(--border);
+  background: #ffffff;
+  color: #111111;
+  border-color: #e5e1db;
 }
 
 .publicAuthLabel {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text);
+  color: #111111;
 }
 
 .optionalLabel {
@@ -7399,12 +7391,20 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .publicAuthInput {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  border-radius: 10px;
+  border: 1px solid #e5e1db;
+  background: #faf8f5;
+  color: #111111;
+  border-radius: 8px;
   padding: 10px 12px;
   font-size: 14px;
+}
+
+.publicAuthInput:-webkit-autofill,
+.publicAuthInput:-webkit-autofill:hover,
+.publicAuthInput:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #faf8f5 inset;
+  -webkit-text-fill-color: #111111;
+  caret-color: #111111;
 }
 
 .publicAuthSubmit {
@@ -7423,7 +7423,7 @@ body.theme-dark .recentSquare.isPinned {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  color: var(--text);
+  color: #333333;
   font-size: 13px;
   line-height: 1.45;
 }
@@ -7433,12 +7433,12 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .publicAuthCheckRow a {
-  color: var(--text);
+  color: #111111;
 }
 
 .publicAuthLegalNotice {
   margin: 2px 0 0;
-  color: var(--muted);
+  color: #999999;
   font-size: 12px;
   line-height: 1.45;
 }
@@ -8480,11 +8480,11 @@ body.theme-dark .recentSquare.isPinned {
 /* Public pages (non-app, non-landing) themed to match landing style */
 .publicPage:not(.publicLanding) {
   --public-text: #111111;
-  --public-muted: #4f5b6f;
-  --public-accent: #8fb0ff;
-  --public-accent-strong: #6f92e8;
-  --public-border: #dbe4f2;
-  background: #ffffff;
+  --public-muted: #666666;
+  --public-accent: #333333;
+  --public-accent-strong: #2d2d2d;
+  --public-border: #e5e1db;
+  background: #faf8f5;
   color: var(--public-text);
 }
 
@@ -8509,28 +8509,28 @@ body.theme-dark .recentSquare.isPinned {
   color: var(--public-accent);
 }
 
-.publicPage:not(.publicLanding) .publicHeaderCta,
 .publicPage:not(.publicLanding) .publicPrimaryBtn {
-  border: none;
+  border: 1px solid #111111;
   color: #ffffff;
-  background: linear-gradient(
-    140deg,
-    var(--public-accent) 0%,
-    var(--public-accent-strong) 100%
-  );
-  box-shadow: 0 8px 20px rgba(29, 79, 143, 0.22);
+  background: #111111;
+  box-shadow: none;
+}
+
+.publicPage:not(.publicLanding) .publicPrimaryBtn:hover {
+  background: #2d2d2d;
+  border-color: #2d2d2d;
+  box-shadow: none;
 }
 
 .publicPage:not(.publicLanding) .publicSecondaryBtn {
   border: 1px solid var(--public-border);
   background: #ffffff;
-  color: var(--public-accent);
+  color: #666666;
 }
 
 .publicPage:not(.publicLanding) .publicHeaderCta:hover,
-.publicPage:not(.publicLanding) .publicPrimaryBtn:hover,
 .publicPage:not(.publicLanding) .publicSecondaryBtn:hover {
-  box-shadow: 0 10px 26px rgba(29, 79, 143, 0.2);
+  box-shadow: none;
 }
 
 .publicPage:not(.publicLanding) .landingMain,
@@ -8631,7 +8631,7 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .publicPage:not(.publicLanding) .heroEyebrow {
-  color: var(--public-accent);
+  color: #999999;
 }
 
 .publicPage:not(.publicLanding) .heroCopy,
@@ -8649,11 +8649,9 @@ body.theme-dark .recentSquare.isPinned {
 .publicPage:not(.publicLanding) .publicAuthCard,
 .publicPage:not(.publicLanding) .legalMain {
   background: #ffffff;
-  border: 1px solid var(--public-border);
-  border-radius: 14px;
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.06),
-    0 20px 45px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e5e1db;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
 }
 
 .publicPage:not(.publicLanding) .legalMain {
@@ -8662,30 +8660,30 @@ body.theme-dark .recentSquare.isPinned {
 }
 
 .publicPage:not(.publicLanding) .publicAuthCard {
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 .publicPage:not(.publicLanding) .publicAuthModeSwitch {
-  border-color: var(--public-border);
-  background: #f6f9ff;
+  border-color: #e5e1db;
+  background: #f0ede9;
 }
 
 .publicPage:not(.publicLanding) .publicAuthModeBtn {
-  color: var(--public-muted);
+  color: #999999;
 }
 
 .publicPage:not(.publicLanding) .publicAuthModeBtn.isActive {
-  border-color: var(--public-border);
-  color: var(--public-text);
+  border-color: #e5e1db;
+  color: #111111;
 }
 
 .publicPage:not(.publicLanding) .publicAuthInput {
-  border-color: var(--public-border);
-  background: #ffffff;
+  border-color: #e5e1db;
+  background: #faf8f5;
 }
 
 .publicPage:not(.publicLanding) .publicAuthInput:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--public-accent) 45%, #ffffff 55%);
+  outline: 2px solid rgba(17, 17, 17, 0.2);
   outline-offset: 1px;
 }
 
@@ -8997,8 +8995,9 @@ body.theme-dark .recentSquare.isPinned {
   }
 
   .dashboardPanelGrid .panelCard.wide {
-    height: 96px;
-    border-radius: 12px;
+    height: auto;
+    min-height: 48px;
+    border-radius: 10px;
   }
 
   .dashboardPanelGrid .panelCard span {

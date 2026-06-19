@@ -1,14 +1,15 @@
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function ContactPage() {
   return (
-    <div className="publicPage legalPage">
+    <div className="publicPage legalPage bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main className="legalMain">
-        <h1>Contact</h1>
+        <h1 style={serif}>Contact</h1>
         <p className="legalUpdated">We usually reply within 1-2 business days.</p>
 
         <section>

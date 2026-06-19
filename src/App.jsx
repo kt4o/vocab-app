@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { AdaptiveReviewSession } from "./components/AdaptiveReviewSession";
@@ -7337,7 +7337,6 @@ export default function App() {
           <button
             type="button"
             className="panelCard wide"
-            style={{ gridColumn: "1", gridRow: "2" }}
             onClick={openAdaptiveReviewSelect}
           >
             <span>
@@ -7353,6 +7352,7 @@ export default function App() {
             onClick={() => setScreen("definitionsSelect")}
           >
             <span>{"\uD83D\uDCD8"} {tr("Definitions", "単語追加")}</span>
+            <small className="settingsHint">{tr("Add and review words", "単語を追加・確認")}</small>
           </button>
           <button
             type="button"
@@ -7360,6 +7360,7 @@ export default function App() {
             onClick={() => setScreen("flashcardsSelect")}
           >
             <span>{"\u26A1"} {tr("Flashcards", "フラッシュカード")}</span>
+            <small className="settingsHint">{tr("Quick recognition practice", "素早い認識練習")}</small>
           </button>
           <button
             type="button"
@@ -7372,6 +7373,7 @@ export default function App() {
             }}
           >
             <span>{"\u2705"} {tr("Quiz", "クイズ")}</span>
+            <small className="settingsHint">{tr("Test your knowledge", "知識をテスト")}</small>
           </button>
           <button
             type="button"
@@ -7379,6 +7381,7 @@ export default function App() {
             onClick={() => setScreen("books")}
           >
             <span>{"\uD83D\uDCDA"} {tr("My Books", "マイブック")}</span>
+            <small className="settingsHint">{tr("Manage your word lists", "単語リストを管理")}</small>
           </button>
           <button
             type="button"
@@ -7386,6 +7389,7 @@ export default function App() {
             onClick={() => setScreen("data")}
           >
             <span>{"\uD83D\uDCCA"} {tr("Data", "データ")}</span>
+            <small className="settingsHint">{tr("View your progress", "進捗を確認")}</small>
           </button>
           {isMobileViewport ? (
             <button

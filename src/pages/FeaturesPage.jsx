@@ -1,39 +1,41 @@
-import { BookOpen, Brain, Zap, Target, BarChart3, Languages } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
-const FEATURE_SECTIONS = [
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
+
+const FEATURES = [
   {
-    icon: BookOpen,
+    emoji: "📖",
     title: "Word Tracking and Organization",
     description:
       "Create books, group words by chapter, and keep your vocabulary aligned with exams, reading projects, or personal goals.",
   },
   {
-    icon: Zap,
+    emoji: "⚡",
     title: "Flashcards and Quiz Modes",
     description:
       "Practice with flashcards, multiple-choice quizzes, typing quizzes, and mistake review to reinforce active recall.",
   },
   {
-    icon: Brain,
+    emoji: "🧠",
     title: "Smart Review and Weak-Word Focus",
     description:
       "Prioritize words that need attention with smart review queues and focused sessions on mistakes.",
   },
   {
-    icon: BarChart3,
+    emoji: "📊",
     title: "Progress and Learning Analytics",
     description:
       "Track consistency, questions completed, and vocabulary growth over time to stay motivated.",
   },
   {
-    icon: Target,
+    emoji: "🎯",
     title: "Level-Appropriate Learning",
     description:
       "Build confidence in speaking, reading, and writing by practicing vocabulary matched to your current level.",
   },
   {
-    icon: Languages,
+    emoji: "🗾",
     title: "Japanese Books",
     description:
       "Use Japanese-to-English or English-to-Japanese books to save kanji, kana, and translations from real reading.",
@@ -44,74 +46,88 @@ const FEATURE_SECTIONS = [
 
 export function FeaturesPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main>
-        <section className="px-4 py-16">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-10 text-center">
-              <h1 className="mb-4 text-5xl font-bold text-foreground md:text-6xl">Features Built for Real Progress</h1>
-              <p className="mx-auto max-w-3xl text-xl text-muted-foreground">
-                Vocalibry combines organization, active recall, and smart review to help you remember vocabulary and
-                use it confidently.
-              </p>
-            </div>
+        <section className="border-b border-[#ece8e1] px-4 py-16 sm:px-6 sm:py-20">
+          <div className="mx-auto max-w-[1180px] text-center">
+            <p className="mb-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">
+              Everything you need
+            </p>
+            <h1
+              className="mx-auto mb-5 max-w-3xl text-[42px] leading-[1.06] tracking-tight text-[#111] sm:text-[54px]"
+              style={{ ...serif, fontWeight: 700 }}
+            >
+              Features built for real progress
+            </h1>
+            <p className="mx-auto max-w-2xl text-[17px] leading-relaxed text-[#666]">
+              Vocalibry combines organization, active recall, and smart review to help you remember vocabulary and use
+              it confidently.
+            </p>
+          </div>
+        </section>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {FEATURE_SECTIONS.map((section) => (
-                <article
-                  key={section.title}
-                  className="rounded-2xl border border-border bg-card p-6 shadow-[0_4px_14px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-white">
-                    <section.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  {section.label ? (
-                    <span className="mb-3 inline-flex rounded-full bg-[#dff6ec] px-3 py-1 text-xs font-semibold text-[#157347]">
-                      {section.label}
+        <section className="px-4 py-16 sm:px-6">
+          <div className="mx-auto max-w-[1180px]">
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map((f) => (
+                <article key={f.title} className="rounded-[10px] border border-[#e5e1db] bg-white p-7">
+                  <div className="mb-4 text-[28px] leading-none">{f.emoji}</div>
+                  {f.label ? (
+                    <span className="mb-3 inline-flex rounded-full bg-[#f0ede9] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#999]">
+                      {f.label}
                     </span>
                   ) : null}
-                  <h2 className="mb-2 text-xl font-semibold text-foreground">{section.title}</h2>
-                  <p className="text-muted-foreground">{section.description}</p>
-                  {section.href ? (
-                    <a href={section.href} className="mt-4 inline-flex font-medium text-primary no-underline hover:text-[#5d81d6]">
-                      Learn more
+                  <h2 className="mb-2 text-[15px] font-semibold text-[#111]">{f.title}</h2>
+                  <p className="text-[14px] leading-[1.75] text-[#666]">{f.description}</p>
+                  {f.href ? (
+                    <a href={f.href} className="mt-4 inline-flex text-[13px] font-semibold text-[#111] no-underline underline-offset-2 hover:underline">
+                      Learn more →
                     </a>
                   ) : null}
                 </article>
               ))}
             </div>
+          </div>
+        </section>
 
-            <section className="mt-12 rounded-2xl border border-border bg-secondary p-8 text-center">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Want the strategy behind the features?</h2>
-              <p className="mx-auto mb-5 max-w-3xl text-muted-foreground">
-                If you are trying to improve vocabulary, the tools work best when they are tied to a clear learning
-                method. Read our research-backed guide on how to expand your vocabulary with contextual learning,
-                retrieval practice, spaced repetition, and active use.
-              </p>
-              <a
-                href="/how-to-expand-your-vocabulary"
-                className="font-medium text-primary no-underline transition-colors hover:text-[#5d81d6]"
-              >
-                Read the vocabulary guide
-              </a>
-            </section>
+        <section className="border-y border-[#ece8e1] bg-white px-4 py-14 sm:px-6">
+          <div className="mx-auto max-w-[780px] text-center">
+            <h2
+              className="mb-4 text-[26px] leading-[1.2] tracking-tight text-[#111] sm:text-[32px]"
+              style={{ ...serif, fontWeight: 700 }}
+            >
+              Want the strategy behind the features?
+            </h2>
+            <p className="mb-6 text-[15px] leading-[1.75] text-[#666]">
+              The tools work best when tied to a clear learning method. Read our research-backed guide on how to expand
+              your vocabulary with contextual learning, retrieval practice, spaced repetition, and active use.
+            </p>
+            <a
+              href="/how-to-expand-your-vocabulary"
+              className="text-[14px] font-semibold text-[#111] no-underline underline-offset-2 hover:underline"
+            >
+              Read the vocabulary guide →
+            </a>
+          </div>
+        </section>
 
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
-              <a
-                href="/register"
-                className="rounded-lg bg-primary px-8 py-3 font-medium text-white no-underline shadow-[0_4px_12px_rgba(29,79,143,0.25)] transition-colors hover:bg-[#5d81d6]"
-              >
-                Create Free Account
-              </a>
-              <a
-                href="/pricing"
-                className="rounded-lg border border-border bg-secondary px-8 py-3 font-medium text-foreground no-underline transition-colors hover:bg-muted"
-              >
-                Compare Plans
-              </a>
-            </div>
+        <section className="px-4 py-16 sm:px-6">
+          <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-center gap-4">
+            <a
+              href="/register"
+              className="inline-flex h-[50px] items-center gap-2 rounded-[10px] bg-[#111] px-8 text-[15px] font-semibold text-white no-underline transition-colors hover:bg-[#2d2d2d]"
+            >
+              Create free account
+              <ArrowRight className="h-4 w-4" />
+            </a>
+            <a
+              href="/pricing"
+              className="inline-flex h-[50px] items-center rounded-[10px] border border-[#dbd8d2] bg-white px-8 text-[15px] font-medium text-[#333] no-underline transition-colors hover:bg-[#f5f3f0]"
+            >
+              Compare plans
+            </a>
           </div>
         </section>
       </main>

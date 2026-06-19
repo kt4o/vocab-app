@@ -162,13 +162,13 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="publicPage legalPage">
+    <div className="publicPage legalPage bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main className="landingMain">
         <section className="publicAuthCard">
           <p className="heroEyebrow">Password Reset</p>
-          <h1>Reset your password</h1>
+          <h1 style={{ fontFamily: '"Lora", Georgia, "Times New Roman", serif' }}>Reset your password</h1>
 
           <div className="publicAuthForm">
             {(step === "request" || step === "verify" || step === "reset") && (

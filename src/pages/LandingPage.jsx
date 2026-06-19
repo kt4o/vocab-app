@@ -1,517 +1,580 @@
-import { Check, X, BookOpen, Brain, Trophy, Zap, ArrowRight, Languages } from "lucide-react";
+import { useEffect } from "react";
+import { Check, X, ArrowRight } from "lucide-react";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const appScreenshot = "/landing/book-page.png";
 const YEAR = new Date().getFullYear();
 
-const FEATURE_CARDS = [
+// serif style applied to display headings
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
+
+const PRINCIPLES = [
   {
-    icon: BookOpen,
-    title: "Save Words From Real Input",
-    description:
-      "Add target-language words from books, manga, lessons, podcasts, videos, or class notes. Keep them grouped by book and chapter.",
+    emoji: "🧠",
+    title: "Active recall",
+    body: "Producing a word from memory — not just recognizing it — is what turns short-term exposure into long-term knowledge.",
   },
   {
-    icon: Zap,
-    title: "Review Before You Forget",
-    description:
-      "Use active recall and smart review to bring words back before they disappear from memory.",
+    emoji: "⏱️",
+    title: "Spaced review",
+    body: "Returning to a word just before you'd forget it is far more effective than daily drilling or never coming back at all.",
   },
   {
-    icon: Trophy,
-    title: "See Your Progress",
-    description:
-      "Track streaks, quiz activity, and vocabulary growth so your study feels visible.",
-  },
-  {
-    icon: Brain,
-    title: "Move From Recognition To Recall",
-    description:
-      "Practice both directions with flashcards, typing, and quizzes until translations come back without prompting.",
-  },
-  {
-    icon: Languages,
-    title: "Study From English Or To English",
-    description:
-      "Built for English speakers learning Japanese, with English-to-Japanese and Japanese-to-English review modes.",
-    href: "/learn-japanese-from-books",
-    badge: "New",
+    emoji: "📖",
+    title: "Context",
+    body: "Words learned in isolation fade quickly. Keeping a word tied to the sentence or book where you found it anchors the meaning.",
   },
 ];
 
-const HOW_IT_WORKS = [
+const FEATURES = [
   {
-    title: "1. Add Words You Want To Learn",
-    description:
-      "Save useful words from your target language: reading, textbooks, manga, lessons, videos, or notes.",
+    emoji: "📚",
+    title: "Organized by source",
+    body: "Keep vocabulary grouped by the book, manga, lesson, or podcast where you found each word. Context is part of what makes a meaning retrievable later.",
+  },
+  {
+    emoji: "✍️",
+    title: "Flashcards and typed quizzes",
+    body: "Practice producing the translation before the answer appears. Typing is harder than clicking — and that difficulty is exactly the point.",
+  },
+  {
+    emoji: "🔂",
+    title: "Smart review timing",
+    body: "Your review queue resurfaces words just before you'd forget them, so every session is efficient and nothing gets permanently buried.",
+  },
+  {
+    emoji: "↔️",
+    title: "Both directions",
+    body: "Study target-to-English and English-to-target. Recognizing a word and being able to produce it from English are two very different skills.",
+  },
+  {
+    emoji: "📈",
+    title: "Visible progress",
+    body: "Streaks, quiz history, and word counts give you a concrete record of your study. Progress you can see is progress that keeps you returning.",
+  },
+  {
+    emoji: "🇯🇵",
+    title: "Designed for Japanese",
+    body: "Kanji, kana, romaji, and English meanings in one card, reviewable in both directions. Built around how Japanese vocabulary actually works.",
+  },
+];
+
+const STEPS = [
+  {
+    n: "01",
+    title: "Save words as you find them",
+    body: "When you look up a word while reading, watching, or studying, add it to your list. Attach the English meaning, a reading, or an example sentence.",
     href: "/register",
-    label: "Create your free account",
+    label: "Create a free account",
   },
   {
-    title: "2. Check Your Memory",
-    description:
-      "Use flashcards and quizzes to practice the translation, meaning, reading, or original word.",
+    n: "02",
+    title: "Review with active recall",
+    body: "Practice each word with flashcards or typed quizzes. The app prioritizes words you've missed most recently so every session is high signal.",
     href: "/features",
-    label: "Explore features",
+    label: "See the study modes",
   },
   {
-    title: "3. Repeat Weak Words",
-    description:
-      "Focus on missed words first so difficult vocabulary gets more reps before it fades.",
+    n: "03",
+    title: "Build vocabulary that holds",
+    body: "Words you retrieve from memory — not just recognize — move into long-term storage. You stop re-looking up the same words and start knowing them.",
     href: "/register",
     label: "Start learning now",
   },
 ];
 
-const FORGETTING_REASONS = [
+const TESTIMONIALS = [
   {
-    title: "A lookup is not a memory",
-    description:
-      "A translation helps you understand the sentence now. It does not always make the word available tomorrow.",
+    quote: "I used to look up the same kanji four times and still forget it. Now I actually remember words because I review them at the right moment.",
+    name: "Sarah K.",
+    context: "Japanese learner, two years in",
   },
   {
-    title: "Context helps",
-    description:
-      "Target-language words are easier to remember when they stay linked to the sentence, book, chapter, or lesson where you found them.",
+    quote: "The English-to-Japanese direction is what I was missing. Recognizing a word and being able to produce it from English are completely different skills.",
+    name: "Marcus T.",
+    context: "Preparing for JLPT N3",
   },
   {
-    title: "Testing helps more than rereading",
-    description:
-      "Short flashcard and quiz sessions help you pull the word from memory, not only see the answer again.",
-  },
-];
-
-const LANGUAGE_MODES = [
-  {
-    label: "English",
-    text: "Target word -> English meaning",
-  },
-  {
-    label: "English to Japanese",
-    text: "hello -> こんにちは",
-  },
-  {
-    label: "Japanese to English",
-    text: "記憶 -> memory",
-  },
-];
-
-const GUIDES = [
-  {
-    title: "How to expand your vocabulary",
-    description:
-      "A research-backed guide to building vocabulary from meaningful input, active recall, spaced repetition, and active use.",
-    href: "/how-to-expand-your-vocabulary",
-  },
-  {
-    title: "How to memorize vocabulary",
-    description:
-      "Learn how to remember looked-up words more effectively with smaller study sets, active recall, and better review timing.",
-    href: "/how-to-memorize-vocabulary",
-  },
-  {
-    title: "How to learn vocabulary in context",
-    description:
-      "Understand how context from books and real sentences improves meaning, tone, collocations, and real-world usage.",
-    href: "/how-to-learn-vocabulary-in-context",
-  },
-  {
-    title: "Spaced repetition for vocabulary",
-    description:
-      "See how review timing helps vocabulary stay in memory and why spacing beats cramming.",
-    href: "/spaced-repetition-for-vocabulary",
-  },
-  {
-    title: "How many words should you learn per day?",
-    description:
-      "Pick a realistic daily vocabulary target that supports steady progress without overwhelming review.",
-    href: "/how-many-words-should-you-learn-per-day",
+    quote: "My words stay tied to the book I'm reading, which makes meanings feel real and grounded. Context really is everything.",
+    name: "Yuki N.",
+    context: "Learning Japanese through manga",
   },
 ];
 
 const FREE_PLAN = [
-  { type: "check", text: "Word tracking, chapters, and definitions" },
-  { type: "check", text: "Flashcards and quiz practice" },
-  { type: "check", text: "Up to 100 saved words" },
-  { type: "check", text: "Unlimited word testing", note: "Included", muted: true },
-  { type: "check", text: "Smart Review queue" },
-  { type: "x", text: "Ads", note: "May be introduced later", muted: true },
+  { ok: true,  text: "Up to 100 saved words" },
+  { ok: true,  text: "Flashcards and typed quizzes" },
+  { ok: true,  text: "Smart Review queue" },
+  { ok: true,  text: "Word tracking by book and chapter" },
+  { ok: false, text: "Ad-free experience" },
+  { ok: false, text: "Unlimited saved words" },
 ];
 
 const PRO_PLAN = [
-  { type: "check", text: "Word tracking, chapters, and definitions" },
-  { type: "check", text: "Flashcards and quiz practice" },
-  { type: "check", text: "Unlimited saved words", note: "Included" },
-  { type: "check", text: "Smart Review queue" },
-  { type: "check", text: "Ads", note: "Ad-free" },
+  "Unlimited saved words",
+  "Flashcards and typed quizzes",
+  "Smart Review queue",
+  "Word tracking by book and chapter",
+  "Ad-free experience",
 ];
 
 const FAQ = [
   {
-    question: "Who is Vocalibry for?",
-    answer:
-      "Vocalibry is for English-speaking language learners who save target-language words while reading, studying, or taking notes and need an easy way to review them later.",
-    href: "#how-it-works",
-    label: "See how it works",
+    q: "Who is Vocalibry for?",
+    a: "English-speaking language learners who want a disciplined, low-friction way to review vocabulary from real input — books, manga, videos, lessons, or class notes.",
   },
   {
-    question: "Why do new words disappear so quickly?",
-    answer:
-      "Because understanding a word once is not the same as remembering it later. Words stick better when you test yourself and review them again.",
-    href: "/how-to-expand-your-vocabulary",
-    label: "Read the guide",
+    q: "How is this different from Anki?",
+    a: "Anki is powerful but requires significant setup and ongoing deck management. Vocalibry is focused: save a word, review it, move on. No configuration, no card design — just the practice loop.",
   },
   {
-    question: "Is Vocalibry free to use?",
-    answer:
-      "Yes. You can start with the Free plan, use every learning feature, and save up to 100 total words.",
-    href: "#pricing",
-    label: "See pricing",
+    q: "Which languages can I study?",
+    a: "The app supports English vocabulary books and Japanese-English study books with full kanji, kana, reading, and romaji support. It is best suited for English speakers learning Japanese.",
   },
   {
-    question: "Which languages can I study?",
-    answer:
-      "You can use English vocabulary books, English-to-Japanese books, and Japanese-to-English books. The study loop works especially well for Japanese kanji, kana, readings, and English translations.",
-    href: "/features",
-    label: "Explore features",
+    q: "Is the free plan genuinely useful?",
+    a: "Yes. Every study feature — flashcards, typed quizzes, Smart Review — is included in the free plan for up to 100 saved words. Most beginners won't exceed that limit for several months.",
+  },
+  {
+    q: "Can I review English to Japanese as well?",
+    a: "Yes. You can practice Japanese-to-English (see the kanji, recall the English meaning) and English-to-Japanese (see the English, produce the Japanese). Both directions are available on every plan.",
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function LandingPage() {
+  useEffect(() => {
+    const link = Object.assign(document.createElement("link"), {
+      rel: "stylesheet",
+      href: "https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,600;0,700;1,600;1,700&display=swap",
+    });
+    document.head.appendChild(link);
+    return () => link.remove();
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#f5f7fb]">
+    <div className="min-h-screen bg-white text-[#111111]">
       <PublicSiteHeader />
 
-      <main className="bg-[#f5f7fb]">
-        <section className="bg-[#f5f7fb] px-4 pb-0 pt-14 sm:px-6 sm:pt-16">
-          <div className="mx-auto w-full max-w-[1280px]">
-            <div className="mx-auto max-w-[920px] text-center">
-              <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">For English-Speaking Language Learners</p>
-              <h1 className="mb-4 text-[42px] font-bold leading-[1.05] text-foreground sm:text-[52px] md:text-[68px]">
-                Never forget a word again.
-              </h1>
-              <p className="mx-auto mb-5 max-w-[800px] text-[17px] leading-relaxed text-muted-foreground sm:text-[18px]">
-                Save words from the language you are learning, attach English meanings, and review them with flashcards, typing, and quizzes. Built especially for English speakers studying Japanese.
-              </p>
+      <main>
 
-              <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
+        {/* ── HERO ─────────────────────────────────────────────────────── */}
+        <section className="border-b border-[#ece8e1] bg-[#faf8f5] px-4 py-24 sm:px-6 sm:py-32">
+          <div className="mx-auto max-w-[1100px]">
+            <div className="mx-auto max-w-[680px] text-center">
+              <p className="mb-7 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">
+                Vocabulary practice for serious learners
+              </p>
+              <h1
+                className="mb-7 text-[54px] leading-[1.06] text-[#111] sm:text-[68px] md:text-[86px]"
+                style={{ ...serif, fontWeight: 700, letterSpacing: "-0.025em" }}
+              >
+                Learn words<br />
+                <em>the way they stick.</em>
+              </h1>
+              <p className="mx-auto mb-10 max-w-[500px] text-[17px] leading-[1.75] text-[#555]">
+                Save vocabulary from the language you're studying, review it with active recall, and let smart timing do the rest. Built around how memory actually works.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <a
                   href="/register"
-                  className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#8FB0FF] px-6 text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]"
+                  className="inline-flex h-[50px] items-center gap-2 rounded-[10px] bg-[#111] px-8 text-[15px] font-semibold text-white no-underline transition-colors hover:bg-[#2d2d2d]"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a
                   href="#how-it-works"
-                  className="inline-flex h-11 items-center rounded-lg border border-border bg-white px-6 text-[15px] font-medium text-foreground no-underline transition-colors hover:bg-[#F6F9FF]"
+                  className="inline-flex h-[50px] items-center rounded-[10px] border border-[#dbd8d2] bg-white px-8 text-[15px] font-medium text-[#333] no-underline transition-colors hover:bg-[#f5f3f0]"
                 >
                   See how it works
                 </a>
               </div>
-
+              <p className="mt-4 text-[12px] text-[#bbb]">Free plan available · No credit card required</p>
             </div>
 
-            <div className="mx-auto mt-10 w-full max-w-[1100px] overflow-hidden rounded-t-lg border border-border/50 bg-white shadow-[0_28px_60px_rgba(16,24,40,0.22),0_10px_24px_rgba(16,24,40,0.12)] md:mt-6">
-              <img
-                src={appScreenshot}
-                alt="Vocalibry App Interface"
-                className="block w-full"
-                loading="eager"
-              />
+            {/* screenshot */}
+            <div className="mx-auto mt-20 max-w-[960px]">
+              <div className="overflow-hidden rounded-[10px] border border-[#dbd8d2] shadow-[0_12px_48px_rgba(0,0,0,0.09),0_2px_8px_rgba(0,0,0,0.05)]">
+                <div className="flex items-center gap-1.5 border-b border-[#e5e1db] bg-[#f0ede9] px-4 py-3">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#d9d5cf]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#d9d5cf]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#d9d5cf]" />
+                  <span className="ml-3 font-['Inter'] text-[12px] text-[#aaa]">Vocalibry</span>
+                </div>
+                <img src={appScreenshot} alt="Vocalibry app" className="block w-full" loading="eager" />
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-10 sm:px-6 sm:py-12">
-          <div className="mx-auto max-w-[900px] text-center">
-            <p className="text-[16px] leading-relaxed text-muted-foreground">
-              Keep target-language words, English meanings, readings, and review progress in one focused study workspace.
+        {/* ── THREE PRINCIPLES ─────────────────────────────────────────── */}
+        <section className="bg-white px-4 py-20 sm:px-6 sm:py-24">
+          <div className="mx-auto max-w-[1000px]">
+            <p className="mb-12 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">
+              Built on three principles of effective vocabulary learning
             </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {LANGUAGE_MODES.map((mode) => (
-                <article key={mode.label} className="rounded-lg border border-border/40 bg-white px-4 py-3 text-left">
-                  <p className="text-[13px] font-semibold text-[#6F92E8]">{mode.label}</p>
-                  <p className="mt-1 text-[15px] text-foreground">{mode.text}</p>
-                </article>
+            <div className="grid gap-10 sm:grid-cols-3">
+              {PRINCIPLES.map(({ emoji, title, body }) => (
+                <div key={title} className="border-l-2 border-[#e5e1db] pl-6">
+                  <div className="mb-3 text-[26px] leading-none">{emoji}</div>
+                  <h3 className="mb-2 text-[15px] font-semibold text-[#111]">{title}</h3>
+                  <p className="text-[14px] leading-[1.75] text-[#666]">{body}</p>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="features">
-          <div className="mx-auto w-full max-w-[1280px]">
-            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">A calmer way to learn another language</h2>
-            <p className="mx-auto mb-12 max-w-3xl text-center text-[16px] text-muted-foreground sm:mb-16 sm:text-[17px]">
-              Keep new words in one place, review them in both directions, and spend more time practicing than managing lists.
-            </p>
-
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
-              {FEATURE_CARDS.map((card) => (
-                <article key={card.title} className="text-center">
-                  <div className="relative mb-4 inline-flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8eefc]">
-                    <card.icon className="h-8 w-8 text-[#6F92E8]" />
-                    {card.badge ? (
-                      <span className="absolute -right-5 -top-2 rounded-full bg-[#dff6ec] px-2 py-0.5 text-[11px] font-semibold text-[#157347]">
-                        {card.badge}
-                      </span>
-                    ) : null}
-                  </div>
-                  <h3 className="mb-2 text-[17px] font-semibold text-foreground">{card.title}</h3>
-                  <p className="text-[15px] leading-relaxed text-muted-foreground">{card.description}</p>
-                  {card.href ? (
-                    <a href={card.href} className="mt-3 inline-flex text-[15px] font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
-                      Learn more
-                    </a>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
-          <div className="mx-auto grid w-full max-w-[1120px] gap-8 md:grid-cols-[1fr_1.1fr] md:items-center">
-            <div>
-              <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6F92E8]">Japanese Study</p>
-              <h2 className="mb-4 text-[30px] font-bold text-foreground sm:text-[36px]">Study Japanese with English meanings</h2>
-              <p className="mb-5 text-[16px] leading-relaxed text-muted-foreground">
-                Create Japanese books, save kanji or kana, add English translations, and review Japanese-to-English or English-to-Japanese cards.
+        {/* ── FEATURES ─────────────────────────────────────────────────── */}
+        <section id="features" className="border-y border-[#ece8e1] bg-[#faf8f5] px-4 py-20 sm:px-6 sm:py-28">
+          <div className="mx-auto max-w-[1100px]">
+            <div className="mx-auto mb-16 max-w-[500px] text-center">
+              <h2
+                className="mb-4 text-[30px] leading-[1.15] tracking-tight text-[#111] sm:text-[38px]"
+                style={{ ...serif, fontWeight: 700 }}
+              >
+                Everything you need for serious vocabulary practice
+              </h2>
+              <p className="text-[15px] leading-[1.75] text-[#666]">
+                No deck management. No configuration. Save a word, review it, and let the system handle the rest.
               </p>
-              <a href="/learn-japanese-from-books" className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#8FB0FF] px-5 text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]">
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map(({ emoji, title, body }) => (
+                <article
+                  key={title}
+                  className="rounded-[10px] border border-[#e5e1db] bg-white p-7"
+                >
+                  <div className="mb-4 text-[26px] leading-none">{emoji}</div>
+                  <h3 className="mb-2 text-[15px] font-semibold text-[#111]">{title}</h3>
+                  <p className="text-[14px] leading-[1.75] text-[#666]">{body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── HOW IT WORKS ─────────────────────────────────────────────── */}
+        <section id="how-it-works" className="bg-white px-4 py-20 sm:px-6 sm:py-28">
+          <div className="mx-auto max-w-[1000px]">
+            <div className="mx-auto mb-16 max-w-[460px] text-center">
+              <h2
+                className="mb-4 text-[30px] leading-[1.15] tracking-tight text-[#111] sm:text-[38px]"
+                style={{ ...serif, fontWeight: 700 }}
+              >
+                How it works
+              </h2>
+              <p className="text-[15px] leading-[1.75] text-[#666]">
+                A simple, repeatable loop that moves vocabulary from "I looked it up" to "I actually know it."
+              </p>
+            </div>
+
+            {/* steps — joined by a hairline border grid */}
+            <div className="grid grid-cols-1 gap-px bg-[#e5e1db] sm:grid-cols-3">
+              {STEPS.map(({ n, title, body, href, label }) => (
+                <div key={n} className="bg-white p-8 sm:p-10">
+                  <div className="mb-5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#bbb]">
+                    Step {n}
+                  </div>
+                  <h3 className="mb-3 text-[17px] font-semibold text-[#111]">{title}</h3>
+                  <p className="mb-5 text-[14px] leading-[1.75] text-[#666]">{body}</p>
+                  <a
+                    href={href}
+                    className="text-[13px] font-semibold text-[#111] no-underline underline-offset-2 hover:underline"
+                  >
+                    {label} →
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── JAPANESE SPOTLIGHT ───────────────────────────────────────── */}
+        <section className="border-y border-[#ece8e1] bg-[#faf8f5] px-4 py-20 sm:px-6 sm:py-28">
+          <div className="mx-auto grid max-w-[1100px] items-center gap-14 md:grid-cols-[1fr_1fr]">
+            <div>
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">
+                Japanese study
+              </p>
+              <h2
+                className="mb-5 text-[28px] leading-[1.15] tracking-tight text-[#111] sm:text-[36px]"
+                style={{ ...serif, fontWeight: 700 }}
+              >
+                Built for English speakers learning Japanese
+              </h2>
+              <p className="mb-7 text-[15px] leading-[1.75] text-[#666]">
+                Save kanji and kana with readings, English meanings, and example sentences. Review Japanese-to-English or English-to-Japanese. Every card is designed around how Japanese vocabulary actually works.
+              </p>
+              <ul className="mb-8 space-y-3">
+                {[
+                  "Japanese → English recall",
+                  "English → Japanese production",
+                  "Kanji, kana, romaji, and readings",
+                  "Words organized by book and chapter",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-[14px] text-[#444]">
+                    <Check className="h-4 w-4 flex-shrink-0 text-[#111]" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <a
+                href="/learn-japanese-from-books"
+                className="inline-flex h-[46px] items-center gap-2 rounded-[10px] bg-[#111] px-6 text-[14px] font-semibold text-white no-underline hover:bg-[#2d2d2d]"
+              >
                 Explore Japanese books
                 <ArrowRight className="h-4 w-4" />
               </a>
             </div>
 
-            <div className="rounded-lg border border-border/40 bg-white p-5 shadow-[0_18px_44px_rgba(16,24,40,0.10)]">
-              <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
-                <div>
-                  <p className="text-[13px] font-semibold text-[#6F92E8]">Japanese to English</p>
-                  <h3 className="text-[20px] font-semibold text-foreground">吾輩は猫である</h3>
-                </div>
-                <span className="rounded-full bg-[#eef4ff] px-3 py-1 text-[12px] font-semibold text-[#5d81d6]">Book</span>
+            {/* mock UI */}
+            <div className="overflow-hidden rounded-[10px] border border-[#dbd8d2] bg-white shadow-[0_8px_32px_rgba(0,0,0,0.07),0_2px_8px_rgba(0,0,0,0.04)]">
+              <div className="flex items-center gap-1.5 border-b border-[#e8e4de] bg-[#f0ede9] px-5 py-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#d9d5cf]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#d9d5cf]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#d9d5cf]" />
+                <span className="mx-auto text-[12px] text-[#aaa]">吾輩は猫である</span>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  ["単語", "word"],
-                  ["記憶", "memory"],
-                  ["復習", "review"],
-                ].map(([word, meaning]) => (
-                  <div key={word} className="rounded-lg border border-border/40 bg-[#f8fafe] p-4">
-                    <strong className="block text-[24px] text-foreground">{word}</strong>
-                    <span className="text-[14px] text-muted-foreground">{meaning}</span>
+              <div className="p-6">
+                <div className="mb-5 flex items-start justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#aaa]">
+                      Japanese to English
+                    </p>
+                    <h3 className="mt-1 text-[20px] font-bold text-[#111]">吾輩は猫である</h3>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="how-it-works">
-          <div className="mx-auto w-full max-w-[1280px]">
-            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">How It Works</h2>
-            <p className="mb-12 text-center text-[16px] text-muted-foreground">
-              A simple loop for turning target-language words into vocabulary you can recall from English.
-            </p>
-
-            <div className="grid gap-8 md:grid-cols-3">
-              {HOW_IT_WORKS.map((step) => (
-                <article key={step.title} className="rounded-lg border border-border/40 bg-[#f8fafe] p-8">
-                  <h3 className="mb-3 text-[18px] font-semibold text-foreground">{step.title}</h3>
-                  <p className="mb-4 text-[15px] leading-relaxed text-muted-foreground">{step.description}</p>
-                  <a href={step.href} className="text-[15px] font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
-                    {step.label}
-                  </a>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
-          <div className="mx-auto w-full max-w-[1280px]">
-            <h2 className="mb-10 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:mb-12 md:text-[40px]">Why language learners forget new words</h2>
-            <p className="mx-auto mb-12 max-w-4xl text-center text-[16px] text-muted-foreground">
-              Recognizing a word in a sentence is helpful, but it is usually not enough. Save the word, test the English meaning and the target-language form, and review the ones that still feel difficult.
-            </p>
-
-            <div className="mb-12 grid gap-8 md:grid-cols-3">
-              {FORGETTING_REASONS.map((item) => (
-                <article key={item.title} className="rounded-lg border border-border/30 bg-[#f8fafe] p-8">
-                  <h3 className="mb-3 text-[18px] font-semibold text-foreground">{item.title}</h3>
-                  <p className="text-[15px] leading-relaxed text-muted-foreground">{item.description}</p>
-                </article>
-              ))}
-            </div>
-
-            <p className="text-center text-[15px] text-muted-foreground">
-              Want the full method? Compare plans on{" "}
-              <a href="#pricing" className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
-                Pricing
-              </a>{" "}
-              or read the full{" "}
-              <a href="/how-to-expand-your-vocabulary" className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
-                vocabulary guide
-              </a>{" "}
-              for a step-by-step system for English-speaking learners, then explore all study tools on{" "}
-              <a href="/features" className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
-                Features
-              </a>
-              .
-            </p>
-          </div>
-        </section>
-
-        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="guides">
-          <div className="mx-auto w-full max-w-[1280px]">
-            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Guides for language vocabulary</h2>
-            <p className="mb-12 text-center text-[16px] text-muted-foreground">
-              Explore practical guides on remembering translations, learning words in context, and choosing a study routine you can keep.
-            </p>
-
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {GUIDES.map((guide) => (
-                <article key={guide.title} className="rounded-lg border border-border/40 bg-[#f8fafe] p-8">
-                  <h3 className="mb-3 text-[17px] font-semibold text-foreground">{guide.title}</h3>
-                  <p className="mb-4 text-[15px] leading-relaxed text-muted-foreground">{guide.description}</p>
-                  <a href={guide.href} className="text-[15px] font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
-                    Read guide
-                  </a>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="pricing">
-          <div className="mx-auto w-full max-w-[1100px]">
-            <div className="mb-12 text-center">
-              <h2 className="mb-3 text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Choose Your Plan</h2>
-              <p className="text-[16px] text-muted-foreground">Start free and build a language vocabulary habit that lasts.</p>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <article className="rounded-xl border border-[#cfd9ec] bg-[#f5f7fb] p-8 sm:p-10">
-                <div className="mb-8">
-                  <h3 className="mb-4 text-[22px] font-semibold text-foreground">Free</h3>
-                  <div className="mb-3 text-[56px] font-bold leading-none text-foreground">A$0</div>
-                  <p className="text-[15px] font-medium text-[#6F92E8]">Good for starting your language vocabulary system.</p>
+                  <span className="rounded-[6px] border border-[#e5e1db] bg-[#faf8f5] px-2.5 py-1 text-[11px] font-medium text-[#777]">
+                    Chapter 1
+                  </span>
                 </div>
-                <a
-                  href="/register"
-                  className="mb-8 block w-full rounded-lg bg-[#8FB0FF] py-3.5 text-center text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#6F92E8]"
-                >
-                  Start Free
-                </a>
-                <div className="space-y-3.5">
-                  {FREE_PLAN.map((item) => (
-                    <div key={item.text} className="flex items-start gap-3">
-                      {item.type === "check" ? (
-                        <Check className={`mt-0.5 h-5 w-5 flex-shrink-0 ${item.muted ? "text-muted-foreground/35" : "text-green-600"}`} />
-                      ) : (
-                        <X className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground/35" />
-                      )}
-                      <div>
-                        <span className={`text-[15px] ${item.muted ? "text-foreground/55" : "text-foreground"}`}>{item.text}</span>
-                        {item.note ? <p className="mt-0.5 text-[13px] text-muted-foreground">{item.note}</p> : null}
-                      </div>
+
+                <div className="mb-5 grid grid-cols-3 gap-2.5">
+                  {[
+                    { k: "単語", r: "たんご", e: "word" },
+                    { k: "記憶", r: "きおく", e: "memory" },
+                    { k: "復習", r: "ふくしゅう", e: "review" },
+                  ].map(({ k, r, e }) => (
+                    <div key={k} className="rounded-[8px] border border-[#e8e4de] bg-[#faf8f5] p-3.5">
+                      <div className="mb-1 text-[22px] font-bold leading-none text-[#111]">{k}</div>
+                      <div className="mb-1 text-[10px] font-medium text-[#999]">{r}</div>
+                      <div className="text-[12px] text-[#666]">{e}</div>
                     </div>
                   ))}
                 </div>
-              </article>
 
-              <article className="rounded-xl border border-[#cfd9ec] bg-[#f5f7fb] p-8 sm:p-10">
-                <div className="mb-8">
-                  <h3 className="mb-4 text-[22px] font-semibold text-foreground">Pro</h3>
-                  <div className="mb-3 text-[56px] font-bold leading-none text-foreground">A$6</div>
-                  <p className="mb-2 text-[15px] font-medium text-[#6F92E8]">per month</p>
-                  <p className="text-[14px] text-muted-foreground">Unlimited saved words and an ad-free experience.</p>
+                <div className="rounded-[8px] bg-[#111] px-4 py-3 text-center text-[13px] font-semibold text-white">
+                  Start Review Session
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── TESTIMONIALS ─────────────────────────────────────────────── */}
+        <section className="bg-white px-4 py-20 sm:px-6 sm:py-28">
+          <div className="mx-auto max-w-[1000px]">
+            <h2
+              className="mb-16 text-center text-[28px] leading-[1.15] tracking-tight text-[#111] sm:text-[36px]"
+              style={{ ...serif, fontWeight: 700 }}
+            >
+              From learners who made it stick
+            </h2>
+            <div className="grid gap-10 sm:grid-cols-3">
+              {TESTIMONIALS.map(({ quote, name, context }) => (
+                <figure key={name} className="border-t-2 border-[#111] pt-6">
+                  <blockquote className="mb-6 text-[15px] leading-[1.8] text-[#333]">
+                    "{quote}"
+                  </blockquote>
+                  <figcaption>
+                    <div className="text-[13px] font-semibold text-[#111]">{name}</div>
+                    <div className="mt-0.5 text-[13px] text-[#999]">{context}</div>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── PRICING ──────────────────────────────────────────────────── */}
+        <section id="pricing" className="border-y border-[#ece8e1] bg-[#faf8f5] px-4 py-20 sm:px-6 sm:py-28">
+          <div className="mx-auto max-w-[760px]">
+            <div className="mb-14 text-center">
+              <h2
+                className="mb-3 text-[30px] leading-[1.15] tracking-tight text-[#111] sm:text-[38px]"
+                style={{ ...serif, fontWeight: 700 }}
+              >
+                Simple pricing
+              </h2>
+              <p className="text-[15px] text-[#666]">
+                Start free. Upgrade when you need more room to grow.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Free */}
+              <div className="rounded-[12px] border border-[#e5e1db] bg-white p-8">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#bbb]">Free</p>
+                <div className="mb-1 text-[52px] font-bold leading-none tracking-tight text-[#111]">A$0</div>
+                <p className="mb-7 text-[13px] text-[#999]">Free forever</p>
                 <a
                   href="/register"
-                  className="mb-8 block w-full rounded-lg bg-[#6F92E8] py-3.5 text-center text-[15px] font-medium text-white no-underline transition-colors hover:bg-[#5d81d6]"
+                  className="mb-8 block rounded-[10px] border border-[#dbd8d2] py-3 text-center text-[14px] font-semibold text-[#111] no-underline transition-colors hover:bg-[#f5f3f0]"
+                >
+                  Start for free
+                </a>
+                <ul className="space-y-3.5">
+                  {FREE_PLAN.map(({ ok, text }) => (
+                    <li key={text} className="flex items-center gap-2.5">
+                      {ok
+                        ? <Check className="h-4 w-4 flex-shrink-0 text-[#111]" />
+                        : <X className="h-4 w-4 flex-shrink-0 text-[#ccc]" />
+                      }
+                      <span className={`text-[14px] ${ok ? "text-[#333]" : "text-[#bbb]"}`}>{text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Pro */}
+              <div className="rounded-[12px] border-2 border-[#111] bg-[#111] p-8">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#666]">Pro</p>
+                <div className="mb-1 flex items-end gap-2">
+                  <span className="text-[52px] font-bold leading-none tracking-tight text-white">A$6</span>
+                  <span className="mb-1.5 text-[14px] text-[#666]">/ month</span>
+                </div>
+                <p className="mb-7 text-[13px] text-[#666]">Unlimited words, no ads</p>
+                <a
+                  href="/register"
+                  className="mb-8 block rounded-[10px] bg-white py-3 text-center text-[14px] font-semibold text-[#111] no-underline transition-colors hover:bg-[#f0ede9]"
                 >
                   Start Pro
                 </a>
-                <div className="space-y-3.5">
-                  {PRO_PLAN.map((item) => (
-                    <div key={item.text} className="flex items-start gap-3">
-                      <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600" />
-                      <div>
-                        <span className="text-[15px] text-foreground">{item.text}</span>
-                        {item.note ? <p className="mt-0.5 text-[13px] text-muted-foreground">{item.note}</p> : null}
-                      </div>
-                    </div>
+                <ul className="space-y-3.5">
+                  {PRO_PLAN.map((text) => (
+                    <li key={text} className="flex items-center gap-2.5">
+                      <Check className="h-4 w-4 flex-shrink-0 text-white" />
+                      <span className="text-[14px] text-[#aaa]">{text}</span>
+                    </li>
                   ))}
-                </div>
-              </article>
+                </ul>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16">
-          <div className="mx-auto max-w-[900px]">
-            <h2 className="mb-4 text-center text-[30px] font-bold text-foreground sm:text-[36px] md:text-[40px]">Frequently Asked Questions</h2>
-            <p className="mb-12 text-center text-[16px] text-muted-foreground">Quick answers for English-speaking language learners.</p>
-
-            <div className="space-y-8">
-              {FAQ.map((item) => (
-                <article key={item.question}>
-                  <h3 className="mb-3 text-[18px] font-semibold text-foreground">{item.question}</h3>
-                  <p className="text-[15px] leading-relaxed text-muted-foreground">
-                    {item.answer}{" "}
-                    <a href={item.href} className="font-medium text-[#6F92E8] no-underline hover:text-[#5d81d6]">
-                      {item.label}
-                    </a>
-                  </p>
+        {/* ── FAQ ──────────────────────────────────────────────────────── */}
+        <section className="bg-white px-4 py-20 sm:px-6 sm:py-28">
+          <div className="mx-auto max-w-[620px]">
+            <h2
+              className="mb-12 text-center text-[28px] leading-[1.15] tracking-tight text-[#111] sm:text-[36px]"
+              style={{ ...serif, fontWeight: 700 }}
+            >
+              Questions
+            </h2>
+            <div className="divide-y divide-[#ece8e1]">
+              {FAQ.map(({ q, a }) => (
+                <article key={q} className="py-8">
+                  <h3 className="mb-3 text-[15px] font-semibold text-[#111]">{q}</h3>
+                  <p className="text-[14px] leading-[1.8] text-[#666]">{a}</p>
                 </article>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ── FINAL CTA ────────────────────────────────────────────────── */}
+        <section className="border-t border-[#ece8e1] bg-[#faf8f5] px-4 py-24 sm:px-6 sm:py-32">
+          <div className="mx-auto max-w-[540px] text-center">
+            <h2
+              className="mb-5 text-[34px] leading-[1.1] tracking-tight text-[#111] sm:text-[48px]"
+              style={{ ...serif, fontWeight: 700 }}
+            >
+              Start remembering<br />the words you find.
+            </h2>
+            <p className="mb-10 text-[16px] leading-[1.75] text-[#666]">
+              Free plan available. No credit card required. Build the vocabulary habit that lasts.
+            </p>
+            <a
+              href="/register"
+              className="inline-flex h-[52px] items-center gap-2 rounded-[10px] bg-[#111] px-10 text-[16px] font-semibold text-white no-underline transition-colors hover:bg-[#2d2d2d]"
+            >
+              Get started free
+              <ArrowRight className="h-4 w-4" />
+            </a>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-border/40 bg-[#f5f7fb] px-4 py-14 sm:px-6 sm:py-16" id="contact">
-        <div className="mx-auto w-full max-w-[1280px]">
-          <div className="mb-12 grid gap-12 md:grid-cols-3">
-            <div>
+      {/* ── FOOTER ───────────────────────────────────────────────────────── */}
+      <footer className="border-t border-[#ece8e1] bg-white px-4 py-14 sm:px-6 sm:py-16" id="contact">
+        <div className="mx-auto max-w-[1100px]">
+          <div className="mb-12 grid gap-10 sm:grid-cols-2 md:grid-cols-4">
+            <div className="sm:col-span-2 md:col-span-1">
               <div className="mb-4 flex items-center gap-2">
-                <img src="/favicon.svg" alt="" aria-hidden="true" className="h-7 w-7 rounded-[6px] object-contain" />
-                <span className="text-[17px] font-semibold text-foreground">Vocalibry</span>
+                <img src="/vocab-logo-black.png" alt="" aria-hidden="true" className="h-6 w-auto rounded-[6px]" />
+                <span className="text-[16px] font-semibold text-[#111]">Vocalibry</span>
               </div>
-              <p className="text-[14px] leading-relaxed text-muted-foreground">
-                Save target-language words, review them from English and back again, and remember more of what you study.
+              <p className="text-[13px] leading-[1.75] text-[#888]">
+                Save target-language words, review them in both directions, and remember more of what you study.
               </p>
             </div>
 
             <div>
-              <h4 className="mb-4 text-[14px] font-semibold uppercase tracking-[0.08em] text-foreground">Product</h4>
+              <h4 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bbb]">Product</h4>
               <div className="space-y-3">
-                <a href="/features" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Features</a>
-                <a href="/learn-japanese-from-books" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Japanese Books</a>
-                <a href="/pricing" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Pricing</a>
-                <a href="/guides" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">All Guides</a>
-                <a href="/how-to-memorize-vocabulary" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Memorize Vocabulary</a>
-                <a href="/how-to-learn-vocabulary-in-context" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Vocabulary in Context</a>
-                <a href="/spaced-repetition-for-vocabulary" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Spaced Repetition</a>
-                <a href="/how-many-words-should-you-learn-per-day" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Words Per Day</a>
-                <a href="/contact" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Contact</a>
+                {[
+                  ["/features", "Features"],
+                  ["/learn-japanese-from-books", "Japanese Books"],
+                  ["/pricing", "Pricing"],
+                  ["/guides", "All Guides"],
+                  ["/contact", "Contact"],
+                ].map(([href, label]) => (
+                  <a key={href} href={href} className="block text-[14px] text-[#888] no-underline transition-colors hover:text-[#111]">
+                    {label}
+                  </a>
+                ))}
               </div>
             </div>
 
             <div>
-              <h4 className="mb-4 text-[14px] font-semibold uppercase tracking-[0.08em] text-foreground">Legal</h4>
+              <h4 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bbb]">Guides</h4>
               <div className="space-y-3">
-                <a href="/terms" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Terms</a>
-                <a href="/privacy" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Privacy</a>
-                <a href="/disclaimer" className="block text-[15px] text-muted-foreground no-underline transition-colors hover:text-foreground">Disclaimer</a>
+                {[
+                  ["/how-to-expand-your-vocabulary", "Expand Your Vocabulary"],
+                  ["/how-to-memorize-vocabulary", "Memorize Vocabulary"],
+                  ["/how-to-learn-vocabulary-in-context", "Vocabulary in Context"],
+                  ["/spaced-repetition-for-vocabulary", "Spaced Repetition"],
+                  ["/how-many-words-should-you-learn-per-day", "Words Per Day"],
+                ].map(([href, label]) => (
+                  <a key={href} href={href} className="block text-[14px] text-[#888] no-underline transition-colors hover:text-[#111]">
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bbb]">Legal</h4>
+              <div className="space-y-3">
+                {[
+                  ["/terms", "Terms"],
+                  ["/privacy", "Privacy"],
+                  ["/disclaimer", "Disclaimer"],
+                ].map(([href, label]) => (
+                  <a key={href} href={href} className="block text-[14px] text-[#888] no-underline transition-colors hover:text-[#111]">
+                    {label}
+                  </a>
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="border-t border-border/30 pt-8">
-            <p className="text-center text-[13px] text-muted-foreground">(c) {YEAR} Vocalibry. All rights reserved.</p>
+          <div className="border-t border-[#ece8e1] pt-8">
+            <p className="text-center text-[12px] text-[#ccc]">&copy; {YEAR} Vocalibry. All rights reserved.</p>
           </div>
         </div>
       </footer>

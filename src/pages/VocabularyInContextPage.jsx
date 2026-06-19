@@ -2,6 +2,7 @@ import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 import { getBreadcrumbItems } from "../config/breadcrumbs.js";
 
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
 const BREADCRUMB_ITEMS = getBreadcrumbItems("vocabulary-in-context");
 
 const CONTEXT_STEPS = [
@@ -74,36 +75,36 @@ const RESEARCH_SOURCES = [
 
 export function VocabularyInContextPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main>
         <section className="px-4 py-16">
           <article className="mx-auto max-w-4xl">
             <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
-            <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Context Learning Guide</p>
-            <h1 className="mb-6 text-4xl font-bold text-foreground md:text-5xl">
+            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">Context Learning Guide</p>
+            <h1 className="mb-6 text-[36px] font-bold leading-[1.1] tracking-tight text-[#111] md:text-[48px]" style={serif}>
               How to learn vocabulary in context
             </h1>
-            <p className="mb-8 text-lg text-muted-foreground">
+            <p className="mb-8 text-lg text-[#666]">
               If you want vocabulary to feel natural, context matters. Learning words in context helps you remember
               what a word means, how it sounds, where it fits, and what kinds of ideas it usually appears with. That
               is why contextual learning is stronger than memorizing isolated translations alone. A word learned in
               context is not just a definition. It is a small piece of language you can understand, recognize, and
               eventually use with more confidence.
             </p>
-            <section className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Quick answer</h2>
-              <p className="text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Quick answer</h2>
+              <p className="text-[#666]">
                 To learn vocabulary in context, collect words from real reading and listening, keep each word with its
                 sentence, notice tone and collocations, and then review the word with active recall before using it in
                 your own writing or speech.
               </p>
             </section>
 
-            <section className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Why isolated vocabulary lists feel limited</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Why isolated vocabulary lists feel limited</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Vocabulary lists can help you notice new words, but they often leave out the details that make a
                   word usable. A translation or definition tells you part of the story, but not how the word behaves,
@@ -120,9 +121,9 @@ export function VocabularyInContextPage() {
               </div>
             </section>
 
-            <section className="mb-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">What context helps you learn that definitions miss</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">What context helps you learn that definitions miss</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Context helps you notice tone. A word may be correct in meaning but wrong in level of formality. A
                   sentence shows whether it sounds academic, conversational, technical, or emotional.
@@ -140,29 +141,29 @@ export function VocabularyInContextPage() {
 
             <div className="space-y-5">
               {CONTEXT_STEPS.map((step) => (
-                <section key={step.title} className="rounded-2xl border border-border bg-card p-6">
-                  <h2 className="mb-2 text-2xl font-semibold text-foreground">{step.title}</h2>
-                  <p className="text-muted-foreground">{step.body}</p>
+                <section key={step.title} className="rounded-[10px] border border-[#e5e1db] bg-white p-7">
+                  <h2 className="mb-2 text-[18px] font-semibold text-[#111]">{step.title}</h2>
+                  <p className="text-[#666]">{step.body}</p>
                 </section>
               ))}
             </div>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">A practical routine for learning words in context</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">A practical routine for learning words in context</h2>
+              <p className="mb-4 text-[#666]">
                 Contextual learning works best when it is organized. This simple month-long structure can help you move
                 from noticing words to understanding and using them.
               </p>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-[#666]">
                 {CONTEXT_PLAN.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">How to make contextual learning more effective</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">How to make contextual learning more effective</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Choose input that is understandable enough to teach you something without overwhelming you. Reading
                   or listening that is too difficult makes it hard to notice useful patterns.
@@ -178,9 +179,9 @@ export function VocabularyInContextPage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Common mistakes when learning vocabulary in context</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Common mistakes when learning vocabulary in context</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Do not assume context alone is enough. Exposure helps, but words usually stick better when you also
                   review them actively.
@@ -196,49 +197,49 @@ export function VocabularyInContextPage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">FAQ: learning words in context</h2>
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">FAQ: learning words in context</h2>
               <div className="space-y-5">
                 {CONTEXT_FAQS.map((item) => (
                   <div key={item.question}>
-                    <h3 className="mb-2 text-lg font-semibold text-foreground">{item.question}</h3>
-                    <p className="text-muted-foreground">{item.answer}</p>
+                    <h3 className="mb-2 text-[16px] font-semibold text-[#111]">{item.question}</h3>
+                    <p className="text-[#666]">{item.answer}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Related guides</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Related guides</h2>
+              <p className="mb-4 text-[#666]">
                 For the full system, read our guide on{" "}
-                <a href="/how-to-expand-your-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-expand-your-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to expand your vocabulary
                 </a>
                 . If your main goal is retention, also read{" "}
-                <a href="/how-to-memorize-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-memorize-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to memorize vocabulary
                 </a>
                 . You can browse the rest on our{" "}
-                <a href="/guides" className="font-medium text-primary no-underline hover:underline">
+                <a href="/guides" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   guides page
                 </a>
                 .
               </p>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Sources and further reading</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Sources and further reading</h2>
+              <p className="mb-4 text-[#666]">
                 This guide is grounded in sources on contextualized vocabulary learning, extensive reading, and the
                 way contextual inference and retrieval opportunities shape retention.
               </p>
-              <ul className="space-y-3 text-muted-foreground">
+              <ul className="space-y-3 text-[#666]">
                 {RESEARCH_SOURCES.map((source) => (
                   <li key={source.href}>
                     <a
                       href={source.href}
-                      className="font-medium text-primary no-underline hover:underline"
+                      className="font-medium text-[#111] no-underline underline-offset-2 hover:underline"
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -249,23 +250,23 @@ export function VocabularyInContextPage() {
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Build context into your daily study workflow</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Build context into your daily study workflow</h2>
+              <p className="mb-4 text-[#666]">
                 A good system makes it easier to save examples, review words, and revisit weak vocabulary in one
                 place. Explore the full workflow on the{" "}
-                <a href="/features" className="font-medium text-primary no-underline hover:underline">
+                <a href="/features" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Features page
                 </a>
                 , or compare plans on{" "}
-                <a href="/pricing" className="font-medium text-primary no-underline hover:underline">
+                <a href="/pricing" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Pricing
                 </a>
                 .
               </p>
               <a
                 href="/register"
-                className="inline-flex rounded-lg bg-primary px-6 py-3 font-medium text-white no-underline transition-colors hover:bg-[#5d81d6]"
+                className="inline-flex h-[46px] items-center rounded-[10px] bg-[#111] px-7 text-[15px] font-semibold text-white no-underline transition-colors hover:bg-[#2d2d2d]"
               >
                 Start free and learn words in context
               </a>

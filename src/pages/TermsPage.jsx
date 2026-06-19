@@ -1,15 +1,16 @@
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
 const LAST_UPDATED = "June 5, 2026";
 const SUPPORT_EMAIL = "vocalibrysupport@gmail.com";
 
 export function TermsPage() {
   return (
-    <div className="publicPage legalPage">
+    <div className="publicPage legalPage bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main className="legalMain">
-        <h1>Terms and Conditions</h1>
+        <h1 style={serif}>Terms and Conditions</h1>
         <p className="legalUpdated">Last updated: {LAST_UPDATED}</p>
 
         <section>

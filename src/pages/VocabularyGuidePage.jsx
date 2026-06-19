@@ -2,6 +2,7 @@ import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 import { getBreadcrumbItems } from "../config/breadcrumbs.js";
 
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
 const BREADCRUMB_ITEMS = getBreadcrumbItems("vocabulary-guide");
 
 const GUIDE_STEPS = [
@@ -92,26 +93,26 @@ const FAQS = [
 
 export function VocabularyGuidePage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main>
         <section className="px-4 py-16">
           <article className="mx-auto max-w-4xl">
             <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
-            <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Vocabulary Learning Guide</p>
-            <h1 className="mb-6 text-4xl font-bold text-foreground md:text-5xl">
+            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">Vocabulary Learning Guide</p>
+            <h1 className="mb-6 text-[36px] font-bold leading-[1.1] tracking-tight text-[#111] md:text-[48px]" style={serif}>
               How to expand your vocabulary: what research suggests actually works
             </h1>
-            <p className="mb-8 text-lg text-muted-foreground">
+            <p className="mb-8 text-lg text-[#666]">
               If you want to know how to expand your vocabulary, the short answer is this: do not rely on random word
               lists alone. The best way to improve vocabulary is to learn useful words in context, retrieve them from
               memory, review them over time, and use them in real sentences. The goal is not to sound impressive. The
               goal is to understand more, communicate more precisely, and make new language feel natural.
             </p>
-            <div className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Quick answer</h2>
-              <p className="text-muted-foreground">
+            <div className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Quick answer</h2>
+              <p className="text-[#666]">
                 If you want to expand your vocabulary efficiently, do five things consistently: choose useful words,
                 learn them in context, practice retrieval, review them on a spaced schedule, and use them in your own
                 speaking or writing. That combination is far more effective than passive rereading or random
@@ -119,9 +120,9 @@ export function VocabularyGuidePage() {
               </p>
             </div>
 
-            <section className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Why common vocabulary-building advice underdelivers</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Why common vocabulary-building advice underdelivers</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   A lot of vocabulary advice confuses exposure with learning. Looking at a word repeatedly can make it
                   feel familiar, but familiarity is not the same as recall. You notice the term, recognize it when you
@@ -141,9 +142,9 @@ export function VocabularyGuidePage() {
               </div>
             </section>
 
-            <section className="mb-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">How strong learners improve vocabulary more effectively</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">How strong learners improve vocabulary more effectively</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   They do not treat vocabulary like a pile of flashcards with no background. They connect new words to
                   situations, examples, tone, and purpose. Research on contextualized vocabulary learning supports that
@@ -165,30 +166,30 @@ export function VocabularyGuidePage() {
 
             <div className="space-y-5">
               {GUIDE_STEPS.map((step) => (
-                <section key={step.title} className="rounded-2xl border border-border bg-card p-6">
-                  <h2 className="mb-2 text-2xl font-semibold text-foreground">{step.title}</h2>
-                  <p className="text-muted-foreground">{step.body}</p>
+                <section key={step.title} className="rounded-[10px] border border-[#e5e1db] bg-white p-7">
+                  <h2 className="mb-2 text-[18px] font-semibold text-[#111]">{step.title}</h2>
+                  <p className="text-[#666]">{step.body}</p>
                 </section>
               ))}
             </div>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">30-day plan to improve your vocabulary</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">30-day plan to improve your vocabulary</h2>
+              <p className="mb-4 text-[#666]">
                 If you want something practical, this is a reasonable starting structure. The aim is not to collect as
                 many words as possible. The aim is to create a routine that helps useful words move from first contact
                 to reliable use. Even a small daily habit works if you stay consistent with it.
               </p>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-[#666]">
                 {QUICK_PLAN.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">How to make new vocabulary stick</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">How to make new vocabulary stick</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Keep your list smaller than your ambition. A compact set of high-value words reviewed well is far
                   more effective than a long list you barely revisit.
@@ -206,9 +207,9 @@ export function VocabularyGuidePage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Common mistakes people make when trying to improve vocabulary</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Common mistakes people make when trying to improve vocabulary</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Do not collect impressive-looking words you are unlikely to meet again. Frequency and usefulness
                   usually matter more than difficulty.
@@ -224,49 +225,49 @@ export function VocabularyGuidePage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">FAQ: how to improve vocabulary</h2>
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">FAQ: how to improve vocabulary</h2>
               <div className="space-y-5">
                 {FAQS.map((item) => (
                   <div key={item.question}>
-                    <h3 className="mb-2 text-lg font-semibold text-foreground">{item.question}</h3>
-                    <p className="text-muted-foreground">{item.answer}</p>
+                    <h3 className="mb-2 text-[16px] font-semibold text-[#111]">{item.question}</h3>
+                    <p className="text-[#666]">{item.answer}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Related guides</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Related guides</h2>
+              <p className="mb-4 text-[#666]">
                 If you want to go deeper, read our guide on{" "}
-                <a href="/how-to-memorize-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-memorize-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to memorize vocabulary
                 </a>{" "}
                 for retention strategies, or learn{" "}
-                <a href="/how-to-learn-vocabulary-in-context" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-learn-vocabulary-in-context" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to learn vocabulary in context
                 </a>{" "}
                 for a deeper look at meaning, tone, and usage. You can also browse all of our{" "}
-                <a href="/guides" className="font-medium text-primary no-underline hover:underline">
+                <a href="/guides" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   vocabulary guides
                 </a>
                 .
               </p>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Sources and further reading</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Sources and further reading</h2>
+              <p className="mb-4 text-[#666]">
                 This article is based on a small set of reliable sources covering contextualized vocabulary learning,
                 retrieval practice, productive vocabulary, and extensive reading. Each source below is linked directly.
               </p>
-              <ul className="space-y-3 text-muted-foreground">
+              <ul className="space-y-3 text-[#666]">
                 {RESEARCH_SOURCES.map((source) => (
                   <li key={source.href}>
                     <a
                       href={source.href}
-                      className="font-medium text-primary no-underline hover:underline"
+                      className="font-medium text-[#111] no-underline underline-offset-2 hover:underline"
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -277,24 +278,24 @@ export function VocabularyGuidePage() {
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Build the habit with the right tools</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Build the habit with the right tools</h2>
+              <p className="mb-4 text-[#666]">
                 A good system becomes easier to maintain when your words, reviews, and weak-word tracking live in one
                 place. If you are looking for a practical way to build vocabulary every day, explore the full study
                 workflow on the{" "}
-                <a href="/features" className="font-medium text-primary no-underline hover:underline">
+                <a href="/features" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Features page
                 </a>
                 , or compare options on{" "}
-                <a href="/pricing" className="font-medium text-primary no-underline hover:underline">
+                <a href="/pricing" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Pricing
                 </a>
                 .
               </p>
               <a
                 href="/register"
-                className="inline-flex rounded-lg bg-primary px-6 py-3 font-medium text-white no-underline transition-colors hover:bg-[#5d81d6]"
+                className="inline-flex h-[46px] items-center rounded-[10px] bg-[#111] px-7 text-[15px] font-semibold text-white no-underline transition-colors hover:bg-[#2d2d2d]"
               >
                 Start free and build your vocabulary
               </a>

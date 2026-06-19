@@ -400,13 +400,13 @@ export function LoginPage({ initialMode = "login" }) {
   }
 
   return (
-    <div className="publicPage loginPage">
+    <div className="publicPage loginPage bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main className="landingMain">
         <section className="publicAuthCard">
           <p className="heroEyebrow">Account Access</p>
-          <h1>{mode === "register" ? "Create your account" : "Log in to Vocalibry"}</h1>
+          <h1 style={{ fontFamily: '"Lora", Georgia, "Times New Roman", serif' }}>{mode === "register" ? "Create your account" : "Log in to Vocalibry"}</h1>
           <p className="heroCopy">
             {mode === "register"
               ? registerStep === "email"

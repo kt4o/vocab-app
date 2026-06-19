@@ -2,6 +2,7 @@ import { GuideBreadcrumbs } from "../components/GuideBreadcrumbs.jsx";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 import { getBreadcrumbItems } from "../config/breadcrumbs.js";
 
+const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
 const BREADCRUMB_ITEMS = getBreadcrumbItems("forget-looked-up-words");
 
 const FORGETTING_REASONS = [
@@ -69,36 +70,36 @@ const RESEARCH_SOURCES = [
 
 export function ForgetLookedUpWordsPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#faf8f5]">
       <PublicSiteHeader />
 
       <main>
         <section className="px-4 py-16">
           <article className="mx-auto max-w-4xl">
             <GuideBreadcrumbs items={BREADCRUMB_ITEMS} />
-            <p className="mb-4 text-sm font-medium uppercase tracking-[0.08em] text-primary">Reading Vocabulary Guide</p>
-            <h1 className="mb-6 text-4xl font-bold text-foreground md:text-5xl">
+            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">Reading Vocabulary Guide</p>
+            <h1 className="mb-6 text-[36px] font-bold leading-[1.1] tracking-tight text-[#111] md:text-[48px]" style={serif}>
               Why you forget words you look up while reading and how to remember them
             </h1>
-            <p className="mb-8 text-lg text-muted-foreground">
+            <p className="mb-8 text-lg text-[#666]">
               If you read in English often, you may recognize this pattern: you stop at an unfamiliar word, look it up,
               understand the sentence, keep reading, and then realize a day later that the word is gone. This happens to
               strong readers all the time. The issue is usually not intelligence or effort. It is that a lookup solves
               comprehension in the moment, while long-term memory needs a second step.
             </p>
 
-            <section className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Quick answer</h2>
-              <p className="text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Quick answer</h2>
+              <p className="text-[#666]">
                 You forget words you look up while reading because understanding them once does not create durable
                 memory. The best fix is to save useful words in context, review them with active recall, and revisit the
                 weak ones before they fade.
               </p>
             </section>
 
-            <section className="mb-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Why this happens so often to readers</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Why this happens so often to readers</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Reading is one of the best environments for vocabulary growth because words arrive with real context,
                   tone, and meaning. But a lot of reading-related vocabulary learning is still passive. You notice the
@@ -116,9 +117,9 @@ export function ForgetLookedUpWordsPage() {
               </div>
             </section>
 
-            <section className="mb-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">What stronger retention depends on</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mb-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">What stronger retention depends on</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   The strongest vocabulary growth usually combines context with retrieval. Context helps you understand
                   what the word means and how it behaves. Retrieval helps you remember it later without seeing the answer.
@@ -136,29 +137,29 @@ export function ForgetLookedUpWordsPage() {
 
             <div className="space-y-5">
               {FORGETTING_REASONS.map((item) => (
-                <section key={item.title} className="rounded-2xl border border-border bg-card p-6">
-                  <h2 className="mb-2 text-2xl font-semibold text-foreground">{item.title}</h2>
-                  <p className="text-muted-foreground">{item.body}</p>
+                <section key={item.title} className="rounded-[10px] border border-[#e5e1db] bg-white p-7">
+                  <h2 className="mb-2 text-[18px] font-semibold text-[#111]">{item.title}</h2>
+                  <p className="text-[#666]">{item.body}</p>
                 </section>
               ))}
             </div>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">A simple routine for remembering words from books</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">A simple routine for remembering words from books</h2>
+              <p className="mb-4 text-[#666]">
                 You do not need to turn reading into a heavy study session. A lightweight process is usually enough if
                 you stay selective and review consistently.
               </p>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-[#666]">
                 {READING_MEMORY_ROUTINE.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">How to choose which looked-up words are worth saving</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">How to choose which looked-up words are worth saving</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Not every unfamiliar word deserves a place in your review system. Prioritize words that feel useful,
                   expressive, repeated, or likely to appear again in future reading.
@@ -174,9 +175,9 @@ export function ForgetLookedUpWordsPage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Common mistakes that keep words from sticking</h2>
-              <div className="space-y-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Common mistakes that keep words from sticking</h2>
+              <div className="space-y-4 text-[#666]">
                 <p>
                   Do not rely on the lookup alone. It feels productive, but it usually gives you recognition more than
                   recall.
@@ -191,47 +192,47 @@ export function ForgetLookedUpWordsPage() {
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-secondary p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">FAQ: remembering looked-up words</h2>
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-[#faf8f5] p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">FAQ: remembering looked-up words</h2>
               <div className="space-y-5">
                 {FORGETTING_FAQS.map((item) => (
                   <div key={item.question}>
-                    <h3 className="mb-2 text-lg font-semibold text-foreground">{item.question}</h3>
-                    <p className="text-muted-foreground">{item.answer}</p>
+                    <h3 className="mb-2 text-[16px] font-semibold text-[#111]">{item.question}</h3>
+                    <p className="text-[#666]">{item.answer}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Related guides</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Related guides</h2>
+              <p className="mb-4 text-[#666]">
                 For the broader system, read our guide on{" "}
-                <a href="/how-to-expand-your-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-expand-your-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to expand your vocabulary
                 </a>
                 . To improve retention, also see{" "}
-                <a href="/how-to-memorize-vocabulary" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-memorize-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to memorize vocabulary
                 </a>{" "}
                 and{" "}
-                <a href="/how-to-learn-vocabulary-in-context" className="font-medium text-primary no-underline hover:underline">
+                <a href="/how-to-learn-vocabulary-in-context" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   how to learn vocabulary in context
                 </a>
                 .
               </p>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Sources and further reading</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Sources and further reading</h2>
+              <p className="mb-4 text-[#666]">
                 This article is grounded in research on contextualized vocabulary learning, reading-based vocabulary
                 growth, and retrieval practice.
               </p>
-              <ul className="space-y-3 text-muted-foreground">
+              <ul className="space-y-3 text-[#666]">
                 {RESEARCH_SOURCES.map((source) => (
                   <li key={source.href}>
-                    <a href={source.href} className="font-medium text-primary no-underline hover:underline" target="_blank" rel="noreferrer">
+                    <a href={source.href} className="font-medium text-[#111] no-underline underline-offset-2 hover:underline" target="_blank" rel="noreferrer">
                       {source.title}
                     </a>
                   </li>
@@ -239,23 +240,23 @@ export function ForgetLookedUpWordsPage() {
               </ul>
             </section>
 
-            <section className="mt-10 rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-3 text-2xl font-semibold text-foreground">Turn looked-up words into remembered words</h2>
-              <p className="mb-4 text-muted-foreground">
+            <section className="mt-10 rounded-[10px] border border-[#e5e1db] bg-white p-7">
+              <h2 className="mb-3 text-[18px] font-semibold text-[#111]">Turn looked-up words into remembered words</h2>
+              <p className="mb-4 text-[#666]">
                 A good system makes it easier to capture useful vocabulary from reading, review it later, and revisit
                 weak words before they disappear. Explore the full workflow on the{" "}
-                <a href="/features" className="font-medium text-primary no-underline hover:underline">
+                <a href="/features" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Features page
                 </a>
                 , or compare options on{" "}
-                <a href="/pricing" className="font-medium text-primary no-underline hover:underline">
+                <a href="/pricing" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
                   Pricing
                 </a>
                 .
               </p>
               <a
                 href="/register"
-                className="inline-flex rounded-lg bg-primary px-6 py-3 font-medium text-white no-underline transition-colors hover:bg-[#5d81d6]"
+                className="inline-flex h-[46px] items-center rounded-[10px] bg-[#111] px-7 text-[15px] font-semibold text-white no-underline transition-colors hover:bg-[#2d2d2d]"
               >
                 Start free and save your next word
               </a>
