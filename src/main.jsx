@@ -37,6 +37,7 @@ const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
   .replace(/\/$/, "");
 const AUTH_API_PATH = `${API_BASE_URL}/api/auth`;
 const AUTH_TOKEN_STORAGE_KEY = "vocab_auth_token";
+const COOKIE_SESSION_AUTH_MARKER = "__cookie_session__";
 const AUTH_CHECK_MAX_ATTEMPTS = 3;
 const AUTH_CHECK_RETRY_DELAY_MS = 450;
 const SITE_URL = String(import.meta.env.VITE_SITE_URL || "https://www.vocalibry.com")
@@ -285,6 +286,14 @@ function AppRoute() {
           if (cancelled) return;
 
           if (response.ok) {
+            if (isBearerAuthToken(storedAuthToken)) {
+              // Bearer token already verified by the server. App.loadAccountProfile()
+              // will catch any stale tokens by calling logoutAccount() on 401.
+              setStatus("authorized");
+              return;
+            }
+
+            // Cookie-only session: validate the payload before trusting it.
             const payload = await response.json().catch(() => null);
             const hasValidAccountPayload =
               payload &&
@@ -298,6 +307,9 @@ function AppRoute() {
               return;
             }
 
+            // Write a marker so App can skip its own restoreCookieSession() call,
+            // eliminating the redundant second session check that was causing bounces.
+            localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, COOKIE_SESSION_AUTH_MARKER);
             setStatus("authorized");
             return;
           }

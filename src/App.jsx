@@ -2492,7 +2492,11 @@ export default function App() {
   );
   const [authToken, setAuthToken] = useState(() => {
     const savedAuthToken = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
-    return isBearerAuthToken(savedAuthToken) ? savedAuthToken : "";
+    if (isBearerAuthToken(savedAuthToken)) return savedAuthToken;
+    // AppRoute.verifySession() writes this marker after a successful cookie-session check,
+    // so we can skip the redundant restoreCookieSession() network call on mount.
+    if (savedAuthToken === COOKIE_SESSION_AUTH_MARKER) return COOKIE_SESSION_AUTH_MARKER;
+    return "";
   });
   const [authUsername, setAuthUsername] = useState(
     () => localStorage.getItem(AUTH_USERNAME_STORAGE_KEY) || ""
