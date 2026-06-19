@@ -5868,11 +5868,11 @@ body.theme-dark .recentSquare.isPinned {
   width: 100%;
   max-width: none;
   height: auto;
-  min-height: 72px;
+  min-height: 36px;
   align-items: flex-start;
   justify-content: center;
   text-align: left;
-  padding: 14px 18px;
+  padding: 6px 18px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -6005,9 +6005,9 @@ body.theme-dark .recentSquare.isPinned {
     width: 100%;
     aspect-ratio: auto;
     height: auto;
-    min-height: 72px;
+    min-height: 36px;
     border-radius: 14px;
-    padding: 12px 14px;
+    padding: 6px 14px;
   }
   .dashboardPanelGrid .panelCard span {
     font-size: 15px;
@@ -8995,7 +8995,7 @@ body.theme-dark .recentSquare.isPinned {
 
   .dashboardPanelGrid .panelCard.wide {
     height: auto;
-    min-height: 66px;
+    min-height: 36px;
     border-radius: 12px;
   }
 
