@@ -3311,65 +3311,8 @@ body.theme-dark .tutStepNum {
     height: 44px;
   }
 
-  /* On mobile the coach pins to the TOP — away from the keyboard and bottom controls */
-  .guidedCoach,
-  .guidedCoach-floating,
-  .guidedCoach-inline,
-  .guidedCoach-below,
-  .guidedCoach-inlineRight,
-  .guidedCoach-dashboard-add-book.guidedCoach-below,
-  .addWordGuidedAnchor .guidedCoach-below {
-    position: fixed;
-    top: max(10px, env(safe-area-inset-top));
-    left: max(10px, env(safe-area-inset-left));
-    right: max(10px, env(safe-area-inset-right));
-    bottom: auto;
-    width: auto;
-    max-height: min(35dvh, 160px);
-    overflow: auto;
-    overscroll-behavior: contain;
-    border-radius: 14px;
-    padding: 12px 14px;
-  }
-
-  /* definitions-back target is the back button at the top of the screen —
-     park the coach at the bottom so it doesn't overlap */
-  .guidedCoach-definitions-back {
-    top: auto;
-    bottom: max(10px, env(safe-area-inset-bottom));
-  }
-
-  .guidedCoach::before,
-  .guidedCoach::after {
+  .guidedCoach {
     display: none;
-  }
-
-  /* Content padding now accounts for the top-positioned coach */
-  .appShell.isGuidedLocked .appMain {
-    padding-top: calc(150px + env(safe-area-inset-top));
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .appShell.isGuidedLocked .guidedTarget,
-  .appShell.isGuidedLocked .guidedTargetRow {
-    scroll-margin-top: calc(140px + env(safe-area-inset-top));
-    scroll-margin-bottom: 20px;
-  }
-
-  .appShell.isGuidedLocked .page {
-    padding-top: calc(150px + env(safe-area-inset-top));
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  /* When a modal is open the coach sits above it, so no padding needed on the page */
-  .appShell.isGuidedLocked.hasGuidedModalOpen .page {
-    padding-top: 0;
-    padding-bottom: 24px;
-  }
-
-  .appShell.isGuidedLocked.hasGuidedModalOpen .modalOverlay {
-    padding-top: calc(130px + env(safe-area-inset-top));
-    padding-bottom: 0;
   }
 }
 

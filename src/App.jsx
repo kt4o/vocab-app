@@ -5362,7 +5362,7 @@ export default function App() {
 
       target.scrollIntoView({
         behavior: "smooth",
-        block: isGuidedTourMobile ? "nearest" : "nearest",
+        block: isGuidedTourMobile ? "center" : "nearest",
         inline: "nearest",
       });
 
