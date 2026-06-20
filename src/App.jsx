@@ -4772,6 +4772,7 @@ export default function App() {
       lastOpened: Date.now(),
     };
     setBooks([...books, newBook]);
+    trackEvent("book_created", { language_mode: newBook.languageMode });
     setCurrentBookId(newBook.id);
     setScreen("bookMenu");
     setIsAddBookModalOpen(false);
@@ -5181,6 +5182,7 @@ export default function App() {
   }
 
   function startGuidedDashboardTour() {
+    trackEvent("onboarding_completed");
     completeOnboardingTutorial();
     setIsGuidedTourDismissed(false);
     setGuidedTourStep("dashboard-add-book");
@@ -5384,6 +5386,7 @@ export default function App() {
       setIsGuidedTourDismissed(false);
       setOnboardingTutorialStep(0);
       setIsOnboardingCloseConfirmOpen(false);
+      trackEvent("onboarding_started", { source: "dev_tutorial" });
       setIsOnboardingTutorialOpen(true);
       return;
     }
@@ -5401,6 +5404,7 @@ export default function App() {
       pendingTutorialFor === "true" ||
       pendingTutorialFor.toLowerCase() === authUsername.toLowerCase();
     if (!shouldOpen) return;
+    trackEvent("onboarding_started", { source: "new_user" });
     setOnboardingTutorialStep(0);
     setIsOnboardingTutorialOpen(true);
     setIsOnboardingCloseConfirmOpen(false);
@@ -6594,6 +6598,7 @@ export default function App() {
     }
 
     if (isFreeWordLimitReached) {
+      trackEvent("word_limit_reached", { word_count: totalSavedWordCount });
       const upgradeCopy = PREMIUM_UPGRADE_ENABLED
         ? "Upgrade to Pro to keep adding new words."
         : "Pro removes this cap when upgrades are enabled.";
@@ -6769,6 +6774,10 @@ export default function App() {
       );
 
       setBooks(updatedBooks);
+      trackEvent("word_added", {
+        language_mode: currentBookLanguageMode,
+        is_first_word: totalSavedWordCount === 0,
+      });
       latestBooksRef.current = updatedBooks;
       setWeeklyStats((prev) => {
         const current = ensureCurrentWeekStats(prev);

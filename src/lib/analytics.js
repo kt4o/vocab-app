@@ -5,6 +5,7 @@ const GA_SCRIPT_ID = "vocalibry-ga4-script";
 const POSTHOG_SCRIPT_ID = "vocalibry-posthog-script";
 const POSTHOG_DISTINCT_ID_STORAGE_KEY = "vocalibry_posthog_distinct_id";
 const ANALYTICS_CONSENT_STORAGE_KEY = "vocalibry_analytics_consent";
+const ANON_SESSION_ID_KEY = "vocalibry_anon_session_id";
 
 let gaInitialized = false;
 let posthogInitialized = false;
@@ -258,6 +259,35 @@ function sendPosthogCapture(eventName, properties = {}) {
   } catch {
     return false;
   }
+}
+
+function getOrCreateAnonSessionId() {
+  if (!canUseBrowser()) return "";
+  try {
+    const existing = sessionStorage.getItem(ANON_SESSION_ID_KEY);
+    if (existing) return existing;
+    const id =
+      window.crypto && typeof window.crypto.randomUUID === "function"
+        ? `anon-${window.crypto.randomUUID()}`
+        : `anon-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem(ANON_SESSION_ID_KEY, id);
+    return id;
+  } catch {
+    return `anon-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+export function trackPublicPageView(path, params = {}) {
+  if (!canUseBrowser() || !hasPosthogKey() || isDoNotTrackEnabled()) return false;
+  const fallbackPath = `${window.location.pathname}${window.location.search || ""}`;
+  const pagePath = String(path || fallbackPath).trim() || fallbackPath;
+  return sendPosthogCapture("$pageview", {
+    distinct_id: getOrCreateAnonSessionId(),
+    path: pagePath,
+    page_title: document.title || "Vocalibry",
+    pre_consent: true,
+    ...sanitizeParams(params),
+  });
 }
 
 export function initAnalytics() {

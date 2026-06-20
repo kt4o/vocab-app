@@ -28,6 +28,7 @@ import {
   isAnalyticsConfigured,
   setAnalyticsConsentStatus,
   trackPageView,
+  trackPublicPageView,
 } from "./lib/analytics.js";
 import { getBreadcrumbStructuredData } from "./config/breadcrumbs.js";
 import { ARTICLE_ROUTE_KEYS, ROUTE_SEO, getRoute } from "./config/siteSeo.js";
@@ -384,6 +385,12 @@ function RootPage() {
     if (analyticsConsent !== "granted") return;
     const path = `${window.location.pathname}${window.location.search || ""}`;
     trackPageView(path, { route_name: route });
+  }, [route, analyticsConsent]);
+
+  useEffect(() => {
+    if (analyticsConsent === "granted" || route === "app") return;
+    const path = `${window.location.pathname}${window.location.search || ""}`;
+    trackPublicPageView(path, { route_name: route });
   }, [route, analyticsConsent]);
 
   useEffect(() => {
