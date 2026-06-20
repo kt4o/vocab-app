@@ -279,6 +279,7 @@ function getOrCreateAnonSessionId() {
 
 export function trackPublicPageView(path, params = {}) {
   if (!canUseBrowser() || !hasPosthogKey() || isDoNotTrackEnabled()) return false;
+  if (getAnalyticsConsentStatus() === "denied") return false;
   const fallbackPath = `${window.location.pathname}${window.location.search || ""}`;
   const pagePath = String(path || fallbackPath).trim() || fallbackPath;
   return sendPosthogCapture("$pageview", {
