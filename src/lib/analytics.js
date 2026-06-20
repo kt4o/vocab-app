@@ -305,9 +305,9 @@ export function trackEvent(eventName, params = {}) {
     return true;
   }
   if (provider === "posthog") {
-    if (!initPosthog()) return false;
     const safeName = sanitizeEventName(eventName);
     const safeParams = sanitizeParams(params);
+    initPosthog();
     try {
       if (window.posthog && typeof window.posthog.capture === "function") {
         window.posthog.capture(safeName, safeParams);
