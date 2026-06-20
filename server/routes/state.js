@@ -122,6 +122,7 @@ stateRouter.get("/", async (req, res) => {
 stateRouter.put("/", async (req, res) => {
   const userId = req.authUser.id;
   const appState = req.body?.appState;
+  const clientUpdatedAt = req.body?.clientUpdatedAt;
   const now = new Date().toISOString();
 
   if (!appState || typeof appState !== "object" || Array.isArray(appState)) {
@@ -130,8 +131,23 @@ stateRouter.put("/", async (req, res) => {
   }
 
   try {
-    const previousStateResult = await query("SELECT state_json FROM app_state WHERE user_id = $1", [userId]);
-    const previousState = previousStateResult.rows[0]?.state_json || {};
+    const previousStateResult = await query("SELECT state_json, updated_at FROM app_state WHERE user_id = $1", [userId]);
+    const previousRow = previousStateResult.rows[0];
+    const previousState = previousRow?.state_json || {};
+
+    // Reject stale writes: if the client's last-known server timestamp is older than
+    // the current server state, another session already wrote newer data — don't clobber it.
+    if (clientUpdatedAt && previousRow?.updated_at) {
+      const serverMs = new Date(previousRow.updated_at).getTime();
+      const clientMs = new Date(clientUpdatedAt).getTime();
+      if (Number.isFinite(serverMs) && Number.isFinite(clientMs) && serverMs > clientMs + 2000) {
+        res.status(409).json({
+          error: "state-conflict",
+          serverUpdatedAt: previousRow.updated_at,
+        });
+        return;
+      }
+    }
     const addedWords = getAddedWordsFromStateDiff(previousState, appState);
     const previousWordCount = countWordsInState(previousState);
     const nextWordCount = countWordsInState(appState);

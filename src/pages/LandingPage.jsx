@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Check, X, ArrowRight } from "lucide-react";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
-const appScreenshot = "/landing/book-page.png";
+const appScreenshot = "/vocalibry_app_screenshot.png";
 const YEAR = new Date().getFullYear();
 
 // serif style applied to display headings
@@ -160,7 +160,7 @@ export function LandingPage() {
       <main>
 
         {/* ── HERO ─────────────────────────────────────────────────────── */}
-        <section className="border-b border-[#ece8e1] bg-[#faf8f5] px-4 py-24 sm:px-6 sm:py-32">
+        <section className="border-b border-[#ece8e1] bg-[#faf8f5] px-4 pt-10 pb-16 sm:px-6 sm:pt-14 sm:pb-24">
           <div className="mx-auto max-w-[1100px]">
             <div className="mx-auto max-w-[680px] text-center">
               <p className="mb-7 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">
@@ -331,46 +331,15 @@ export function LandingPage() {
               </a>
             </div>
 
-            {/* mock UI */}
-            <div className="overflow-hidden rounded-[10px] border border-[#dbd8d2] bg-white shadow-[0_8px_32px_rgba(0,0,0,0.07),0_2px_8px_rgba(0,0,0,0.04)]">
-              <div className="flex items-center gap-1.5 border-b border-[#e8e4de] bg-[#f0ede9] px-5 py-3">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#d9d5cf]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#d9d5cf]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#d9d5cf]" />
-                <span className="mx-auto text-[12px] text-[#aaa]">吾輩は猫である</span>
+            {/* screenshot */}
+            <figure>
+              <div className="overflow-hidden rounded-[10px] border border-[#dbd8d2] shadow-[0_8px_32px_rgba(0,0,0,0.07),0_2px_8px_rgba(0,0,0,0.04)]">
+                <img src="/vocalibry_adaptivereview_screenshot.png" alt="Vocalibry adaptive review session" className="block w-full" />
               </div>
-              <div className="p-6">
-                <div className="mb-5 flex items-start justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#aaa]">
-                      Japanese to English
-                    </p>
-                    <h3 className="mt-1 text-[20px] font-bold text-[#111]">吾輩は猫である</h3>
-                  </div>
-                  <span className="rounded-[6px] border border-[#e5e1db] bg-[#faf8f5] px-2.5 py-1 text-[11px] font-medium text-[#777]">
-                    Chapter 1
-                  </span>
-                </div>
-
-                <div className="mb-5 grid grid-cols-3 gap-2.5">
-                  {[
-                    { k: "単語", r: "たんご", e: "word" },
-                    { k: "記憶", r: "きおく", e: "memory" },
-                    { k: "復習", r: "ふくしゅう", e: "review" },
-                  ].map(({ k, r, e }) => (
-                    <div key={k} className="rounded-[8px] border border-[#e8e4de] bg-[#faf8f5] p-3.5">
-                      <div className="mb-1 text-[22px] font-bold leading-none text-[#111]">{k}</div>
-                      <div className="mb-1 text-[10px] font-medium text-[#999]">{r}</div>
-                      <div className="text-[12px] text-[#666]">{e}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="rounded-[8px] bg-[#111] px-4 py-3 text-center text-[13px] font-semibold text-white">
-                  Start Review Session
-                </div>
-              </div>
-            </div>
+              <figcaption className="mt-3 text-center text-[13px] text-[#999]">
+                <span className="font-semibold text-[#555]">Adaptive review</span> — review words with spaced repetition
+              </figcaption>
+            </figure>
           </div>
         </section>
 

@@ -2080,34 +2080,24 @@ const QUIZ_MISS_PROMPTS_JA = [
 
 const ONBOARDING_TUTORIAL_SLIDES = [
   {
-    title: "Welcome to Vocalibry",
-    body: "Here is the quick path: create a book, add words, review them, then track what is improving.",
     type: "welcome",
-    highlights: ["📚 Create books", "📝 Add words", "⚡ Practice recall", "📊 Track progress"],
+    title: "Welcome to Vocalibry",
+    body: "Build vocabulary that actually sticks — one word at a time.",
+    features: [
+      { label: "Books", detail: "Organize words by subject, course, or language" },
+      { label: "Auto-definitions", detail: "Type a word and Vocalibry fills in the meaning" },
+      { label: "Smart Review", detail: "Spaced repetition that focuses on what you're forgetting" },
+    ],
   },
   {
-    title: "Create your first book",
-    body: "Start by making a focused book and choose its language mode, like English vocabulary or Japanese practice.",
-    image: "/landing/tutorial-1-create-book.png",
-    alt: "My Books screen showing the create your first vocabulary book prompt",
-  },
-  {
-    title: "Add words and chapters",
-    body: "Add words in the book's chosen direction, then use chapters to keep each unit or section organized.",
-    image: "/landing/tutorial-2-add-words.png",
-    alt: "Book definitions screen showing a word list and chapter controls",
-  },
-  {
-    title: "Review with practice modes",
-    body: "Use flashcards, quizzes, typing practice, and smart review to build recall.",
-    image: "/landing/tutorial-3-review.png",
-    alt: "Quiz screen showing vocabulary review choices",
-  },
-  {
-    title: "Analyze your learning",
-    body: "Check your data to see words added, questions completed, and time studied.",
-    image: "/landing/tutorial-4-data.png",
-    alt: "Data screen showing learning progress charts and summary stats",
+    type: "steps",
+    title: "Done in under two minutes",
+    body: "The guided tour walks you through the whole loop. You can skip it anytime.",
+    steps: [
+      { n: "1", label: "Create a book", detail: "Name it and pick a language mode" },
+      { n: "2", label: "Add words", detail: "Auto-fetched definitions, no dictionary needed" },
+      { n: "3", label: "Start a quiz", detail: "Flashcards, quizzes, or Smart Review" },
+    ],
   },
 ];
 
@@ -2858,6 +2848,7 @@ export default function App() {
         }),
         body: JSON.stringify({
           appState,
+          clientUpdatedAt: localStorage.getItem(LOCAL_STATE_UPDATED_AT_STORAGE_KEY) || undefined,
         }),
       });
 
@@ -2919,7 +2910,10 @@ export default function App() {
         headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
         }),
-        body: JSON.stringify({ appState }),
+        body: JSON.stringify({
+          appState,
+          clientUpdatedAt: localStorage.getItem(LOCAL_STATE_UPDATED_AT_STORAGE_KEY) || undefined,
+        }),
       });
 
       if (response.status === 401) {
@@ -3446,7 +3440,7 @@ export default function App() {
     };
 
     return (
-      <div className={`appShell ${guidedTourStep && !isOnboardingTutorialOpen && !isOnboardingCloseConfirmOpen ? "isGuidedLocked" : ""} ${isGuidedModalOpen ? "hasGuidedModalOpen" : ""}`}>
+      <div className={`appShell ${guidedTourStep && !isOnboardingTutorialOpen ? "isGuidedLocked" : ""} ${isGuidedModalOpen ? "hasGuidedModalOpen" : ""}`}>
         <aside
           ref={sidebarRef}
           className={`sidebar ${isSidebarHidden ? "isCollapsed" : ""}`}
@@ -3760,6 +3754,12 @@ export default function App() {
       } else {
         localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
         setAuthToken(COOKIE_SESSION_AUTH_MARKER);
+      }
+      const prevUsername = localStorage.getItem(AUTH_USERNAME_STORAGE_KEY) || "";
+      if (prevUsername && prevUsername !== nextUsername) {
+        // Different account — discard the previous user's local timestamp so the
+        // cloud state is always applied and never overwritten by stale local data.
+        localStorage.removeItem(LOCAL_STATE_UPDATED_AT_STORAGE_KEY);
       }
       localStorage.setItem(AUTH_USERNAME_STORAGE_KEY, nextUsername);
       setIsAuthSessionResolved(true);
@@ -4428,6 +4428,7 @@ export default function App() {
           "Content-Type": "application/json",
         }),
         body: JSON.stringify({
+          clientUpdatedAt: localStorage.getItem(LOCAL_STATE_UPDATED_AT_STORAGE_KEY) || undefined,
           appState: {
             backupVersion: 1,
             exportedAt: new Date().toISOString(),
@@ -5195,51 +5196,51 @@ export default function App() {
     if (guidedTourStep === "dashboard-add-book") {
       return {
         key: "dashboard-add-book",
-        stepLabel: "Step 1",
-        title: tr("Create a book", "Create a book"),
-        body: tr("Press this + button to make your first vocabulary book.", "Press this + button to make your first vocabulary book."),
+        stepLabel: tr("Step 1 of 3", "Step 1 of 3"),
+        title: tr("Create your first book", "Create your first book"),
+        body: tr("Tap the + button to get started.", "Tap the + button to get started."),
       };
     }
 
     if (guidedTourStep === "book-name") {
       return {
         key: "book-name",
-        stepLabel: "Step 1",
+        stepLabel: tr("Step 1 of 3", "Step 1 of 3"),
         title: tr("Name your book", "Name your book"),
-        body: tr("Type a short name, then choose whether this book is English, English to Japanese, or Japanese to English.", "Type a short name, then choose whether this book is English, English to Japanese, or Japanese to English."),
+        body: tr("Give it a short name, then choose the language direction.", "Give it a short name, then choose the language direction."),
       };
     }
 
     if (guidedTourStep === "book-create") {
       return {
         key: "book-create",
-        stepLabel: "Step 1",
-        title: tr("Press Create", "Press Create"),
-        body: tr("This button saves the book and opens the next step.", "This button saves the book and opens the next step."),
+        stepLabel: tr("Step 1 of 3", "Step 1 of 3"),
+        title: tr("Save the book", "Save the book"),
+        body: tr("Hit Create to save and move on.", "Hit Create to save and move on."),
       };
     }
 
     if (guidedTourStep === "book-definitions") {
       return {
         key: "book-definitions",
-        stepLabel: "Step 2",
+        stepLabel: tr("Step 2 of 3", "Step 2 of 3"),
         title: tr("Open Definitions", "Open Definitions"),
-        body: tr("Press Definitions. This is where new words are added to the book.", "Press Definitions. This is where new words are added to the book."),
+        body: tr("This is where you add words to your book.", "This is where you add words to your book."),
       };
     }
 
     if (guidedTourStep === "word-type") {
       return {
         key: "word-type",
-        stepLabel: "Step 2",
-        title: tr(needsMoreWords ? "Type a word" : "Words are ready", needsMoreWords ? "Type a word" : "Words are ready"),
+        stepLabel: tr("Step 2 of 3", "Step 2 of 3"),
+        title: tr(needsMoreWords ? "Type a word to save" : "Words are ready", needsMoreWords ? "Type a word to save" : "Words are ready"),
         body: tr(
           needsMoreWords
-            ? `Add ${2 - wordCount} more word${2 - wordCount === 1 ? "" : "s"} so the quiz has enough choices.`
-            : "You have enough words for a starter quiz.",
+            ? `Add ${2 - wordCount} more word${2 - wordCount === 1 ? "" : "s"} — the quiz needs at least two.`
+            : "You have enough words to start a quiz.",
           needsMoreWords
-            ? `Add ${2 - wordCount} more word${2 - wordCount === 1 ? "" : "s"} so the quiz has enough choices.`
-            : "You have enough words for a starter quiz."
+            ? `Add ${2 - wordCount} more word${2 - wordCount === 1 ? "" : "s"} — the quiz needs at least two.`
+            : "You have enough words to start a quiz."
         ),
       };
     }
@@ -5247,45 +5248,45 @@ export default function App() {
     if (guidedTourStep === "word-add") {
       return {
         key: "word-add",
-        stepLabel: "Step 2",
+        stepLabel: tr("Step 2 of 3", "Step 2 of 3"),
         title: tr("Press + to save it", "Press + to save it"),
-        body: tr("Vocalibry will fetch the right meaning for this book's language mode.", "Vocalibry will fetch the right meaning for this book's language mode."),
+        body: tr("Vocalibry fetches the definition automatically.", "Vocalibry fetches the definition automatically."),
       };
     }
 
     if (guidedTourStep === "word-saving") {
       return {
         key: "word-saving",
-        stepLabel: "Step 2",
-        title: tr("Saving the word", "Saving the word"),
-        body: tr("Wait here while Vocalibry fetches and saves the meaning.", "Wait here while Vocalibry fetches and saves the meaning."),
+        stepLabel: tr("Step 2 of 3", "Step 2 of 3"),
+        title: tr("Saving…", "Saving…"),
+        body: tr("Fetching the definition now.", "Fetching the definition now."),
       };
     }
 
     if (guidedTourStep === "definitions-back") {
       return {
         key: "definitions-back",
-        stepLabel: "Step 3",
-        title: tr("Go back to the book menu", "Go back to the book menu"),
-        body: tr("Now press this back button so we can start a quiz from the book menu.", "Now press this back button so we can start a quiz from the book menu."),
+        stepLabel: tr("Step 3 of 3", "Step 3 of 3"),
+        title: tr("Back to the book menu", "Back to the book menu"),
+        body: tr("Press the back button to get to the quiz.", "Press the back button to get to the quiz."),
       };
     }
 
     if (guidedTourStep === "book-quiz") {
       return {
         key: "book-quiz",
-        stepLabel: "Step 3",
+        stepLabel: tr("Step 3 of 3", "Step 3 of 3"),
         title: tr("Open Quiz", "Open Quiz"),
-        body: tr("Press Quiz to review the words you just saved.", "Press Quiz to review the words you just saved."),
+        body: tr("Review the words you just saved.", "Review the words you just saved."),
       };
     }
 
     if (guidedTourStep === "quiz-start") {
       return {
         key: "quiz-start",
-        stepLabel: "Step 3",
+        stepLabel: tr("Step 3 of 3", "Step 3 of 3"),
         title: tr("Start the quiz", "Start the quiz"),
-        body: tr("Press Start Smart Quiz to begin reviewing your saved words.", "Press Start Smart Quiz to begin reviewing your saved words."),
+        body: tr("Press Start Smart Quiz to begin.", "Press Start Smart Quiz to begin."),
       };
     }
 
@@ -5294,7 +5295,7 @@ export default function App() {
 
   function renderGuidedTourCoach(placement = "floating", targetKey = "") {
     const guidedStep = getGuidedTourStep();
-    if (!guidedStep || isOnboardingTutorialOpen || isOnboardingCloseConfirmOpen) return null;
+    if (!guidedStep || isOnboardingTutorialOpen) return null;
     if (targetKey && guidedStep.key !== targetKey) return null;
     if (!targetKey && screen === "dashboard" && guidedStep.key === "dashboard-add-book") return null;
     if (!targetKey && screen === "bookMenu" && (guidedStep.key === "book-definitions" || guidedStep.key === "book-quiz")) return null;
@@ -5306,12 +5307,19 @@ export default function App() {
       <aside className={`guidedCoach guidedCoach-${guidedStep.key} guidedCoach-${placement}`} aria-live="polite">
         <div className="guidedCoachTopRow">
           <span className="guidedCoachStep">{guidedStep.stepLabel}</span>
+          <button
+            type="button"
+            className="guidedCoachSkipBtn"
+            onClick={() => {
+              setIsGuidedTourDismissed(true);
+              setGuidedTourStep("");
+            }}
+          >
+            {tr("Skip tour", "Skip tour")}
+          </button>
         </div>
         <h2>{guidedStep.title}</h2>
         <p>{guidedStep.body}</p>
-        <div className="guidedCoachActions">
-          <span className="guidedCoachHint">{tr("Use the highlighted control.", "Use the highlighted control.")}</span>
-        </div>
       </aside>
     );
   }
@@ -5431,8 +5439,7 @@ export default function App() {
         if (noticeModal) setNoticeModal(null);
         return;
       }
-      if (isOnboardingCloseConfirmOpen) setIsOnboardingCloseConfirmOpen(false);
-      else if (isOnboardingTutorialOpen) setIsOnboardingCloseConfirmOpen(true);
+      if (isOnboardingTutorialOpen) { completeOnboardingTutorial(); return; }
       if (isAddBookModalOpen) setIsAddBookModalOpen(false);
       if (isChangePasswordModalOpen) setIsChangePasswordModalOpen(false);
       if (accountPanelModal) setAccountPanelModal("");
@@ -5494,40 +5501,9 @@ export default function App() {
       const currentSlideIndex = Math.min(onboardingTutorialStep, slideCount - 1);
       const currentSlide = ONBOARDING_TUTORIAL_SLIDES[currentSlideIndex];
       const isLastSlide = currentSlideIndex === slideCount - 1;
-      const requestCloseOnboardingTutorial = () => setIsOnboardingCloseConfirmOpen(true);
-
-      if (isOnboardingCloseConfirmOpen) {
-        return (
-          <div className="modalOverlay" onClick={() => setIsOnboardingCloseConfirmOpen(false)}>
-            <div
-              className="modalCard"
-              ref={modalRef}
-              role="alertdialog"
-              aria-modal="true"
-              aria-labelledby="tutorial-close-confirm-title"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 id="tutorial-close-confirm-title">{tr("Close tutorial?", "チュートリアルを閉じますか？")}</h3>
-              <p>{tr("Are you sure? You can keep going to finish the quick tour.", "本当に閉じますか？続けるとクイックツアーを完了できます。")}</p>
-              <div className="modalActions">
-                <button
-                  type="button"
-                  className="modalBtn ghost"
-                  onClick={() => setIsOnboardingCloseConfirmOpen(false)}
-                >
-                  {tr("Keep going", "続ける")}
-                </button>
-                <button type="button" className="modalBtn primary" onClick={completeOnboardingTutorial}>
-                  {tr("Close tutorial", "閉じる")}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      }
 
       return (
-        <div className="modalOverlay tutorialOverlay" onClick={requestCloseOnboardingTutorial}>
+        <div className="modalOverlay tutorialOverlay" onClick={completeOnboardingTutorial}>
           <div
             className="modalCard tutorialModalCard"
             ref={modalRef}
@@ -5536,101 +5512,94 @@ export default function App() {
             aria-labelledby="onboarding-tutorial-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="tutorialModalHeader">
-              <span className="tutorialEyebrow">
-                {tr(`Step ${currentSlideIndex + 1} of ${slideCount}`, `ステップ ${currentSlideIndex + 1} / ${slideCount}`)}
-              </span>
+            {/* header */}
+            <div className="tutorialHeader">
+              <div className="tutorialProgressTrack" aria-label={tr("Tutorial progress", "進行状況")}>
+                {ONBOARDING_TUTORIAL_SLIDES.map((_, index) => (
+                  <button
+                    type="button"
+                    key={index}
+                    className={`tutorialProgressSegment ${index <= currentSlideIndex ? "isActive" : ""}`}
+                    aria-label={tr(`Go to slide ${index + 1}`, `スライド ${index + 1} へ`)}
+                    aria-current={index === currentSlideIndex ? "step" : undefined}
+                    onClick={() => setOnboardingTutorialStep(index)}
+                  />
+                ))}
+              </div>
               <button
                 type="button"
                 className="tutorialCloseBtn"
-                aria-label={tr("Skip tutorial", "チュートリアルを閉じる")}
-                onClick={requestCloseOnboardingTutorial}
+                aria-label={tr("Skip tutorial", "スキップ")}
+                onClick={completeOnboardingTutorial}
               >
                 &times;
               </button>
             </div>
+
+            {/* slide body */}
             {currentSlide.type === "welcome" ? (
-                <div className="tutorialWelcomeSlide">
-                  <div className="tutorialWelcomeIcon" aria-hidden="true">✨</div>
-                  <div className="tutorialCopy tutorialWelcomeCopy">
-                    <h3 id="onboarding-tutorial-title">{currentSlide.title}</h3>
-                    <p>{currentSlide.body}</p>
-                  </div>
-                  <div className="tutorialWelcomeHighlights" aria-label={tr("Tutorial overview", "チュートリアル概要")}>
-                    {currentSlide.highlights.map((item) => (
-                      <span key={item}>{item}</span>
-                    ))}
-                  </div>
+              <div className="tutSlide tutSlide-welcome">
+                <div className="tutWelcomeLogo" aria-hidden="true">
+                  <img src="/vocab-logo-black.png" alt="" />
                 </div>
-              ) : currentSlide.type === "action" ? (
-                <div className="tutorialActionSlide">
-                  <div className="tutorialActionPreview" aria-hidden="true">
-                    <div className="tutorialActionPreviewHeader">
-                      <span>{tr("My First Book", "My First Book")}</span>
-                      <span>{tr("Definitions", "Definitions")}</span>
-                    </div>
-                    <div className="tutorialActionInputRow">
-                      <span>{tr("serendipity", "serendipity")}</span>
-                      <strong>+</strong>
-                    </div>
-                    <div className="tutorialActionResult">
-                      <strong>{tr("serendipity", "serendipity")}</strong>
-                      <p>{tr("A useful word saved with its definition, ready for flashcards and quizzes.", "A useful word saved with its definition, ready for flashcards and quizzes.")}</p>
-                    </div>
-                  </div>
-                  <div className="tutorialCopy tutorialActionCopy">
-                    <h3 id="onboarding-tutorial-title">{currentSlide.title}</h3>
-                    <p>{currentSlide.body}</p>
-                  </div>
+                <div className="tutWelcomeText">
+                  <h2 id="onboarding-tutorial-title">{currentSlide.title}</h2>
+                  <p>{currentSlide.body}</p>
                 </div>
-              ) : (
-                <>
-                  <div className="tutorialImageFrame">
-                    <img src={currentSlide.image} alt={currentSlide.alt} />
-                  </div>
-                  <div className="tutorialCopy">
-                    <h3 id="onboarding-tutorial-title">{currentSlide.title}</h3>
-                    <p>{currentSlide.body}</p>
-                  </div>
-                </>
-            )}
-            <div className="tutorialDots" aria-label={tr("Tutorial progress", "チュートリアル進行状況")}>
-              {ONBOARDING_TUTORIAL_SLIDES.map((slide, index) => (
+                <ul className="tutWelcomeFeatures" aria-label={tr("Key features", "主な機能")}>
+                  {currentSlide.features.map(({ label, detail }) => (
+                    <li key={label} className="tutWelcomeFeature">
+                      <span className="tutWelcomeFeatureLabel">{label}</span>
+                      <span className="tutWelcomeFeatureDetail">{detail}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : currentSlide.type === "steps" ? (
+              <div className="tutSlide tutSlide-steps">
+                <ol className="tutStepList" aria-label={tr("How it works", "使い方")}>
+                  {currentSlide.steps.map(({ n, label, detail }) => (
+                    <li key={n} className="tutStep">
+                      <span className="tutStepNum" aria-hidden="true">{n}</span>
+                      <div className="tutStepText">
+                        <span className="tutStepLabel">{label}</span>
+                        <span className="tutStepDetail">{detail}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+                <div className="tutSlideCopy">
+                  <h2 id="onboarding-tutorial-title">{currentSlide.title}</h2>
+                  <p>{currentSlide.body}</p>
+                </div>
+              </div>
+            ) : null}
+
+            {/* footer */}
+            <div className="tutorialFooter">
+              {currentSlideIndex > 0 ? (
                 <button
                   type="button"
-                  key={slide.title}
-                  className={`tutorialDot ${index === currentSlideIndex ? "isActive" : ""}`}
-                  aria-label={tr(`Go to step ${index + 1}`, `ステップ ${index + 1} へ`)}
-                  aria-current={index === currentSlideIndex ? "step" : undefined}
-                  onClick={() => {
-                    setOnboardingTutorialStep(index);
-                  }}
-                />
-              ))}
-            </div>
-            <div className="modalActions tutorialActions">
+                  className="tutBackBtn"
+                  onClick={() => setOnboardingTutorialStep((s) => Math.max(0, s - 1))}
+                >
+                  {tr("Back", "戻る")}
+                </button>
+              ) : (
+                <span />
+              )}
               <button
                 type="button"
-                className="modalBtn ghost"
-                onClick={() => {
-                  setOnboardingTutorialStep((step) => Math.max(0, step - 1));
-                }}
-                disabled={currentSlideIndex === 0}
-              >
-                {tr("Back", "戻る")}
-              </button>
-              <button
-                type="button"
-                className="modalBtn primary"
+                className="tutNextBtn"
                 onClick={() => {
                   if (isLastSlide) {
                     startGuidedDashboardTour();
-                    return;
+                  } else {
+                    setOnboardingTutorialStep((s) => Math.min(slideCount - 1, s + 1));
                   }
-                  setOnboardingTutorialStep((step) => Math.min(slideCount - 1, step + 1));
                 }}
               >
-                {isLastSlide ? tr("Start guided setup", "学習を始める") : tr("Next", "次へ")}
+                {isLastSlide ? tr("Start guided tour", "始める") : tr("Next", "次へ")}
               </button>
             </div>
           </div>
