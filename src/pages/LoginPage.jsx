@@ -366,29 +366,45 @@ export function LoginPage({ initialMode = "login" }) {
       if (isBearerAuthToken(authToken)) {
         sessionHeaders.Authorization = `Bearer ${authToken}`;
       }
-      try {
-        const sessionCheckResponse = await fetch(`${AUTH_API_PATH}/account`, {
-          credentials: "include",
-          headers: sessionHeaders,
-        });
-        if (!sessionCheckResponse.ok) {
+
+      // Verify the new session is reachable, retrying briefly for session-store propagation lag.
+      let sessionOk = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+        }
+        try {
+          const sessionCheckResponse = await fetch(`${AUTH_API_PATH}/account`, {
+            credentials: "include",
+            headers: sessionHeaders,
+          });
+          if (sessionCheckResponse.ok) {
+            sessionOk = true;
+            break;
+          }
           const sessionPayload = await sessionCheckResponse.json().catch(() => ({}));
           const sessionError = String(sessionPayload?.error || "").trim().toLowerCase();
           if (isAuthFailureErrorCode(sessionError)) {
+            // Definitive auth failure (e.g. CORS blocking the cookie) — retrying won't help.
             setError(
               "Login succeeded, but your browser blocked the session cookie. Check API/Frontend domain, CORS, and cookie SameSite/Secure settings."
             );
             return;
           }
-          // Non-auth failures here are usually transient; continue into /app and let route guard retry.
+          // 401 with unrecognized code or other non-ok: retry in case of propagation lag.
+        } catch {
+          if (attempt < 2) continue;
+          if (!isBearerAuthToken(authToken)) {
+            setError("Could not reach auth service. Check backend and try again.");
+            return;
+          }
+          sessionOk = true;
         }
-      } catch {
-        if (!isBearerAuthToken(authToken)) {
-          setError("Could not reach auth service. Check backend and try again.");
-          return;
-        }
-        // The login response already returned a bearer token, so do not make users click twice
-        // just because the follow-up session check had a transient network failure.
+      }
+
+      if (!sessionOk && !isBearerAuthToken(authToken)) {
+        setError("Your session could not be verified after login. Please try again.");
+        return;
       }
 
       navigateTo("/app");

@@ -318,7 +318,8 @@ function AppRoute() {
           const payload = await response.json().catch(() => ({}));
           const errorCode = String(payload?.error || "").trim().toLowerCase();
 
-          if (isAuthFailureErrorCode(errorCode)) {
+          // Treat all 401s as auth failures — retrying won't fix an authentication problem.
+          if (response.status === 401 || isAuthFailureErrorCode(errorCode)) {
             setStatus("guest");
             navigateTo("/login");
             return;
