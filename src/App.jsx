@@ -9147,6 +9147,7 @@ export default function App() {
     return renderWithSidebar(
       <VocabGallery
         authToken={authToken}
+        books={books}
         locale={appLocale}
         onBack={() => setScreen("dashboard")}
       />
@@ -9155,7 +9156,6 @@ export default function App() {
 
   return null;
 }
-
 
 
 

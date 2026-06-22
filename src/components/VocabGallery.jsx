@@ -1,4 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+
+const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
+  .trim()
+  .replace(/\/$/, "");
+const REVIEW_GALLERY_API_PATH = `${API_BASE_URL}/api/review/gallery`;
 
 function isBearerToken(value) {
   return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
@@ -27,8 +32,76 @@ const TIER_LABELS = {
 
 const TIERS = ["spark", "forming", "known", "mastered"];
 
-export function VocabGallery({ authToken, locale, onBack }) {
-  const tr = (en, ja) => locale === "ja" ? ja : en;
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function getSelectedDefinition(wordEntry) {
+  const definitions = Array.isArray(wordEntry?.definitions)
+    ? wordEntry.definitions.map((item) => normalizeText(item)).filter(Boolean)
+    : normalizeText(wordEntry?.definition)
+      ? [normalizeText(wordEntry.definition)]
+      : [];
+  if (!definitions.length) return "";
+  const rawIndex = Number(wordEntry?.currentDefinitionIndex ?? 0);
+  const safeIndex = Math.min(
+    Math.max(Number.isFinite(rawIndex) ? Math.floor(rawIndex) : 0, 0),
+    definitions.length - 1
+  );
+  return definitions[safeIndex];
+}
+
+function buildLocalGalleryWords(books) {
+  return (Array.isArray(books) ? books : []).flatMap((book) => {
+    const bookId = normalizeText(book?.id);
+    if (!bookId) return [];
+    const bookName = normalizeText(book?.name) || "Book";
+    const languageMode = normalizeText(book?.languageMode) || "en_en";
+    const chapterNameById = new Map(
+      (Array.isArray(book?.chapters) ? book.chapters : [])
+        .filter((chapter) => chapter && typeof chapter === "object")
+        .map((chapter) => [normalizeText(chapter?.id), normalizeText(chapter?.name) || "Chapter"])
+    );
+
+    return (Array.isArray(book?.words) ? book.words : [])
+      .map((wordEntry) => {
+        const word = normalizeText(wordEntry?.word);
+        if (!word) return null;
+        const chapterId = normalizeText(wordEntry?.chapterId) || "general";
+        const selectedDefinition = getSelectedDefinition(wordEntry);
+        const isEnJa = languageMode === "en_ja";
+
+        return {
+          displayWord: isEnJa ? selectedDefinition || word : word,
+          displayContext: isEnJa ? word : selectedDefinition,
+          languageMode,
+          bookId,
+          bookName,
+          chapterId,
+          chapterName: chapterNameById.get(chapterId) || (chapterId === "general" ? "General" : "Chapter"),
+          japaneseReading: normalizeText(
+            wordEntry?.japaneseReading ||
+              wordEntry?.reading ||
+              wordEntry?.pronunciation ||
+              wordEntry?.pronounciation
+          ),
+          exampleSentence: normalizeText(wordEntry?.exampleSentence),
+          exampleTranslation: normalizeText(wordEntry?.exampleTranslation),
+          dueCount: 0,
+          successStreak: 0,
+          lapseCount: 0,
+          easeFactor: 2.3,
+          intervalDays: 1,
+          lastRating: null,
+          lastReviewedAt: null,
+        };
+      })
+      .filter(Boolean);
+  });
+}
+
+export function VocabGallery({ authToken, locale, onBack, books: localBooks = [] }) {
+  const tr = useCallback((en, ja) => locale === "ja" ? ja : en, [locale]);
   const tierLabels = locale === "ja" ? TIER_LABELS.ja : TIER_LABELS.en;
 
   const [words, setWords] = useState([]);
@@ -45,7 +118,7 @@ export function VocabGallery({ authToken, locale, onBack }) {
     setError("");
     const headers = {};
     if (isBearerToken(authToken)) headers.Authorization = `Bearer ${authToken}`;
-    fetch("/api/review/gallery", { credentials: "include", headers })
+    fetch(REVIEW_GALLERY_API_PATH, { credentials: "include", headers })
       .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
       .then((data) => {
         const raw = data.words || [];
@@ -54,14 +127,20 @@ export function VocabGallery({ authToken, locale, onBack }) {
           displayWord: w.displayWord || w.word || "",
           displayContext: w.displayContext || (Array.isArray(w.definitions) ? w.definitions[0] : "") || "",
         }));
-        setWords(normalized);
+        setWords(normalized.length ? normalized : buildLocalGalleryWords(localBooks));
         setLoading(false);
       })
       .catch(() => {
+        const fallbackWords = buildLocalGalleryWords(localBooks);
+        if (fallbackWords.length) {
+          setWords(fallbackWords);
+          setLoading(false);
+          return;
+        }
         setError(tr("Could not load your vocab library.", "単語ライブラリを読み込めませんでした。"));
         setLoading(false);
       });
-  }, [authToken]);
+  }, [authToken, localBooks, tr]);
 
   const books = useMemo(() => {
     const seen = new Map();
