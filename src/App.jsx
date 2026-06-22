@@ -208,6 +208,7 @@ function parseTimestampMs(value) {
 function countStoredWords(rawBooks) {
   const books = Array.isArray(rawBooks) ? rawBooks : [];
   return books.reduce((total, book) => {
+    if (book?.starterBookId) return total;
     const words = Array.isArray(book?.words) ? book.words : [];
     return total + words.length;
   }, 0);
