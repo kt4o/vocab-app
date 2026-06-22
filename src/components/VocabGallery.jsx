@@ -48,7 +48,13 @@ export function VocabGallery({ authToken, locale, onBack }) {
     fetch("/api/review/gallery", { headers })
       .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
       .then((data) => {
-        setWords(data.words || []);
+        const raw = data.words || [];
+        const normalized = raw.map((w) => ({
+          ...w,
+          displayWord: w.displayWord || w.word || "",
+          displayContext: w.displayContext || (Array.isArray(w.definitions) ? w.definitions[0] : "") || "",
+        }));
+        setWords(normalized);
         setLoading(false);
       })
       .catch(() => {
