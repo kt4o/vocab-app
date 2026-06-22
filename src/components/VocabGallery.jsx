@@ -45,7 +45,7 @@ export function VocabGallery({ authToken, locale, onBack }) {
     setError("");
     const headers = {};
     if (isBearerToken(authToken)) headers.Authorization = `Bearer ${authToken}`;
-    fetch("/api/review/gallery", { headers })
+    fetch("/api/review/gallery", { credentials: "include", headers })
       .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
       .then((data) => {
         const raw = data.words || [];

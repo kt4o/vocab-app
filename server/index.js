@@ -29,6 +29,7 @@ const port = Number(process.env.PORT || 4000);
 const host = "0.0.0.0";
 const isProduction = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 const SESSION_COOKIE_NAME = String(process.env.AUTH_COOKIE_NAME || "vocab_session").trim() || "vocab_session";
+const JSON_BODY_LIMIT = String(process.env.JSON_BODY_LIMIT || "10mb").trim() || "10mb";
 const allowLocalhostInProduction =
   String(process.env.ALLOW_LOCALHOST_IN_PRODUCTION || "").trim().toLowerCase() === "true";
 const __filename = fileURLToPath(import.meta.url);
@@ -204,7 +205,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/billing/webhook", billingWebhookRouter);
-app.use(express.json());
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
 app.get("/api/health", (_req, res) => {
   res.json({
