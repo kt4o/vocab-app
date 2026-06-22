@@ -9302,3 +9302,315 @@ body.theme-dark .recentSquare.isPinned {
     width: 100%;
   }
 }
+
+/* ---- Vocab Gallery ---- */
+.galleryPage .pageHeader h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.galleryTotalBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 99px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.galleryTierBar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+}
+
+.galleryTierChip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.galleryTierChip:hover {
+  border-color: var(--surface-strong);
+}
+
+.galleryTierChip.isActive {
+  background: var(--surface-alt);
+  border-color: var(--accent);
+}
+
+.galleryTierChipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.galleryTierChip.tier-spark .galleryTierChipDot { background: #f59e0b; }
+.galleryTierChip.tier-forming .galleryTierChipDot { background: #3b82f6; }
+.galleryTierChip.tier-known .galleryTierChipDot { background: #22c55e; }
+.galleryTierChip.tier-mastered .galleryTierChipDot { background: #a855f7; }
+
+.galleryTierChipLabel {
+  font-weight: 500;
+}
+
+.galleryTierChipCount {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.galleryFilters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  align-items: center;
+}
+
+.gallerySearchInput {
+  flex: 1;
+  min-width: 140px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.gallerySearchInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.gallerySelectInput {
+  font-size: 13px;
+}
+
+.gallerySection {
+  margin-bottom: 20px;
+}
+
+.gallerySectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gallerySectionCount {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.galleryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.galleryCard {
+  display: flex;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  box-shadow: var(--shadow-soft);
+  width: 100%;
+}
+
+.galleryCard:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+.galleryCard.isExpanded {
+  border-color: var(--surface-strong);
+}
+
+.galleryCard.isTrouble {
+  border-color: color-mix(in srgb, #e5484d 30%, var(--border) 70%);
+}
+
+.galleryCardAccent {
+  width: 4px;
+  flex-shrink: 0;
+}
+
+.galleryCard.tier-spark .galleryCardAccent { background: #f59e0b; }
+.galleryCard.tier-forming .galleryCardAccent { background: #3b82f6; }
+.galleryCard.tier-known .galleryCardAccent { background: #22c55e; }
+.galleryCard.tier-mastered .galleryCardAccent { background: #a855f7; }
+
+.galleryCardBody {
+  flex: 1;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.galleryCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.galleryCardWordGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.galleryCardWord {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.galleryCardReading {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.galleryCardBadge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.galleryCardBadge.tier-spark { background: #fef3c7; color: #92400e; }
+.galleryCardBadge.tier-forming { background: #dbeafe; color: #1e40af; }
+.galleryCardBadge.tier-known { background: #dcfce7; color: #166534; }
+.galleryCardBadge.tier-mastered { background: #f3e8ff; color: #7e22ce; }
+
+.dark .galleryCardBadge.tier-spark { background: rgba(245,158,11,0.18); color: #fbbf24; }
+.dark .galleryCardBadge.tier-forming { background: rgba(59,130,246,0.18); color: #60a5fa; }
+.dark .galleryCardBadge.tier-known { background: rgba(34,197,94,0.18); color: #4ade80; }
+.dark .galleryCardBadge.tier-mastered { background: rgba(168,85,247,0.18); color: #c084fc; }
+
+.galleryMasteryBar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.galleryMasteryFill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.galleryMasteryFill.tier-spark { background: #f59e0b; }
+.galleryMasteryFill.tier-forming { background: #3b82f6; }
+.galleryMasteryFill.tier-known { background: #22c55e; }
+.galleryMasteryFill.tier-mastered { background: #a855f7; }
+
+.galleryCardStats {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  align-items: center;
+}
+
+.galleryStatLapse {
+  color: #e5484d;
+}
+
+.galleryCardExpanded {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.galleryCardDefinition {
+  font-size: 13px;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.galleryCardExample {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.galleryCardExampleText {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.galleryCardExampleTrans {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.galleryCardNoDetail {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.galleryLoadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+.galleryLoadingText,
+.galleryErrorText,
+.galleryNoResults {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 24px;
+}
+
+@media (max-width: 480px) {
+  .galleryGrid {
+    grid-template-columns: 1fr;
+  }
+}

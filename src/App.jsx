@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { AdaptiveReviewSession } from "./components/AdaptiveReviewSession";
+import { VocabGallery } from "./components/VocabGallery";
 import { JapaneseWordDisplay } from "./components/JapaneseWordDisplay";
 import { AudioButton } from "./components/AudioButton";
 import { Info, Settings } from "lucide-react";
@@ -3485,15 +3486,7 @@ export default function App() {
                 <span className="sidebarNavBtnLabel">{uiText.navMyBooks}</span>
                 <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDCDA"}</span>
               </button>
-              <button
-                type="button"
-                className={`sidebarNavBtn ${screen === "data" ? "isActive" : ""}`}
-                onClick={() => setScreen("data")}
-              >
-                <span className="sidebarNavBtnLabel">{uiText.navData}</span>
-                <span className="sidebarNavBtnEmoji" aria-hidden="true">{"\uD83D\uDCCA"}</span>
-              </button>
-              <button
+                            <button
                 type="button"
                 className={`sidebarNavBtn ${inDefinitions ? "isActive" : ""}`}
                 onClick={() => setScreen("definitionsSelect")}
@@ -5157,7 +5150,7 @@ export default function App() {
       if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
         throw new Error("invalid-backup-shape");
       }
-      applyAppDataSnapshot(rawData, { screenAfterApply: "data" });
+      applyAppDataSnapshot(rawData, { screenAfterApply: "dashboard" });
       openNoticeModal("Backup imported successfully.", "Import Complete");
     } catch {
       openNoticeModal("Invalid backup file. Please use a valid JSON backup.", "Import Failed");
@@ -7341,13 +7334,13 @@ export default function App() {
             <span>{"\uD83D\uDCDA"} {tr("My Books", "マイブック")}</span>
             <small className="settingsHint">{tr("Manage your word lists", "単語リストを管理")}</small>
           </button>
-          <button
+                    <button
             type="button"
             className="panelCard wide"
-            onClick={() => setScreen("data")}
+            onClick={() => setScreen("gallery")}
           >
-            <span>{"\uD83D\uDCCA"} {tr("Data", "データ")}</span>
-            <small className="settingsHint">{tr("View your progress", "進捗を確認")}</small>
+            <span>{"✨"} {tr("Vocab Library", "単語ライブラリ")}</span>
+            <small className="settingsHint">{tr("Words from your reviews", "復習で出会った単語")}</small>
           </button>
           {isMobileViewport ? (
             <button
@@ -7698,250 +7691,6 @@ export default function App() {
   }
 
   // ---------- DATA ----------
-  if (screen === "data") {
-    const overviewCards = [
-      { key: "daily", title: tr("Daily", "日次"), stats: activityDailyStats },
-      { key: "weekly", title: tr("Weekly", "週間"), stats: activityWeeklyStats },
-      { key: "monthly", title: tr("Monthly", "月間"), stats: activityMonthlyStats },
-      { key: "total", title: tr("Total", "累計"), stats: activityTotalStats },
-    ];
-    const selectedOverviewCard =
-      overviewCards.find((card) => card.key === selectedDataTimeframe) || overviewCards[1];
-    const chartTickFractions = [1, 0.75, 0.5, 0.25, 0];
-    const trendTicks = chartTickFractions.map((fraction, index) =>
-      index === chartTickFractions.length - 1 ? 0 : Math.round(maxTrendValue * fraction)
-    );
-    const questionTrendTicks = chartTickFractions.map((fraction, index) =>
-      index === chartTickFractions.length - 1 ? 0 : Math.round(maxQuestionTrendValue * fraction)
-    );
-    return renderWithSidebar(
-      <div className="page">
-        <div className="pageHeader">
-          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
-          <h1>{tr("Data", "データ")}</h1>
-        </div>
-
-        <div className="analyticsSection">
-          {isMobileViewport ? (
-            <>
-              <div className="dataTimeframeRow">
-                <label htmlFor="data-timeframe-select" className="dataTimeframeLabel">
-                  {tr("Timeframe", "期間")}
-                </label>
-                <select
-                  id="data-timeframe-select"
-                  className="settingsInput dataTimeframeSelect"
-                  value={selectedDataTimeframe}
-                  onChange={(event) => setSelectedDataTimeframe(String(event.target.value || "weekly"))}
-                >
-                  {overviewCards.map((card) => (
-                    <option key={card.key} value={card.key}>
-                      {card.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="activityOverviewGrid activityOverviewGridSingle">
-                <div className="activityOverviewCard">
-                  <h3>{selectedOverviewCard.title}</h3>
-                  <div className="activityOverviewStats">
-                    <div className="activityOverviewStat">
-                      <span>{tr("Questions", "問題数")}</span>
-                      <strong>{selectedOverviewCard.stats.questionsCompleted || 0}</strong>
-                    </div>
-                    <div className="activityOverviewStat">
-                      <span>{tr("Words", "単語")}</span>
-                      <strong>{selectedOverviewCard.stats.wordsAdded}</strong>
-                    </div>
-                    <div className="activityOverviewStat">
-                      <span>{tr("Time", "時間")}</span>
-                      <strong>{formatWeeklyTime(selectedOverviewCard.stats.timeSpentSeconds)}</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="activityOverviewGrid">
-              {overviewCards.map((card) => (
-                <div key={card.key} className="activityOverviewCard">
-                  <h3>{card.title}</h3>
-                  <div className="activityOverviewStats">
-                    <div className="activityOverviewStat">
-                      <span>{tr("Questions", "問題数")}</span>
-                      <strong>{card.stats.questionsCompleted || 0}</strong>
-                    </div>
-                    <div className="activityOverviewStat">
-                      <span>{tr("Words", "単語")}</span>
-                      <strong>{card.stats.wordsAdded}</strong>
-                    </div>
-                    <div className="activityOverviewStat">
-                      <span>{tr("Time", "時間")}</span>
-                      <strong>{formatWeeklyTime(card.stats.timeSpentSeconds)}</strong>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="analyticsGrid">
-            <div className="analyticsCard">
-              <h3>{tr("Words Added Over Time (Last 14 Days)", "追加単語の推移（過去14日）")}</h3>
-              <div className="chartGridLayout">
-                <div className="chartYAxis" aria-hidden="true">
-                  {trendTicks.map((tick, index) => (
-                    <span key={`trend-tick-${index}`}>{tick}</span>
-                  ))}
-                </div>
-                <div className="chartPlot">
-                  <div className="chartGridLines" aria-hidden="true">
-                    {chartTickFractions.map((fraction, index) => (
-                      <span key={`trend-line-${index}`} style={{ bottom: `${fraction * 100}%` }} />
-                    ))}
-                  </div>
-                  <div className="trendBars" role="img" aria-label={tr("Words added over last 14 days", "過去14日の追加単語")}>
-                    {wordTrend.map((item) => {
-                      const heightPercent = Math.round((item.value / maxTrendValue) * 100);
-                      return (
-                        <div className="trendBarCol" key={item.key}>
-                          <div
-                            className="trendBar"
-                            style={{ height: `${Math.max(heightPercent, item.value > 0 ? 6 : 0)}%` }}
-                            title={`${item.key}: ${item.value} words`}
-                          />
-                          <span>{item.label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="analyticsCard">
-              <h3>{tr("Questions Completed Over Time (Last 14 Days)", "解答数の推移（過去14日）")}</h3>
-              <div className="chartGridLayout">
-                <div className="chartYAxis" aria-hidden="true">
-                  {questionTrendTicks.map((tick, index) => (
-                    <span key={`question-trend-tick-${index}`}>{tick}</span>
-                  ))}
-                </div>
-                <div className="chartPlot">
-                  <div className="chartGridLines" aria-hidden="true">
-                    {chartTickFractions.map((fraction, index) => (
-                      <span key={`question-trend-line-${index}`} style={{ bottom: `${fraction * 100}%` }} />
-                    ))}
-                  </div>
-                  <div className="trendBars" role="img" aria-label={tr("Questions completed over last 14 days", "過去14日の解答数")}>
-                    {questionTrend.map((item) => {
-                      const heightPercent = Math.round((item.value / maxQuestionTrendValue) * 100);
-                      return (
-                        <div className="trendBarCol" key={item.key}>
-                          <div
-                            className="trendBar isQuestions"
-                            style={{ height: `${Math.max(heightPercent, item.value > 0 ? 6 : 0)}%` }}
-                            title={`${item.key}: ${item.value} questions`}
-                          />
-                          <span>{item.label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <div className="analyticsCard backupRestoreCard">
-            <h3>{tr("Backup & Restore", "バックアップと復元")}</h3>
-            <p className="quizSetupHint">
-              {tr("Export your full app data to JSON, or import a previous backup file.", "全データをJSONで出力、またはバックアップを読み込みできます。")}
-            </p>
-            <div className="quizResultActions">
-              <button type="button" className="primaryBtn" onClick={exportBackup}>
-                {tr("Export Backup", "バックアップを出力")}
-              </button>
-              <button
-                type="button"
-                className="primaryBtn"
-                onClick={() => backupFileInputRef.current?.click()}
-              >
-                {tr("Import Backup", "バックアップを読み込み")}
-              </button>
-              <input
-                ref={backupFileInputRef}
-                type="file"
-                accept="application/json,.json"
-                onChange={importBackup}
-                style={{ display: "none" }}
-              />
-            </div>
-          </div>
-        </div>
-        {renderModal()}
-      </div>
-    );
-  }
-
-  // ---------- PREMADE BOOKS ----------
-  if (screen === "premadeBooks") {
-    return renderWithSidebar(
-      <div className="page">
-        <div className="pageHeader">
-          <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("books")}>&times;</button>
-          <h1>{tr("Premade Books", "既製ブック")}</h1>
-        </div>
-        <div className="bookGrid selectBookGrid premadeBookGrid">
-          {PREMADE_BOOKS.map((premadeBook) => {
-            const importedBook = books.find(
-              (book) => String(book?.starterBookId || "") === premadeBook.id
-            );
-            const actionLabel = importedBook
-              ? tr("Open Book", "ブックを開く")
-              : tr("Import Book", "ブックを読み込む");
-            const handleAction = importedBook
-              ? () => {
-                  setCurrentBookId(importedBook.id);
-                  setScreen("bookMenu");
-                }
-              : importJapaneseStarterBook;
-
-            return (
-              <div key={premadeBook.id} className="selectBookCard premadeBookTile">
-                <div className="selectBookCardTop">
-                  <p className="starterBookEyebrow">
-                    {tr(premadeBook.typeLabel, premadeBook.typeLabelJa)}
-                  </p>
-                  <h3 className="selectBookTitle">{premadeBook.name}</h3>
-                  <p className="settingsHint">
-                    {tr(
-                      `${premadeBook.wordCount} beginner-friendly words across JLPT N5, N4, and an N3 starter top-up.`,
-                      `${premadeBook.wordCount}語をJLPT N5、N4、N3入門に分けて収録。`
-                    )}
-                  </p>
-                </div>
-                <p className="starterBookAttribution">
-                  {tr("Source:", "出典:")}{" "}
-                  <a href={premadeBook.sourceUrl} target="_blank" rel="noreferrer">
-                    {premadeBook.sourceName}
-                  </a>{" "}
-                  ({premadeBook.sourceLicense})
-                </p>
-                <button type="button" className="primaryBtn" onClick={handleAction}>
-                  {actionLabel}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-        {renderModal()}
-      </div>
-    );
-  }
-
-  // ---------- BOOKS ----------
   if (screen === "books") {
     return renderWithSidebar(
       <div className="page">
@@ -9334,6 +9083,16 @@ export default function App() {
         QUIZ_SUCCESS_PROMPTS={isJapaneseUi ? QUIZ_SUCCESS_PROMPTS_JA : QUIZ_SUCCESS_PROMPTS}
         QUIZ_MISS_PROMPTS={isJapaneseUi ? QUIZ_MISS_PROMPTS_JA : QUIZ_MISS_PROMPTS}
         locale={appLocale}
+      />
+    );
+  }
+
+  if (screen === "gallery") {
+    return renderWithSidebar(
+      <VocabGallery
+        authToken={authToken}
+        locale={appLocale}
+        onBack={() => setScreen("dashboard")}
       />
     );
   }

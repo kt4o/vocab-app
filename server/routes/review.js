@@ -101,6 +101,7 @@ function buildWordCatalog(appState) {
         bookId,
         bookName,
         newWordLimit,
+        languageMode: normalizeText(book?.languageMode) || "en_en",
         chapterId,
         chapterName: chapterNameById.get(chapterId) || (chapterId === "general" ? "General" : "Chapter"),
         word,
@@ -424,6 +425,68 @@ reviewRouter.get("/summary", async (req, res) => {
     });
   } catch {
     res.status(500).json({ error: "review-summary-query-failed" });
+  }
+});
+
+reviewRouter.get("/gallery", async (req, res) => {
+  const userId = req.authUser.id;
+  const filterBookId = normalizeText(req.query?.bookId);
+
+  try {
+    const wordCatalog = await loadUserWordCatalog(userId);
+
+    const params = [userId];
+    let sql = `
+      SELECT book_id, chapter_id, word, due_count, success_streak, lapse_count,
+             ease_factor, interval_days, last_rating, last_reviewed_at
+      FROM word_review_state
+      WHERE user_id = $1 AND last_reviewed_at IS NOT NULL
+    `;
+    if (filterBookId) {
+      params.push(filterBookId);
+      sql += ` AND book_id = $${params.length}`;
+    }
+    sql += ` ORDER BY last_reviewed_at DESC`;
+
+    const result = await query(sql, params);
+
+    const words = result.rows.map((row) => {
+      const catalogKey = `${row.book_id}:${row.chapter_id}:${normalizeWordKey(row.word)}`;
+      const catalogItem = wordCatalog.get(catalogKey);
+      if (!catalogItem || catalogItem.languageMode === "en_en") return null;
+
+      const isEnJa = catalogItem.languageMode === "en_ja";
+      const displayWord = isEnJa
+        ? (catalogItem.selectedDefinition || catalogItem.definitions[0] || "")
+        : row.word;
+      const displayContext = isEnJa
+        ? row.word
+        : (catalogItem.selectedDefinition || catalogItem.definitions[0] || "");
+
+      return {
+        displayWord,
+        displayContext,
+        languageMode: catalogItem.languageMode,
+        bookId: row.book_id,
+        bookName: catalogItem.bookName,
+        chapterId: row.chapter_id,
+        chapterName: catalogItem.chapterName,
+        japaneseReading: catalogItem.japaneseReading || "",
+        exampleSentence: catalogItem.exampleSentence || "",
+        exampleTranslation: catalogItem.exampleTranslation || "",
+        dueCount: Math.floor(Number(row.due_count) || 0),
+        successStreak: Math.floor(Number(row.success_streak) || 0),
+        lapseCount: Math.floor(Number(row.lapse_count) || 0),
+        easeFactor: Number(row.ease_factor) || 2.3,
+        intervalDays: Number(row.interval_days) || 1,
+        lastRating: row.last_rating || null,
+        lastReviewedAt: row.last_reviewed_at || null,
+      };
+    }).filter(Boolean);
+
+    res.json({ words });
+  } catch {
+    res.status(500).json({ error: "gallery-query-failed" });
   }
 });
 
