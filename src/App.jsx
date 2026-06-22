@@ -7691,6 +7691,62 @@ export default function App() {
   }
 
   // ---------- DATA ----------
+  // ---------- PREMADE BOOKS ----------
+  if (screen === "premadeBooks") {
+    return renderWithSidebar(
+      <div className="page">
+        <div className="pageHeader">
+          <button className="backBtn" aria-label={tr("Go back", "戻る")} onClick={() => setScreen("books")}>&times;</button>
+          <h1>{tr("Premade Books", "既製ブック")}</h1>
+        </div>
+        <div className="bookGrid selectBookGrid premadeBookGrid">
+          {PREMADE_BOOKS.map((premadeBook) => {
+            const importedBook = books.find(
+              (book) => String(book?.starterBookId || "") === premadeBook.id
+            );
+            const actionLabel = importedBook
+              ? tr("Open Book", "ブックを開く")
+              : tr("Import Book", "ブックを読み込む");
+            const handleAction = importedBook
+              ? () => {
+                  setCurrentBookId(importedBook.id);
+                  setScreen("bookMenu");
+                }
+              : importJapaneseStarterBook;
+
+            return (
+              <div key={premadeBook.id} className="selectBookCard premadeBookTile">
+                <div className="selectBookCardTop">
+                  <p className="starterBookEyebrow">
+                    {tr(premadeBook.typeLabel, premadeBook.typeLabelJa)}
+                  </p>
+                  <h3 className="selectBookTitle">{premadeBook.name}</h3>
+                  <p className="settingsHint">
+                    {tr(
+                      `${premadeBook.wordCount} beginner-friendly words across JLPT N5, N4, and an N3 starter top-up.`,
+                      `${premadeBook.wordCount}語をJLPT N5、N4、N3入門に分けて収録。`
+                    )}
+                  </p>
+                </div>
+                <p className="starterBookAttribution">
+                  {tr("Source:", "出典:")}{" "}
+                  <a href={premadeBook.sourceUrl} target="_blank" rel="noreferrer">
+                    {premadeBook.sourceName}
+                  </a>{" "}
+                  ({premadeBook.sourceLicense})
+                </p>
+                <button type="button" className="primaryBtn" onClick={handleAction}>
+                  {actionLabel}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        {renderModal()}
+      </div>
+    );
+  }
+
   if (screen === "books") {
     return renderWithSidebar(
       <div className="page">
