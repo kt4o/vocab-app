@@ -8143,20 +8143,7 @@ export default function App() {
           </div>
           {renderGuidedTourCoach("inline", "word-type")}
         </div>
-        <p className="definitionAttributionNote">
-          {currentBookLanguageModeMeta.attribution ||
-            (useEnglishToJapaneseDictionary
-              ? uiText.definitionAttributionTranslator
-              : uiText.definitionAttributionDictionary)}
-        </p>
-        {!isProPlan ? (
-          <p className={`definitionAttributionNote ${isFreeWordLimitReached ? "isWarning" : ""}`}>
-            Free plan: {totalSavedWordCount} / {FREE_WORD_LIMIT} saved words
-            {isFreeWordLimitReached ? ". Delete words or go Pro to add more." : ` (${freeWordLimitRemaining} left).`}
-          </p>
-        ) : (
-          <p className="definitionAttributionNote">Pro plan: unlimited saved words.</p>
-        )}
+
         <div className="chapterControlsRow">
           <div className="chapterControlField">
             <span>{uiText.autoAssignChapters}</span>

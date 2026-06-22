@@ -1,13 +1,13 @@
 import { getJapaneseWordMeta } from "../lib/japaneseText";
 
-export function JapaneseWordDisplay({ wordEntry, className = "" }) {
+export function JapaneseWordDisplay({ wordEntry, className = "", showRomaji = true }) {
   const meta = getJapaneseWordMeta(wordEntry);
   const word = String(wordEntry?.word || "").trim();
 
   if (!meta) return <span className={className}>{word}</span>;
 
   const hasFurigana = meta.reading && meta.reading !== meta.word;
-  const showRomaji = meta.romaji && meta.romaji !== meta.word && meta.romaji !== meta.reading;
+  const canShowRomaji = showRomaji && meta.romaji && meta.romaji !== meta.word && meta.romaji !== meta.reading;
 
   return (
     <span className={`japaneseWordDisplay ${className}`.trim()}>
@@ -21,7 +21,7 @@ export function JapaneseWordDisplay({ wordEntry, className = "" }) {
           meta.word
         )}
       </span>
-      {showRomaji ? <span className="japaneseRomajiText">{meta.romaji}</span> : null}
+      {canShowRomaji ? <span className="japaneseRomajiText">{meta.romaji}</span> : null}
     </span>
   );
 }

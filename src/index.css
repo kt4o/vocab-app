@@ -9163,6 +9163,73 @@ body.theme-dark .recentSquare.isPinned {
     display: none;
   }
 
+  .adaptiveReviewHeroCopy {
+    display: none;
+  }
+
+  .adaptiveReviewHeroCard {
+    padding: 10px 14px;
+  }
+
+  .adaptiveReviewPromptLabel {
+    display: none;
+  }
+
+  /* Full-viewport flex layout so nothing scrolls */
+  .adaptiveReviewPage {
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 12px;
+  }
+
+  .adaptiveReviewPage .analyticsSection {
+    flex: 1;
+    min-height: 0;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .adaptiveReviewPage .adaptiveReviewHeroCard {
+    display: none;
+  }
+
+  .adaptiveReviewPage .adaptiveReviewSection > .analyticsCard + .analyticsCard {
+    margin-top: 0;
+  }
+
+  .adaptiveReviewPage .adaptiveReviewCard {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .adaptiveReviewPage .adaptiveReviewFlashcardWrap {
+    flex: 1;
+    min-height: 0;
+    margin-bottom: 8px;
+  }
+
+  .adaptiveReviewPage .adaptiveReviewFlashcard,
+  .adaptiveReviewPage .adaptiveReviewFlashcardInner {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .adaptiveReviewPage .adaptiveReviewRatingBtn {
+    min-height: 60px;
+  }
+
+  .chapterControlsRow .chapterControlField > span {
+    display: none;
+  }
+
+  .chapterControlsRow {
+    margin-bottom: 10px;
+  }
+
   .settingsRow {
     flex-direction: column;
     align-items: stretch;

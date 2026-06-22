@@ -212,7 +212,7 @@ function buildDisplayRows(item, sideSettings, selectedDefinition) {
   pushRow(
     "word",
     "Word",
-    <JapaneseWordDisplay wordEntry={item} />,
+    <JapaneseWordDisplay wordEntry={item} showRomaji={false} />,
     "adaptiveReviewDisplayValueWord",
     [wordText, readingText, pronunciationText].filter(Boolean).join(" "),
     shouldSpeakJapaneseWord ? wordText : "",
@@ -352,7 +352,7 @@ export function AdaptiveReviewSession({
   }, [showAnswer]);
 
   return (
-    <div className="page">
+    <div className="page adaptiveReviewPage">
       <div className="pageHeader">
         <button className="backBtn" aria-label="Go back" onClick={goBack}>&times;</button>
         <h1>{title}</h1>
