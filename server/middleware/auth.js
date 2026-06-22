@@ -49,6 +49,11 @@ export function getAuthTokenFromRequest(req) {
   return getCookieToken(req);
 }
 
+function getAuthTokenCandidates(req) {
+  const tokens = [getBearerToken(req), getCookieToken(req)].filter(Boolean);
+  return Array.from(new Set(tokens));
+}
+
 function normalizeUserRole(value) {
   const normalized = String(value || "")
     .trim()
@@ -57,54 +62,60 @@ function normalizeUserRole(value) {
 }
 
 export async function requireAuth(req, res, next) {
-  const token = getAuthTokenFromRequest(req);
-  if (!token) {
+  const tokens = getAuthTokenCandidates(req);
+  if (tokens.length === 0) {
     res.status(401).json({ error: "missing-auth-token" });
     return;
   }
 
-  let user = null;
-  try {
-    const result = await query(
-      "SELECT id, username, plan, lifetime_pro, role, auth_token_created_at FROM users WHERE auth_token = $1",
-      [token]
-    );
-    user = result.rows[0] || null;
-  } catch {
-    res.status(500).json({ error: "auth-query-failed" });
-    return;
-  }
-
-  if (!user) {
-    res.status(401).json({ error: "invalid-auth-token" });
-    return;
-  }
-
-  const tokenCreatedAtMs = Date.parse(user.auth_token_created_at);
-  const tokenAgeMs = Date.now() - tokenCreatedAtMs;
-  if (!Number.isFinite(tokenCreatedAtMs) || tokenAgeMs > AUTH_TOKEN_MAX_AGE_MS) {
-    // Best-effort cleanup: clear stale token so future requests fail fast.
+  let lastAuthError = "invalid-auth-token";
+  for (const token of tokens) {
+    let user = null;
     try {
-      await query("UPDATE users SET auth_token = NULL, auth_token_created_at = NULL WHERE id = $1 AND auth_token = $2", [
-        user.id,
-        token,
-      ]);
+      const result = await query(
+        "SELECT id, username, plan, lifetime_pro, role, auth_token_created_at FROM users WHERE auth_token = $1",
+        [token]
+      );
+      user = result.rows[0] || null;
     } catch {
-      // Ignore cleanup failures and still deny the request.
+      res.status(500).json({ error: "auth-query-failed" });
+      return;
     }
-    res.status(401).json({ error: "expired-auth-token" });
+
+    if (!user) {
+      lastAuthError = "invalid-auth-token";
+      continue;
+    }
+
+    const tokenCreatedAtMs = Date.parse(user.auth_token_created_at);
+    const tokenAgeMs = Date.now() - tokenCreatedAtMs;
+    if (!Number.isFinite(tokenCreatedAtMs) || tokenAgeMs > AUTH_TOKEN_MAX_AGE_MS) {
+      // Best-effort cleanup: clear stale token so future requests fail fast.
+      try {
+        await query("UPDATE users SET auth_token = NULL, auth_token_created_at = NULL WHERE id = $1 AND auth_token = $2", [
+          user.id,
+          token,
+        ]);
+      } catch {
+        // Ignore cleanup failures and still try any remaining auth candidates.
+      }
+      lastAuthError = "expired-auth-token";
+      continue;
+    }
+
+    const normalizedPlan = String(user.plan || "").trim().toLowerCase() === "pro" ? "pro" : "free";
+    const isLifetimePro = Boolean(user.lifetime_pro);
+    req.authUser = {
+      id: user.id,
+      username: user.username,
+      plan: isLifetimePro ? "pro" : normalizedPlan,
+      isLifetimePro,
+      role: normalizeUserRole(user.role),
+    };
+    req.authToken = token;
+    next();
     return;
   }
 
-  const normalizedPlan = String(user.plan || "").trim().toLowerCase() === "pro" ? "pro" : "free";
-  const isLifetimePro = Boolean(user.lifetime_pro);
-  req.authUser = {
-    id: user.id,
-    username: user.username,
-    plan: isLifetimePro ? "pro" : normalizedPlan,
-    isLifetimePro,
-    role: normalizeUserRole(user.role),
-  };
-  req.authToken = token;
-  next();
+  res.status(401).json({ error: lastAuthError });
 }
