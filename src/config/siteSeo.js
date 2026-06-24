@@ -1,7 +1,7 @@
 export const ROUTE_SEO = {
   landing: {
     path: "/",
-    title: "Vocabulary App for English-Speaking Language Learners | Vocalibry",
+    title: "Vocalibry - Never forget a word again",
     description:
       "Save target-language words from study, reading, manga, or class notes. Review English meanings, translations, and Japanese vocabulary with flashcards and quizzes.",
     indexable: true,
