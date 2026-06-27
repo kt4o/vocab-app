@@ -123,7 +123,9 @@ textarea {
 .appShell.isGuidedLocked .guidedCoach,
 .appShell.isGuidedLocked .guidedCoach *,
 .appShell.isGuidedLocked .sidebar,
-.appShell.isGuidedLocked .sidebar * {
+.appShell.isGuidedLocked .sidebar *,
+.appShell.isGuidedLocked .mobileTourBanner,
+.appShell.isGuidedLocked .mobileTourBanner * {
   pointer-events: auto;
 }
 
@@ -3012,154 +3014,43 @@ body.theme-dark .modalBtn.primary {
 }
 
 .tutorialModalCard {
-  width: min(560px, 100%);
+  width: min(480px, 100%);
   max-height: calc(100vh - 36px);
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 0;
-  padding: 0;
+  padding: 28px 24px 20px;
   overflow: hidden;
 }
 
-/* header bar */
-.tutorialHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px 12px;
-  border-bottom: 1px solid var(--border);
-  flex: 0 0 auto;
-}
-
-.tutorialProgressTrack {
-  display: flex;
-  gap: 6px;
-  flex: 1 1 auto;
-}
-
-.tutorialProgressSegment {
-  height: 3px;
-  flex: 1 1 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--border);
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.tutorialProgressSegment.isActive {
-  background: var(--accent);
-}
-
-.tutorialCloseBtn {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  flex: 0 0 auto;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.tutorialCloseBtn:hover {
-  background: var(--surface-alt);
-  color: var(--text);
-}
-
-/* slide container */
-.tutSlide {
-  flex: 1 1 auto;
-  overflow: auto;
-  padding: 28px 24px 20px;
+.tutIntroTop {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
+  flex: 1 1 auto;
+  overflow: auto;
 }
 
-/* welcome slide */
-.tutSlide-welcome {
-  align-items: flex-start;
-}
-
-.tutWelcomeLogo {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface-alt);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  flex: 0 0 auto;
-}
-
-.tutWelcomeLogo img {
-  width: 28px;
-  height: 28px;
+.tutIntroLogo {
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 
-.tutWelcomeText h2 {
-  font-size: 26px;
+.tutIntroHeadline {
+  font-size: 24px;
   font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  margin-bottom: 8px;
-}
-
-.tutWelcomeText p {
-  color: var(--muted);
-  font-size: 15px;
-  line-height: 1.5;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
   margin: 0;
 }
 
-.tutWelcomeFeatures {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.tutWelcomeFeature {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.tutWelcomeFeature:last-child {
-  border-bottom: none;
-}
-
-.tutWelcomeFeatureLabel {
-  font-size: 14px;
-  font-weight: 650;
-  color: var(--text);
-  flex: 0 0 120px;
-}
-
-.tutWelcomeFeatureDetail {
-  font-size: 14px;
+.tutIntroBody {
+  font-size: 15px;
   color: var(--muted);
-  line-height: 1.4;
-}
-
-/* steps slide */
-.tutSlide-steps {
-  gap: 20px;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .tutStepList {
@@ -3170,14 +3061,15 @@ body.theme-dark .modalBtn.primary {
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  counter-reset: none;
+  margin: 0;
+  padding: 0;
 }
 
 .tutStep {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -3186,12 +3078,12 @@ body.theme-dark .modalBtn.primary {
 }
 
 .tutStepNum {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--accent);
   color: var(--primary-foreground);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -3221,97 +3113,142 @@ body.theme-dark .tutStepNum {
   color: var(--muted);
 }
 
-.tutSlideCopy h2 {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin-bottom: 6px;
-}
-
-.tutSlideCopy p {
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.55;
-  margin: 0;
-}
-
-/* footer */
-.tutorialFooter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px;
-  border-top: 1px solid var(--border);
-  flex: 0 0 auto;
-}
-
-.tutBackBtn {
-  height: 38px;
-  padding: 0 16px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.tutBackBtn:hover {
-  background: var(--surface-alt);
-  color: var(--text);
-}
-
-.tutNextBtn {
-  height: 38px;
-  padding: 0 20px;
-  border: 1px solid var(--accent);
-  border-radius: 9px;
+.tutStartBtn {
+  margin-top: 20px;
+  width: 100%;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
   background: var(--accent);
   color: var(--primary-foreground);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s ease;
+  flex: 0 0 auto;
 }
 
-.tutNextBtn:hover {
-  opacity: 0.85;
+.tutStartBtn:hover {
+  opacity: 0.88;
+}
+
+.tutSkipLink {
+  margin-top: 10px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease;
+  flex: 0 0 auto;
+}
+
+.tutSkipLink:hover {
+  color: var(--text);
 }
 
 @media (max-width: 700px) {
   .tutorialOverlay {
     align-items: flex-end;
-    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    padding: 0;
   }
 
   .tutorialModalCard {
-    max-height: calc(100dvh - 20px);
-    border-radius: 16px;
+    width: 100%;
+    max-height: calc(100dvh - 60px);
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px max(20px, env(safe-area-inset-bottom));
     overscroll-behavior: contain;
   }
 
-  .tutSlide {
-    padding: 20px 16px 16px;
-  }
-
-  .tutWelcomeText h2 {
+  .tutIntroHeadline {
     font-size: 22px;
   }
+}
 
-  .tutorialFooter {
-    padding: 12px 14px;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-  }
+/* ── MOBILE TOUR BANNER ──────────────────────────────────────────── */
 
-  .tutNextBtn,
-  .tutBackBtn {
-    height: 44px;
-  }
+.mobileTourBanner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1010;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 14px 16px;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
+  animation: mobileTourBannerIn 0.22s ease;
+}
 
-  .guidedCoach {
+@keyframes mobileTourBannerIn {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.mobileTourBannerContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mobileTourBannerStep {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.mobileTourBannerTitle {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.mobileTourBannerBody {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.mobileTourBannerSkip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 8px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mobileTourBannerSkip:hover {
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.appShell.hasMobileTourBanner .page {
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 701px) {
+  .mobileTourBanner {
     display: none;
   }
 }
@@ -3441,6 +3378,12 @@ body.theme-dark .tutStepNum {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .guidedCoach {
+    display: none;
+  }
 }
 
 .guidedCoach-floating {
@@ -5873,6 +5816,100 @@ body.theme-dark .recentSquare.isPinned {
   align-items: center;
   gap: 16px;
   margin-bottom: 30px;
+}
+
+/* ── REVIEW SELECT ───────────────────────────────────────────────── */
+
+.reviewSelectPage {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.reviewSelectList {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.reviewSelectCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 16px;
+  width: 140px;
+  height: 140px;
+  flex: 0 0 140px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+@media (max-width: 700px) {
+  .reviewSelectList {
+    gap: 10px;
+  }
+
+  .reviewSelectCard {
+    flex: 1 1 0;
+    width: auto;
+    height: 120px;
+    padding: 16px 10px;
+  }
+}
+
+.reviewSelectCard:hover {
+  background: var(--surface-alt);
+  border-color: var(--surface-strong);
+}
+
+.reviewSelectCardIcon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.reviewSelectCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reviewSelectCardTitle {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.reviewSelectCardDesc {
+  display: none;
+}
+
+.reviewSelectCardBadge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--primary-foreground);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .backBtn {
@@ -9052,6 +9089,20 @@ body.theme-dark .recentSquare.isPinned {
   .recentScroll.hasGuidedCoach {
     overflow-x: auto;
     overflow-y: hidden;
+  }
+
+  /* outline/box-shadow are clipped by overflow:hidden on mobile — use border + pulse instead */
+  .recentBar .guidedTarget {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: var(--accent) !important;
+    border-width: 2px !important;
+    animation: mobileAddPulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes mobileAddPulse {
+    0%, 100% { background: var(--surface-alt); }
+    50%       { background: color-mix(in srgb, var(--accent) 18%, var(--surface-alt)); }
   }
 
   .guidedCoach::before,

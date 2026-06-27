@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { Flashcards } from "./components/Flashcards";
 import { Quiz } from "./components/Quiz";
 import { AdaptiveReviewSession } from "./components/AdaptiveReviewSession";
@@ -2080,28 +2080,15 @@ const QUIZ_MISS_PROMPTS_JA = [
   "よく挑戦しました。復習すれば次は正解できます。",
 ];
 
-const ONBOARDING_TUTORIAL_SLIDES = [
-  {
-    type: "welcome",
-    title: "Welcome to Vocalibry",
-    body: "Build vocabulary that actually sticks — one word at a time.",
-    features: [
-      { label: "Books", detail: "Organize words by subject, course, or language" },
-      { label: "Auto-definitions", detail: "Type a word and Vocalibry fills in the meaning" },
-      { label: "Smart Review", detail: "Spaced repetition that focuses on what you're forgetting" },
-    ],
-  },
-  {
-    type: "steps",
-    title: "Done in under two minutes",
-    body: "The guided tour walks you through the whole loop. You can skip it anytime.",
-    steps: [
-      { n: "1", label: "Create a book", detail: "Name it and pick a language mode" },
-      { n: "2", label: "Add words", detail: "Auto-fetched definitions, no dictionary needed" },
-      { n: "3", label: "Start a quiz", detail: "Flashcards, quizzes, or Smart Review" },
-    ],
-  },
-];
+const ONBOARDING_TUTORIAL_SLIDE = {
+  title: "Welcome to Vocalibry",
+  body: "Build vocabulary that actually sticks — one word at a time.",
+  steps: [
+    { n: "1", label: "Create a book", detail: "Name it and pick a language mode" },
+    { n: "2", label: "Add words", detail: "Auto-fetched definitions, no dictionary needed" },
+    { n: "3", label: "Start a quiz", detail: "Flashcards, quizzes, or Smart Review" },
+  ],
+};
 
 function getOnboardingSeenStorageKey(username) {
   const safeUsername = String(username || "account").trim().toLowerCase() || "account";
@@ -2120,9 +2107,9 @@ function getGuidedTourTargetSelector(step) {
   if (step === "word-type") return ".addWordFieldGroup input";
   if (step === "word-add" || step === "word-saving") return ".addWordBtn";
   if (step === "definitions-back") return ".pageHeader .backBtn";
-  if (step === "book-quiz") return ".bookModeGrid .guidedControlAnchor:last-child .bookModeCard";
-  if (step === "quiz-start") return ".quizFastStartActions .primaryBtn";
+  if (step === "book-adaptive") return ".bookModeGrid .guidedControlAnchor .bookModeCard";
   return "";
+
 }
 
 function normalizeExampleFuriganaSegments(value) {
@@ -3442,7 +3429,7 @@ export default function App() {
     };
 
     return (
-      <div className={`appShell ${guidedTourStep && !isOnboardingTutorialOpen ? "isGuidedLocked" : ""} ${isGuidedModalOpen ? "hasGuidedModalOpen" : ""}`}>
+      <div className={`appShell ${guidedTourStep && !isOnboardingTutorialOpen ? "isGuidedLocked" : ""} ${isGuidedModalOpen ? "hasGuidedModalOpen" : ""} ${isGuidedTourMobile && guidedTourStep && !isOnboardingTutorialOpen ? "hasMobileTourBanner" : ""}`}>
         <aside
           ref={sidebarRef}
           className={`sidebar ${isSidebarHidden ? "isCollapsed" : ""}`}
@@ -3568,6 +3555,7 @@ export default function App() {
         <main className="appMain">
           {mainContent}
           {renderGuidedTourCoach("floating")}
+          {renderMobileTourBanner()}
         </main>
       </div>
     );
@@ -5268,23 +5256,23 @@ export default function App() {
       };
     }
 
-    if (guidedTourStep === "book-quiz") {
+    if (guidedTourStep === "book-adaptive") {
       return {
-        key: "book-quiz",
+        key: "book-adaptive",
         stepLabel: tr("Step 3 of 3", "Step 3 of 3"),
-        title: tr("Open Quiz", "Open Quiz"),
+        title: tr("Open Adaptive Review", "Open Adaptive Review"),
         body: tr("Review the words you just saved.", "Review the words you just saved."),
       };
     }
 
-    if (guidedTourStep === "quiz-start") {
-      return {
-        key: "quiz-start",
-        stepLabel: tr("Step 3 of 3", "Step 3 of 3"),
-        title: tr("Start the quiz", "Start the quiz"),
-        body: tr("Press Start Smart Quiz to begin.", "Press Start Smart Quiz to begin."),
-      };
-    }
+
+
+
+
+
+
+
+
 
     return null;
   }
@@ -5294,10 +5282,10 @@ export default function App() {
     if (!guidedStep || isOnboardingTutorialOpen) return null;
     if (targetKey && guidedStep.key !== targetKey) return null;
     if (!targetKey && screen === "dashboard" && guidedStep.key === "dashboard-add-book") return null;
-    if (!targetKey && screen === "bookMenu" && (guidedStep.key === "book-definitions" || guidedStep.key === "book-quiz")) return null;
+    if (!targetKey && screen === "bookMenu" && (guidedStep.key === "book-definitions" || guidedStep.key === "book-adaptive")) return null;
     if (!targetKey && screen === "definitions" && ["word-type", "word-add", "word-saving", "definitions-back"].includes(guidedStep.key)) return null;
     if (!targetKey && isAddBookModalOpen && ["book-name", "book-create"].includes(guidedStep.key)) return null;
-    if (!targetKey && screen === "quizSelect" && guidedStep.key === "quiz-start") return null;
+
 
     return (
       <aside className={`guidedCoach guidedCoach-${guidedStep.key} guidedCoach-${placement}`} aria-live="polite">
@@ -5317,6 +5305,28 @@ export default function App() {
         <h2>{guidedStep.title}</h2>
         <p>{guidedStep.body}</p>
       </aside>
+    );
+  }
+
+  function renderMobileTourBanner() {
+    if (!isGuidedTourMobile) return null;
+    const guidedStep = getGuidedTourStep();
+    if (!guidedStep || isOnboardingTutorialOpen) return null;
+    return (
+      <div className="mobileTourBanner" role="status" aria-live="polite">
+        <div className="mobileTourBannerContent">
+          <span className="mobileTourBannerStep">{guidedStep.stepLabel}</span>
+          <strong className="mobileTourBannerTitle">{guidedStep.title}</strong>
+          <p className="mobileTourBannerBody">{guidedStep.body}</p>
+        </div>
+        <button
+          type="button"
+          className="mobileTourBannerSkip"
+          onClick={() => { setIsGuidedTourDismissed(true); setGuidedTourStep(""); }}
+        >
+          {tr("Skip", "スキップ")}
+        </button>
+      </div>
     );
   }
 
@@ -5494,116 +5504,43 @@ export default function App() {
   ]);
 
   function renderModal() {
-    if (isOnboardingTutorialOpen) {
-      const slideCount = ONBOARDING_TUTORIAL_SLIDES.length;
-      const currentSlideIndex = Math.min(onboardingTutorialStep, slideCount - 1);
-      const currentSlide = ONBOARDING_TUTORIAL_SLIDES[currentSlideIndex];
-      const isLastSlide = currentSlideIndex === slideCount - 1;
-
-      return (
-        <div className="modalOverlay tutorialOverlay" onClick={completeOnboardingTutorial}>
-          <div
-            className="modalCard tutorialModalCard"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="onboarding-tutorial-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* header */}
-            <div className="tutorialHeader">
-              <div className="tutorialProgressTrack" aria-label={tr("Tutorial progress", "進行状況")}>
-                {ONBOARDING_TUTORIAL_SLIDES.map((_, index) => (
-                  <button
-                    type="button"
-                    key={index}
-                    className={`tutorialProgressSegment ${index <= currentSlideIndex ? "isActive" : ""}`}
-                    aria-label={tr(`Go to slide ${index + 1}`, `スライド ${index + 1} へ`)}
-                    aria-current={index === currentSlideIndex ? "step" : undefined}
-                    onClick={() => setOnboardingTutorialStep(index)}
-                  />
-                ))}
-              </div>
-              <button
-                type="button"
-                className="tutorialCloseBtn"
-                aria-label={tr("Skip tutorial", "スキップ")}
-                onClick={completeOnboardingTutorial}
-              >
-                &times;
-              </button>
-            </div>
-
-            {/* slide body */}
-            {currentSlide.type === "welcome" ? (
-              <div className="tutSlide tutSlide-welcome">
-                <div className="tutWelcomeLogo" aria-hidden="true">
-                  <img src="/vocab-logo-black.png" alt="" />
-                </div>
-                <div className="tutWelcomeText">
-                  <h2 id="onboarding-tutorial-title">{currentSlide.title}</h2>
-                  <p>{currentSlide.body}</p>
-                </div>
-                <ul className="tutWelcomeFeatures" aria-label={tr("Key features", "主な機能")}>
-                  {currentSlide.features.map(({ label, detail }) => (
-                    <li key={label} className="tutWelcomeFeature">
-                      <span className="tutWelcomeFeatureLabel">{label}</span>
-                      <span className="tutWelcomeFeatureDetail">{detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : currentSlide.type === "steps" ? (
-              <div className="tutSlide tutSlide-steps">
-                <ol className="tutStepList" aria-label={tr("How it works", "使い方")}>
-                  {currentSlide.steps.map(({ n, label, detail }) => (
-                    <li key={n} className="tutStep">
-                      <span className="tutStepNum" aria-hidden="true">{n}</span>
-                      <div className="tutStepText">
-                        <span className="tutStepLabel">{label}</span>
-                        <span className="tutStepDetail">{detail}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-                <div className="tutSlideCopy">
-                  <h2 id="onboarding-tutorial-title">{currentSlide.title}</h2>
-                  <p>{currentSlide.body}</p>
-                </div>
-              </div>
-            ) : null}
-
-            {/* footer */}
-            <div className="tutorialFooter">
-              {currentSlideIndex > 0 ? (
-                <button
-                  type="button"
-                  className="tutBackBtn"
-                  onClick={() => setOnboardingTutorialStep((s) => Math.max(0, s - 1))}
-                >
-                  {tr("Back", "戻る")}
-                </button>
-              ) : (
-                <span />
-              )}
-              <button
-                type="button"
-                className="tutNextBtn"
-                onClick={() => {
-                  if (isLastSlide) {
-                    startGuidedDashboardTour();
-                  } else {
-                    setOnboardingTutorialStep((s) => Math.min(slideCount - 1, s + 1));
-                  }
-                }}
-              >
-                {isLastSlide ? tr("Start guided tour", "始める") : tr("Next", "次へ")}
-              </button>
-            </div>
+  if (isOnboardingTutorialOpen) {
+    return (
+      <div className="modalOverlay tutorialOverlay" onClick={completeOnboardingTutorial}>
+        <div
+          className="modalCard tutorialModalCard"
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="onboarding-tutorial-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="tutIntroTop">
+            <img src="/vocab-logo-black.png" alt="" className="tutIntroLogo" aria-hidden="true" />
+            <h2 id="onboarding-tutorial-title" className="tutIntroHeadline">{ONBOARDING_TUTORIAL_SLIDE.title}</h2>
+            <p className="tutIntroBody">{ONBOARDING_TUTORIAL_SLIDE.body}</p>
+            <ol className="tutStepList">
+              {ONBOARDING_TUTORIAL_SLIDE.steps.map(({ n, label, detail }) => (
+                <li key={n} className="tutStep">
+                  <span className="tutStepNum" aria-hidden="true">{n}</span>
+                  <div className="tutStepText">
+                    <span className="tutStepLabel">{label}</span>
+                    <span className="tutStepDetail">{detail}</span>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
+          <button type="button" className="tutStartBtn" onClick={startGuidedDashboardTour}>
+            {tr("Start guided tour", "始める")}
+          </button>
+          <button type="button" className="tutSkipLink" onClick={completeOnboardingTutorial}>
+            {tr("Skip", "スキップ")}
+          </button>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
     if (isAddBookModalOpen) {
       return (
@@ -7289,43 +7226,16 @@ export default function App() {
           <button
             type="button"
             className="panelCard wide"
-            onClick={openAdaptiveReviewSelect}
+            onClick={() => setScreen("reviewSelect")}
           >
-            <span>
-              {"\uD83E\uDDE0"} {tr("Adaptive Review", "é©å¿œåž‹å¾©ç¿’")}
-            </span>
-            <small className="settingsHint">
-              {tr("Due now", "ä»Šã™ãå¾©ç¿’")}: {adaptiveReviewStats.dueNow}
-            </small>
+            <span>{"🎯"} {tr("Review", "復習")}</span>
           </button>
           <button
             type="button"
             className="panelCard wide"
             onClick={() => setScreen("definitionsSelect")}
           >
-            <span>{"\uD83D\uDCD8"} {tr("Definitions", "単語追加")}</span>
-            <small className="settingsHint">{tr("Add and review words", "単語を追加・確認")}</small>
-          </button>
-          <button
-            type="button"
-            className="panelCard wide"
-            onClick={() => setScreen("flashcardsSelect")}
-          >
-            <span>{"\u26A1"} {tr("Flashcards", "フラッシュカード")}</span>
-            <small className="settingsHint">{tr("Quick recognition practice", "素早い認識練習")}</small>
-          </button>
-          <button
-            type="button"
-            className="panelCard wide"
-            onClick={() => {
-              setQuizBackScreen("quizSelect");
-              setQuizMode("normal");
-              initializeQuizSetupSelection();
-              setScreen("quizSelect");
-            }}
-          >
-            <span>{"\u2705"} {tr("Quiz", "クイズ")}</span>
-            <small className="settingsHint">{tr("Test your knowledge", "知識をテスト")}</small>
+            <span>{"📘"} {tr("Definitions", "単語追加")}</span>
           </button>
           <button
             type="button"
@@ -7361,6 +7271,62 @@ export default function App() {
               <span>{"\uD83D\uDC64"} {tr("My Account", "アカウント")}</span>
             </button>
           ) : null}
+        </div>
+        {renderModal()}
+      </div>
+    );
+  }
+
+  // ---------- REVIEW SELECT ----------
+  if (screen === "reviewSelect") {
+    return renderWithSidebar(
+      <div className="page reviewSelectPage">
+        <div className="pageHeader">
+          <button className="backBtn" aria-label={tr("Go back", "戻る")} onClick={() => setScreen("dashboard")}>&times;</button>
+          <h1>{tr("Review", "復習")}</h1>
+        </div>
+        <div className="reviewSelectList">
+          <button
+            type="button"
+            className="reviewSelectCard"
+            onClick={openAdaptiveReviewSelect}
+          >
+            <span className="reviewSelectCardIcon">{"🧠"}</span>
+            <div className="reviewSelectCardBody">
+              <span className="reviewSelectCardTitle">{tr("Adaptive Review", "適応型復習")}</span>
+              <span className="reviewSelectCardDesc">{tr("Spaced repetition — focuses on what you are forgetting", "忘れている単語に集中する間隔反復")}</span>
+            </div>
+            {adaptiveReviewStats.dueNow > 0 && (
+              <span className="reviewSelectCardBadge">{adaptiveReviewStats.dueNow}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            className="reviewSelectCard"
+            onClick={() => setScreen("flashcardsSelect")}
+          >
+            <span className="reviewSelectCardIcon">{"⚡"}</span>
+            <div className="reviewSelectCardBody">
+              <span className="reviewSelectCardTitle">{tr("Flashcards", "フラッシュカード")}</span>
+              <span className="reviewSelectCardDesc">{tr("Flip through words for fast recognition practice", "素早い認識練習のためにカードをめくる")}</span>
+            </div>
+          </button>
+          <button
+            type="button"
+            className="reviewSelectCard"
+            onClick={() => {
+              setQuizBackScreen("quizSelect");
+              setQuizMode("normal");
+              initializeQuizSetupSelection();
+              setScreen("quizSelect");
+            }}
+          >
+            <span className="reviewSelectCardIcon">{"✅"}</span>
+            <div className="reviewSelectCardBody">
+              <span className="reviewSelectCardTitle">{tr("Quiz", "クイズ")}</span>
+              <span className="reviewSelectCardDesc">{tr("Test yourself with multiple-choice and typed answers", "選択式・入力式で知識をテスト")}</span>
+            </div>
+          </button>
         </div>
         {renderModal()}
       </div>
@@ -7755,18 +7721,6 @@ export default function App() {
           <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
           <h1>{tr("My Books", "マイブック")}</h1>
         </div>
-        {sortedBooksByRecent.length === 0 ? (
-          renderEmptyActionState({
-            icon: "\uD83D\uDCDA",
-            title: tr("Create your first vocabulary book", "Create your first vocabulary book"),
-            body: tr(
-              "Books keep words grouped by class, novel, exam, or topic so review stays focused.",
-              "Books keep words grouped by class, novel, exam, or topic so review stays focused."
-            ),
-            primaryLabel: tr("Add Book", "Add Book"),
-            onPrimary: openAddBookModal,
-          })
-        ) : (
           <>
             <button className="primaryBtn" onClick={openAddBookModal}>+ {tr("Add Book", "ブック追加")}</button>
             <div className="bookGrid selectBookGrid">
@@ -7816,35 +7770,38 @@ export default function App() {
             <strong>{tr("Flashcards", "フラッシュカード")}</strong>
             <p>{tr("Drill recall quickly with focused review sessions.", "集中復習で素早く記憶を強化します。")}</p>
           </button>
-          <button
-            type="button"
-            className="panelCard bookModeCard"
-            onClick={() => openAdaptiveReviewSession(currentBook?.id, { backScreen: "bookMenu" })}
-          >
-            <span className="bookModeIcon" aria-hidden="true">{"\uD83E\uDDE0"}</span>
-            <strong>{tr("Adaptive Review", "適応型復習")}</strong>
-            <p>{tr("Review only the due words from this book.", "このブックの復習期限が来た単語だけを練習します。")}</p>
-          </button>
           <div className="guidedControlAnchor">
             <button
               type="button"
-              className={`panelCard bookModeCard ${guidedTourStep === "book-quiz" ? "guidedTarget" : ""}`}
+              className={`panelCard bookModeCard ${guidedTourStep === "book-adaptive" ? "guidedTarget" : ""}`}
               onClick={() => {
-                setQuizBackScreen("bookMenu");
-                setQuizMode("normal");
-                initializeQuizSetupSelection();
-                setScreen("quizSelect");
-                if (guidedTourStep === "book-quiz") {
-                  setGuidedTourStep("quiz-start");
+                if (guidedTourStep === "book-adaptive") {
+                  setGuidedTourStep("");
+                  setIsGuidedTourDismissed(true);
                 }
+                openAdaptiveReviewSession(currentBook?.id, { backScreen: "bookMenu" });
               }}
             >
-              <span className="bookModeIcon" aria-hidden="true">{"\u2705"}</span>
-              <strong>{tr("Quiz", "クイズ")}</strong>
-              <p>{tr("Test active recall with normal, typing, or mistake mode.", "通常・タイピング・ミス復習で能動想起を鍛えます。")}</p>
+              <span className="bookModeIcon" aria-hidden="true">{"🧠"}</span>
+              <strong>{tr("Adaptive Review", "適応型復習")}</strong>
+              <p>{tr("Review only the due words from this book.", "このブックの復習期限が来た単語だけを練習します。")}</p>
             </button>
-            {renderGuidedTourCoach("below", "book-quiz")}
+            {renderGuidedTourCoach("below", "book-adaptive")}
           </div>
+          <button
+            type="button"
+            className="panelCard bookModeCard"
+            onClick={() => {
+              setQuizBackScreen("bookMenu");
+              setQuizMode("normal");
+              initializeQuizSetupSelection();
+              setScreen("quizSelect");
+            }}
+          >
+            <span className="bookModeIcon" aria-hidden="true">{"✅"}</span>
+            <strong>{tr("Quiz", "クイズ")}</strong>
+            <p>{tr("Test active recall with normal, typing, or mistake mode.", "通常・タイピング・ミス復習で能動想起を鍛えます。")}</p>
+          </button>
         </div>
         {renderModal()}
       </div>
@@ -7859,17 +7816,6 @@ export default function App() {
           <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
           <h1>{uiText.selectBook}</h1>
         </div>
-        {sortedBooksByRecent.length === 0 ? (
-          renderEmptyActionState({
-            icon: "\uD83D\uDCD8",
-            title: tr("Add a book before adding words", "Add a book before adding words"),
-            body: uiText.noBooksFound,
-            primaryLabel: tr("Create Book", "Create Book"),
-            onPrimary: openAddBookModal,
-            secondaryLabel: tr("Back to Dashboard", "Back to Dashboard"),
-            onSecondary: () => setScreen("dashboard"),
-          })
-        ) : (
           <div className="bookGrid selectBookGrid">
             {sortedBooksByRecent.map((book) =>
               renderSelectBookCard(book, () => {
@@ -7877,7 +7823,6 @@ export default function App() {
               })
             )}
           </div>
-        )}
         {renderModal()}
       </div>
     );
@@ -7900,7 +7845,7 @@ export default function App() {
               onClick={() => {
                 setScreen("bookMenu");
                 if (guidedTourStep === "definitions-back") {
-                  setGuidedTourStep("book-quiz");
+                  setGuidedTourStep("book-adaptive");
                 }
               }}
             >
@@ -7971,18 +7916,6 @@ export default function App() {
           </button>
         </div>
         {loading && <LoadingAnimation className="inlineLoadingAnimation" label={tr("Saving word...", "単語を保存中...")} />}
-        {!loading && (currentBook?.words || []).length === 0 ? (
-          renderEmptyActionState({
-            icon: "\uD83D\uDCD8",
-            title: tr("Start this book with one useful word", "Start this book with one useful word"),
-            body: tr(
-              currentBookLanguageModeMeta.emptyHint,
-              currentBookLanguageModeMeta.emptyHint
-            ),
-            primaryLabel: tr("Focus word field", "Focus word field"),
-            onPrimary: () => document.querySelector(".addWordFieldGroup input")?.focus(),
-          })
-        ) : null}
         <div className="wordList">
           {currentBook?.words.map((w, i) => {
             const definitionVariants = getWordDefinitions(w);
@@ -8254,17 +8187,6 @@ export default function App() {
           <button className="backBtn" aria-label={tr("Go back", "\u623b\u308b")} onClick={() => setScreen("dashboard")}>&times;</button>
           <h1>{uiText.selectBook}</h1>
         </div>
-        {sortedBooksByRecent.length === 0 ? (
-          renderEmptyActionState({
-            icon: "\u26A1",
-            title: tr("Flashcards need a book first", "Flashcards need a book first"),
-            body: uiText.noBooksFound,
-            primaryLabel: tr("Create Book", "Create Book"),
-            onPrimary: openAddBookModal,
-            secondaryLabel: tr("Back to Dashboard", "Back to Dashboard"),
-            onSecondary: () => setScreen("dashboard"),
-          })
-        ) : (
           <div className="bookGrid selectBookGrid">
             {sortedBooksByRecent.map((book) =>
               renderSelectBookCard(book, () => {
@@ -8272,7 +8194,6 @@ export default function App() {
               })
             )}
           </div>
-        )}
         {renderModal()}
       </div>
     );
@@ -8341,17 +8262,7 @@ export default function App() {
         <p className="quizSetupIntro">
           {tr("Build your quiz in simple steps.", "ステップに沿ってクイズを作成します。")}
         </p>
-        {!hasBooksForQuiz ? (
-          renderEmptyActionState({
-            icon: "\u2705",
-            title: tr("Quizzes start after your first book", "Quizzes start after your first book"),
-            body: uiText.noBooksFound,
-            primaryLabel: tr("Create Book", "Create Book"),
-            onPrimary: openAddBookModal,
-            secondaryLabel: tr("Back to Dashboard", "Back to Dashboard"),
-            onSecondary: () => setScreen("dashboard"),
-          })
-        ) : (
+        {hasBooksForQuiz && (
           <div className="quizFastStartCard">
             <div>
               <h2>{tr("Fast start", "Fast start")}</h2>
@@ -8362,23 +8273,23 @@ export default function App() {
               </p>
             </div>
             <div className="quizFastStartActions">
-              <div className="guidedControlAnchor">
-                <button
-                  type="button"
-                  className={`primaryBtn ${guidedTourStep === "quiz-start" ? "guidedTarget" : ""}`}
-                  onClick={() => {
-                    if (guidedTourStep === "quiz-start") {
-                      setGuidedTourStep("");
-                      setIsGuidedTourDismissed(true);
-                    }
-                    startSmartQuiz();
-                  }}
-                  disabled={smartQuizWordCount < 2}
-                >
-                  {tr("Start Smart Quiz", "Start Smart Quiz")}
-                </button>
-                {renderGuidedTourCoach("below", "quiz-start")}
-              </div>
+              <button
+                type="button"
+                className="primaryBtn"
+                onClick={() => {
+                  startSmartQuiz();
+                }}
+                disabled={smartQuizWordCount < 2}
+              >
+                {tr("Start Smart Quiz", "Start Smart Quiz")}
+              </button>
+
+
+
+
+
+
+
               <button
                 type="button"
                 className="secondaryBtn"
