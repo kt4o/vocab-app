@@ -132,6 +132,21 @@ const AUTH_USERNAME_STORAGE_KEY = "vocab_auth_username";
 const LOCAL_STATE_UPDATED_AT_STORAGE_KEY = "vocab_local_state_updated_at";
 const ONBOARDING_TUTORIAL_PENDING_STORAGE_KEY = "vocab_onboarding_tutorial_pending";
 const ONBOARDING_TUTORIAL_SEEN_PREFIX = "vocab_onboarding_tutorial_seen";
+const ONBOARDING_GOAL_STORAGE_KEY = "vocab_onboarding_goal";
+const CHECKLIST_DISMISSED_PREFIX = "vocab_checklist_dismissed";
+const FIRST_REVIEW_DONE_PREFIX = "vocab_first_review_done";
+const GUIDED_TOUR_DONE_PREFIX = "vocab_guided_tour_done";
+const ONBOARDING_GOAL_OPTIONS = [
+  { id: "language", label: "A foreign language" },
+  { id: "exam", label: "Exam vocabulary" },
+  { id: "work", label: "Work / technical terms" },
+  { id: "exploring", label: "Just exploring" },
+];
+const ONBOARDING_GOAL_BOOK_NAMES = {
+  language: "My Language Words",
+  exam: "Exam Terms",
+  work: "Work Vocabulary",
+};
 const SIGNUP_USERNAME_MESSAGE =
   "Username must be 3-24 characters: lowercase letters, numbers, or underscores only. Spaces become underscores.";
 const SIGNUP_PASSWORD_MESSAGE =
@@ -2099,6 +2114,18 @@ function isDevTutorialAccount(username) {
   return String(username || "").trim().toLowerCase() === "dev";
 }
 
+function getChecklistDismissedKey(username) {
+  return `${CHECKLIST_DISMISSED_PREFIX}_${String(username || "account").trim().toLowerCase()}`;
+}
+
+function getFirstReviewDoneKey(username) {
+  return `${FIRST_REVIEW_DONE_PREFIX}_${String(username || "account").trim().toLowerCase()}`;
+}
+
+function getGuidedTourDoneKey(username) {
+  return `${GUIDED_TOUR_DONE_PREFIX}_${String(username || "account").trim().toLowerCase()}`;
+}
+
 function getGuidedTourTargetSelector(step) {
   if (step === "dashboard-add-book") return ".recentSquare.addSquare";
   if (step === "book-name") return ".createBookFields input";
@@ -2385,6 +2412,10 @@ export default function App() {
   const [isOnboardingCloseConfirmOpen, setIsOnboardingCloseConfirmOpen] = useState(false);
   const [onboardingTutorialStep, setOnboardingTutorialStep] = useState(0);
   const [hasCompletedOnboardingThisSession, setHasCompletedOnboardingThisSession] = useState(false);
+  const [onboardingGoal, setOnboardingGoal] = useState(() => localStorage.getItem(ONBOARDING_GOAL_STORAGE_KEY) || "");
+  const [isChecklistDismissed, setIsChecklistDismissed] = useState(false);
+  const [hasFirstReview, setHasFirstReview] = useState(false);
+  const [hasCompletedGuidedTour, setHasCompletedGuidedTour] = useState(false);
   const [guidedTourStep, setGuidedTourStep] = useState("");
   const [isGuidedTourDismissed, setIsGuidedTourDismissed] = useState(false);
   const [isGuidedTourMobile, setIsGuidedTourMobile] = useState(() =>
@@ -3380,6 +3411,10 @@ export default function App() {
           shuffleDue: getBookAdaptiveReviewShuffleDue(reviewBook),
         });
         trackEvent("adaptive_review_completed", {});
+        if (authUsername && !hasFirstReview) {
+          setHasFirstReview(true);
+          localStorage.setItem(getFirstReviewDoneKey(authUsername), "1");
+        }
       }
     } catch (error) {
       setAdaptiveReviewError(error instanceof Error ? error.message : "Unable to update review progress.");
@@ -4715,7 +4750,8 @@ export default function App() {
 
   // Add / delete books
   function openAddBookModal() {
-    setNewBookName("");
+    const prefill = guidedTourStep === "dashboard-add-book" ? (ONBOARDING_GOAL_BOOK_NAMES[onboardingGoal] || "") : "";
+    setNewBookName(prefill);
     setNewBookLanguageMode(parseBookLanguageMode(dictionaryPreference, DEFAULT_BOOK_LANGUAGE_MODE));
     setIsAddBookModalOpen(true);
     if (guidedTourStep === "dashboard-add-book") {
@@ -5164,7 +5200,7 @@ export default function App() {
   }
 
   function startGuidedDashboardTour() {
-    trackEvent("onboarding_completed");
+    trackEvent("onboarding_intro_completed");
     completeOnboardingTutorial();
     setIsGuidedTourDismissed(false);
     setGuidedTourStep("dashboard-add-book");
@@ -5295,6 +5331,7 @@ export default function App() {
             type="button"
             className="guidedCoachSkipBtn"
             onClick={() => {
+              trackEvent("onboarding_tour_skipped", { step: guidedTourStep });
               setIsGuidedTourDismissed(true);
               setGuidedTourStep("");
             }}
@@ -5322,13 +5359,18 @@ export default function App() {
         <button
           type="button"
           className="mobileTourBannerSkip"
-          onClick={() => { setIsGuidedTourDismissed(true); setGuidedTourStep(""); }}
+          onClick={() => { trackEvent("onboarding_tour_skipped", { step: guidedTourStep }); setIsGuidedTourDismissed(true); setGuidedTourStep(""); }}
         >
           {tr("Skip", "スキップ")}
         </button>
       </div>
     );
   }
+
+  useEffect(() => {
+    if (!guidedTourStep) return;
+    trackEvent("onboarding_tour_step", { step: guidedTourStep });
+  }, [guidedTourStep]);
 
   useEffect(() => {
     if (!guidedTourStep) return;
@@ -5430,6 +5472,13 @@ export default function App() {
   ]);
 
   useEffect(() => {
+    if (!authUsername) return;
+    setIsChecklistDismissed(localStorage.getItem(getChecklistDismissedKey(authUsername)) === "1");
+    setHasFirstReview(localStorage.getItem(getFirstReviewDoneKey(authUsername)) === "1");
+    setHasCompletedGuidedTour(localStorage.getItem(getGuidedTourDoneKey(authUsername)) === "1");
+  }, [authUsername]);
+
+  useEffect(() => {
     const isModalOpen =
       isOnboardingTutorialOpen ||
       isAddBookModalOpen ||
@@ -5503,6 +5552,44 @@ export default function App() {
     guidedTourStep,
   ]);
 
+  function renderGettingStartedChecklist() {
+    if (isChecklistDismissed) return null;
+    const totalWords = books.reduce((sum, b) => sum + (b.words?.length || 0), 0);
+    const items = [
+      { key: "account", label: tr("Created your account", "アカウント作成"), done: true },
+      { key: "book", label: tr("Create your first book", "最初のブックを作成"), done: books.length > 0 },
+      { key: "words", label: tr("Add 5 words", "5語を追加"), done: totalWords >= 5 },
+      { key: "review", label: tr("Complete a review session", "復習セッションを完了"), done: hasFirstReview },
+    ];
+    if (items.every((i) => i.done)) return null;
+    return (
+      <div className="gettingStartedChecklist">
+        <div className="gettingStartedHeader">
+          <strong>{tr("Getting Started", "はじめに")}</strong>
+          <button
+            type="button"
+            className="gettingStartedDismiss"
+            aria-label={tr("Dismiss", "閉じる")}
+            onClick={() => {
+              setIsChecklistDismissed(true);
+              if (authUsername) localStorage.setItem(getChecklistDismissedKey(authUsername), "1");
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <ul className="gettingStartedList">
+          {items.map(({ key, label, done }) => (
+            <li key={key} className={`gettingStartedItem ${done ? "done" : ""}`}>
+              <span className="gettingStartedCheck" aria-hidden="true">{done ? "✓" : "○"}</span>
+              {label}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   function renderModal() {
   if (isOnboardingTutorialOpen) {
     return (
@@ -5515,28 +5602,61 @@ export default function App() {
           aria-labelledby="onboarding-tutorial-title"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="tutIntroTop">
-            <img src="/vocab-logo-black.png" alt="" className="tutIntroLogo" aria-hidden="true" />
-            <h2 id="onboarding-tutorial-title" className="tutIntroHeadline">{ONBOARDING_TUTORIAL_SLIDE.title}</h2>
-            <p className="tutIntroBody">{ONBOARDING_TUTORIAL_SLIDE.body}</p>
-            <ol className="tutStepList">
-              {ONBOARDING_TUTORIAL_SLIDE.steps.map(({ n, label, detail }) => (
-                <li key={n} className="tutStep">
-                  <span className="tutStepNum" aria-hidden="true">{n}</span>
-                  <div className="tutStepText">
-                    <span className="tutStepLabel">{label}</span>
-                    <span className="tutStepDetail">{detail}</span>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <button type="button" className="tutStartBtn" onClick={startGuidedDashboardTour}>
-            {tr("Start guided tour", "始める")}
-          </button>
-          <button type="button" className="tutSkipLink" onClick={completeOnboardingTutorial}>
-            {tr("Skip", "スキップ")}
-          </button>
+          {onboardingTutorialStep === 0 ? (
+            <>
+              <div className="tutIntroTop">
+                <img src="/vocab-logo-black.png" alt="" className="tutIntroLogo" aria-hidden="true" />
+                <h2 id="onboarding-tutorial-title" className="tutIntroHeadline">{ONBOARDING_TUTORIAL_SLIDE.title}</h2>
+                <p className="tutIntroBody">{ONBOARDING_TUTORIAL_SLIDE.body}</p>
+                <ol className="tutStepList">
+                  {ONBOARDING_TUTORIAL_SLIDE.steps.map(({ n, label, detail }) => (
+                    <li key={n} className="tutStep">
+                      <span className="tutStepNum" aria-hidden="true">{n}</span>
+                      <div className="tutStepText">
+                        <span className="tutStepLabel">{label}</span>
+                        <span className="tutStepDetail">{detail}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <button type="button" className="tutStartBtn" onClick={() => setOnboardingTutorialStep(1)}>
+                {tr("Get started", "始める")} →
+              </button>
+              <button type="button" className="tutSkipLink" onClick={() => { trackEvent("onboarding_intro_skipped"); completeOnboardingTutorial(); }}>
+                {tr("Skip", "スキップ")}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="tutGoalStep">
+                <h2 id="onboarding-tutorial-title" className="tutIntroHeadline">{tr("What are you learning?", "学習の目的は？")}</h2>
+                <p className="tutIntroBody">{tr("We'll tailor your first book to match.", "目標に合わせて最初のブックを設定します。")}</p>
+                <div className="tutGoalPills" role="group" aria-label={tr("Learning goal", "学習目標")}>
+                  {ONBOARDING_GOAL_OPTIONS.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`tutGoalPill ${onboardingGoal === id ? "selected" : ""}`}
+                      onClick={() => {
+                        setOnboardingGoal(id);
+                        localStorage.setItem(ONBOARDING_GOAL_STORAGE_KEY, id);
+                        trackEvent("onboarding_goal_selected", { goal: id });
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button type="button" className="tutStartBtn" onClick={startGuidedDashboardTour}>
+                {tr("Start guided tour", "ツアーを始める")}
+              </button>
+              <button type="button" className="tutSkipLink" onClick={() => setOnboardingTutorialStep(0)}>
+                ← {tr("Back", "戻る")}
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -6330,29 +6450,6 @@ export default function App() {
         }}
       >
         <div className="selectBookCardTop">
-          <div className="bookCardActions">
-            <button
-              type="button"
-              className="bookRenameBtn"
-              aria-label={`Rename ${book.name}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                openRenameBookModal(book);
-              }}
-            >
-              {"\u270E"}
-            </button>
-            <button
-              className="deleteBtn bookDeleteBtn"
-              aria-label={`Delete ${book.name}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                askDeleteBook(book);
-              }}
-            >
-              x
-            </button>
-          </div>
           <div className="selectBookTitleRow">
             <button
               type="button"
@@ -6368,6 +6465,29 @@ export default function App() {
             <h3 className="selectBookTitle">
               {book.name}
             </h3>
+            <div className="bookCardActions">
+              <button
+                type="button"
+                className="bookRenameBtn"
+                aria-label={`Rename ${book.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openRenameBookModal(book);
+                }}
+              >
+                {"\u270E"}
+              </button>
+              <button
+                className="deleteBtn bookDeleteBtn"
+                aria-label={`Delete ${book.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  askDeleteBook(book);
+                }}
+              >
+                x
+              </button>
+            </div>
           </div>
           <p className="selectBookLastOpened">
             {languageModeMeta.shortLabel} | Last opened: {lastOpenedText}
@@ -6445,7 +6565,7 @@ export default function App() {
       chapterKeys: [...(lastQuizSetup.chapterKeys || [])],
     });
     setIsQuickQuizSetupArmed(true);
-    setQuizSetupStep(3);
+    setQuizSetupStep(2);
   }
 
   function toggleQuizSetupBook(bookId) {
@@ -7102,6 +7222,10 @@ export default function App() {
       mistake_count: mistakeCount,
       question_book_count: questionBookCount,
     });
+    if (authUsername && !hasFirstReview) {
+      setHasFirstReview(true);
+      localStorage.setItem(getFirstReviewDoneKey(authUsername), "1");
+    }
 
     if (safeSummary.isMistakeReview) return;
 
@@ -7169,6 +7293,14 @@ export default function App() {
                   {"\uD83D\uDD25"} {streak.count} {tr("day", "日")}
                 </div>
               </div>
+              {streak.count > 1 && streak.lastDate !== getCurrentDayKey() && adaptiveReviewStats.dueNow > 0 && (
+                <p className="streakStatusText">
+                  {tr(
+                    `${adaptiveReviewStats.dueNow} word${adaptiveReviewStats.dueNow === 1 ? "" : "s"} due — review to keep your streak`,
+                    `${adaptiveReviewStats.dueNow}語が期限切れ — ストリークを守るために復習しよう`
+                  )}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -7229,6 +7361,9 @@ export default function App() {
             onClick={() => setScreen("reviewSelect")}
           >
             <span>{"🎯"} {tr("Review", "復習")}</span>
+            {adaptiveReviewStats.dueNow > 0 && (
+              <span className="reviewSelectCardBadge">{adaptiveReviewStats.dueNow}</span>
+            )}
           </button>
           <button
             type="button"
@@ -7272,6 +7407,19 @@ export default function App() {
             </button>
           ) : null}
         </div>
+        {renderGettingStartedChecklist()}
+        {isGuidedTourDismissed && !guidedTourStep && !hasCompletedGuidedTour && (
+          <button
+            type="button"
+            className="resumeTourBtn"
+            onClick={() => {
+              setIsGuidedTourDismissed(false);
+              setGuidedTourStep("dashboard-add-book");
+            }}
+          >
+            ? {tr("Tour", "ツアー")}
+          </button>
+        )}
         {renderModal()}
       </div>
     );
@@ -7727,7 +7875,6 @@ export default function App() {
               {sortedBooksByRecent.map((book) => renderMyBookCard(book))}
             </div>
           </>
-        )}
         {renderModal()}
       </div>
     );
@@ -7776,8 +7923,11 @@ export default function App() {
               className={`panelCard bookModeCard ${guidedTourStep === "book-adaptive" ? "guidedTarget" : ""}`}
               onClick={() => {
                 if (guidedTourStep === "book-adaptive") {
+                  trackEvent("onboarding_tour_completed");
                   setGuidedTourStep("");
                   setIsGuidedTourDismissed(true);
+                  setHasCompletedGuidedTour(true);
+                  if (authUsername) localStorage.setItem(getGuidedTourDoneKey(authUsername), "1");
                 }
                 openAdaptiveReviewSession(currentBook?.id, { backScreen: "bookMenu" });
               }}
@@ -8224,28 +8374,26 @@ export default function App() {
       quizSetupSelection.bookIds.length > 0 &&
       quizSetupSelection.chapterKeys.length > 0 &&
       quizSetupWords.length >= 2;
-    const includesTypeStep = true;
-    const typeStepIndex = includesTypeStep ? 0 : -1;
-    const booksStepIndex = includesTypeStep ? 1 : 0;
-    const chaptersStepIndex = includesTypeStep ? 2 : 1;
-    const reviewStepIndex = includesTypeStep ? 3 : 2;
-    const stepTitles = includesTypeStep
-      ? [tr("Quiz Type", "クイズ種類"), tr("Books", "ブック"), tr("Chapters", "章"), tr("Review", "確認")]
-      : [tr("Books", "ブック"), tr("Chapters", "章"), tr("Review", "確認")];
+    const typeStepIndex = 0;
+    const contentStepIndex = 1;
+    const reviewStepIndex = 2;
+    const stepTitles = [
+      tr("Quiz Type", "クイズ種類"),
+      tr("Content", "コンテンツ"),
+      tr("Review", "確認"),
+    ];
     const isAtTypeStep = quizSetupStep === typeStepIndex;
-    const isAtBooksStep = quizSetupStep === booksStepIndex;
-    const isAtChaptersStep = quizSetupStep === chaptersStepIndex;
+    const isAtContentStep = quizSetupStep === contentStepIndex;
     const isAtReviewStep = quizSetupStep === reviewStepIndex;
     const canMoveForward =
-      (isAtTypeStep && includesTypeStep) ||
-      (isAtBooksStep && selectedBookCount > 0) ||
-      (isAtChaptersStep && selectedChapterCount > 0);
+      isAtTypeStep ||
+      (isAtContentStep && selectedBookCount > 0 && selectedChapterCount > 0);
     const nextStepHint =
-      isAtBooksStep && selectedBookCount === 0
+      isAtContentStep && selectedBookCount === 0
         ? tr("Select at least one book to continue.", "続行するには1冊以上選択してください。")
-        : isAtChaptersStep && selectedChapterCount === 0
+        : isAtContentStep && selectedBookCount > 0 && selectedChapterCount === 0
           ? tr("Select at least one chapter to continue.", "続行するには1章以上選択してください。")
-            : "";
+          : "";
 
     return renderWithSidebar(
       <div className="page">
@@ -8347,7 +8495,10 @@ export default function App() {
               <button
                 type="button"
                 className={`quizModeCard ${quizMode === "normal" ? "isActive" : ""}`}
-                onClick={() => setQuizMode("normal")}
+                onClick={() => {
+                  setQuizMode("normal");
+                  setTimeout(() => setQuizSetupStep(contentStepIndex), 350);
+                }}
               >
                 <span className="quizModeCardIcon" aria-hidden="true">{"\uD83C\uDFAF"}</span>
                 <strong>{tr("Multiple Choice", "選択式")}</strong>
@@ -8360,7 +8511,10 @@ export default function App() {
               <button
                 type="button"
                 className={`quizModeCard ${quizMode === "typing" ? "isActive" : ""}`}
-                onClick={() => setQuizMode("typing")}
+                onClick={() => {
+                  setQuizMode("typing");
+                  setTimeout(() => setQuizSetupStep(contentStepIndex), 350);
+                }}
               >
                 <span className="quizModeCardIcon" aria-hidden="true">{"\u2328"}</span>
                 <strong>{tr("Typing", "タイピング")}</strong>
@@ -8382,10 +8536,10 @@ export default function App() {
             </div>
           </div>
         )}
-        {hasBooksForQuiz && isAtBooksStep && (
+        {hasBooksForQuiz && isAtContentStep && (
         <div className="chapterControlField quizChapterField">
           <div className="quizSetupFieldHeader">
-            <span>{includesTypeStep ? tr("Step 2. Books", "ステップ2. ブック") : tr("Step 1. Books", "ステップ1. ブック")}</span>
+            <span>{tr("Step 2. Content", "ステップ2. コンテンツ")}</span>
             <div className="quizSetupQuickActions">
               <button
                 type="button"
@@ -8431,84 +8585,60 @@ export default function App() {
             ))}
           </div>
           {books.length === 0 && <p className="quizSetupHint">{tr("No books available yet.", "利用可能なブックがありません。")}</p>}
-          {selectedBookCount === 0 && (
-            <p className="quizSetupHint">{tr("Select at least one book to see chapters.", "章を表示するには1冊以上選択してください。")}</p>
-          )}
-        </div>
-        )}
-        {hasBooksForQuiz && isAtChaptersStep && (
-        <div className="chapterControlField quizChapterField">
-          <div className="quizSetupFieldHeader">
-            <span>{includesTypeStep ? tr("Step 3. Chapters", "ステップ3. 章") : tr("Step 2. Chapters", "ステップ2. 章")}</span>
-            <div className="quizSetupQuickActions">
-              <button
-                type="button"
-                className="quizSetupActionBtn"
-                onClick={() =>
-                  setQuizSetupSelection((prev) => ({
-                    ...prev,
-                    chapterKeys: chapterOptionKeys,
-                  }))
-                }
-                disabled={selectedBookCount === 0 || chapterOptionKeys.length === 0}
-              >
-                {tr("Select all", "すべて選択")}
-              </button>
-              <button
-                type="button"
-                className="quizSetupActionBtn"
-                onClick={() =>
-                  setQuizSetupSelection((prev) => ({
-                    ...prev,
-                    chapterKeys: [],
-                  }))
-                }
-                disabled={selectedChapterCount === 0}
-              >
-                {tr("Clear", "クリア")}
-              </button>
-            </div>
-          </div>
-          <div className="quizChapterGroups" role="group" aria-label={tr("Select chapters by book", "ブックごとに章を選択")}>
-            {quizSetupChapterGroups.map((group) => (
-              <div key={group.bookId} className="quizChapterGroup">
-                <div className="quizChapterGroupHeader">
-                  <p className="quizChapterGroupTitle">{group.bookName}</p>
-                  <button
-                    type="button"
-                    className="quizSetupActionBtn"
-                    onClick={() =>
-                      setQuizSetupSelection((prev) => ({
-                        ...prev,
-                        chapterKeys: Array.from(new Set([...prev.chapterKeys, ...group.chapters.map((chapter) => chapter.key)])),
-                      }))
-                    }
-                    disabled={group.chapters.length === 0 || group.chapters.every((chapter) => selectedChapterKeysSet.has(chapter.key))}
-                  >
-                    {tr("Select all", "すべて選択")}
-                  </button>
-                </div>
-                <div className="quizChapterPills" role="group" aria-label={`${group.bookName} chapters`}>
-                  {group.chapters.map((chapter) => (
+          {selectedBookCount > 0 && (
+            <div className="quizChapterGroups" role="group" aria-label={tr("Select chapters by book", "ブックごとに章を選択")}>
+              {quizSetupChapterGroups.map((group) => (
+                <div key={group.bookId} className="quizChapterGroup">
+                  <div className="quizChapterGroupHeader">
+                    <p className="quizChapterGroupTitle">{group.bookName}</p>
                     <button
-                      key={chapter.key}
                       type="button"
-                      className={`quizSetupPill ${selectedChapterKeysSet.has(chapter.key) ? "isActive" : ""}`}
-                      onClick={() => toggleQuizSetupChapter(chapter.key)}
+                      className="quizSetupActionBtn"
+                      onClick={() =>
+                        setQuizSetupSelection((prev) => ({
+                          ...prev,
+                          chapterKeys: Array.from(new Set([...prev.chapterKeys, ...group.chapters.map((chapter) => chapter.key)])),
+                        }))
+                      }
+                      disabled={group.chapters.length === 0 || group.chapters.every((chapter) => selectedChapterKeysSet.has(chapter.key))}
                     >
-                      <span aria-hidden="true">{"\uD83D\uDCC4"}</span>
-                      {chapter.label}
+                      {tr("Select all", "すべて選択")}
                     </button>
-                  ))}
+                  </div>
+                  <div className="quizChapterPills" role="group" aria-label={`${group.bookName} chapters`}>
+                    {group.chapters.map((chapter) => (
+                      <button
+                        key={chapter.key}
+                        type="button"
+                        className={`quizSetupPill ${selectedChapterKeysSet.has(chapter.key) ? "isActive" : ""}`}
+                        onClick={() => toggleQuizSetupChapter(chapter.key)}
+                      >
+                        <span aria-hidden="true">{"📄"}</span>
+                        {chapter.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
           {selectedBookCount > 0 && quizSetupChapterGroups.length === 0 && (
             <p className="quizSetupHint">{tr("No chapters found for the selected books.", "選択したブックに章がありません。")}</p>
           )}
-          {selectedBookCount > 0 && quizSetupChapterGroups.length > 0 && selectedChapterCount === 0 && (
-            <p className="quizSetupHint">{tr("Select at least one chapter.", "1章以上選択してください。")}</p>
+          {selectedChapterCount > 0 && quizSetupWords.length >= 2 && (
+            <p className="quizSetupWordCount">
+              {tr(`${quizSetupWords.length} words ready for this quiz.`, `${quizSetupWords.length}語がクイズの準備完了です。`)}
+            </p>
+          )}
+          {selectedChapterCount > 0 && quizSetupWords.length === 1 && (
+            <p className="quizSetupWordCount quizSetupWordCountWarn">
+              {tr("Only 1 word selected — need at least 2.", "単語が1つしかありません — 2つ以上必要です。")}
+            </p>
+          )}
+          {selectedChapterCount > 0 && quizSetupWords.length === 0 && (
+            <p className="quizSetupWordCount quizSetupWordCountWarn">
+              {tr("No matching words found.", "一致する単語が見つかりません。")}
+            </p>
           )}
         </div>
         )}

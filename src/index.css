@@ -2664,7 +2664,6 @@ body.theme-dark .primaryBtn:hover {
 }
 .booksCard {
   position: relative;
-  padding-top: 36px;
 }
 .bookDeleteBtn {
   position: absolute;
@@ -3168,6 +3167,140 @@ body.theme-dark .tutStepNum {
   .tutIntroHeadline {
     font-size: 22px;
   }
+}
+
+/* ── ONBOARDING GOAL SELECTION ───────────────────────────────────── */
+
+.tutGoalStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 4px 0 12px;
+}
+
+.tutGoalPills {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+  width: 100%;
+}
+
+.tutGoalPill {
+  padding: 12px 10px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.tutGoalPill:hover {
+  border-color: var(--accent);
+}
+
+.tutGoalPill.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent);
+}
+
+/* ── RESUME TOUR BUTTON ──────────────────────────────────────────── */
+
+.resumeTourBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.resumeTourBtn:hover {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+/* ── GETTING STARTED CHECKLIST ───────────────────────────────────── */
+
+.gettingStartedChecklist {
+  margin-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 14px 16px;
+}
+
+.gettingStartedHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.gettingStartedHeader strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.gettingStartedDismiss {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  transition: color 0.15s ease;
+}
+
+.gettingStartedDismiss:hover {
+  color: var(--text);
+}
+
+.gettingStartedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gettingStartedItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.gettingStartedItem.done {
+  color: var(--muted);
+}
+
+.gettingStartedCheck {
+  flex: 0 0 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.gettingStartedItem.done .gettingStartedCheck {
+  color: var(--accent);
 }
 
 /* ── MOBILE TOUR BANNER ──────────────────────────────────────────── */
@@ -3993,28 +4126,12 @@ body.theme-dark .inputRow .addWordBtn {
   padding: 22px 22px 20px;
 }
 
-.booksCard .selectBookTitleRow {
-  position: relative;
-  padding-left: 26px;
-  padding-right: 42px;
-  align-items: flex-start;
-}
-
 .booksCard .selectBookTitle {
   white-space: normal;
   line-height: 1.2;
 }
 
-.booksCard .pinBtn {
-  top: 27px;
-  left: 20px;
-  z-index: 2;
-}
-
 .booksCard .bookDeleteBtn {
-  top: 22px;
-  right: 20px;
-  z-index: 3;
   width: 28px;
   height: 28px;
   padding: 0;
@@ -4035,16 +4152,14 @@ body.theme-dark .inputRow .addWordBtn {
 
 .booksCard .selectBookCardTop {
   position: relative;
-  padding-right: 74px;
 }
 
 .booksCard .selectBookTitleRow {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   padding: 0;
   margin-bottom: 8px;
-  min-height: 44px;
 }
 
 .booksCard .selectBookTitle {
@@ -4070,12 +4185,11 @@ body.theme-dark .inputRow .addWordBtn {
 }
 
 .bookCardActions {
-  position: absolute;
-  top: 0;
-  right: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .booksCard .bookRenameBtn,
@@ -4095,7 +4209,6 @@ body.theme-dark .inputRow .addWordBtn {
 }
 
 .booksCard .selectBookLastOpened {
-  margin-left: 30px;
   text-align: left;
 }
 
@@ -5426,6 +5539,16 @@ body.theme-dark .quizResultProgressFill {
   color: var(--muted);
 }
 
+.quizSetupWordCount {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.quizSetupWordCountWarn {
+  color: var(--accent);
+}
+
 .definitionAttributionNote {
   margin: 18px 0;
   font-size: 12px;
@@ -5788,6 +5911,7 @@ body.theme-dark .recentSquare.isPinned {
   border-radius: 12px;
   background: var(--surface);
   box-shadow: none;
+  position: relative;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
