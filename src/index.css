@@ -3237,7 +3237,10 @@ body.theme-dark .tutStepNum {
 /* ── GETTING STARTED CHECKLIST ───────────────────────────────────── */
 
 .gettingStartedChecklist {
+  width: min(100%, 708px);
   margin-top: 20px;
+  margin-left: auto;
+  margin-right: auto;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);

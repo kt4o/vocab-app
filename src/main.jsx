@@ -335,7 +335,8 @@ function AppRoute() {
       }
 
       if (!cancelled) {
-        if (isBearerAuthToken(storedAuthToken)) {
+        if (isBearerAuthToken(storedAuthToken) || storedAuthToken === COOKIE_SESSION_AUTH_MARKER) {
+          // Trust stored credentials on network failure — App will re-verify and log out on 401.
           setStatus("authorized");
           return;
         }
@@ -381,6 +382,14 @@ function RootPage() {
     window.addEventListener("popstate", handleRouteChange);
     return () => window.removeEventListener("popstate", handleRouteChange);
   }, []);
+
+  useEffect(() => {
+    if (route !== "landing") return;
+    const storedToken = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
+    if (isBearerAuthToken(storedToken) || storedToken === COOKIE_SESSION_AUTH_MARKER) {
+      navigateTo("/app");
+    }
+  }, [route]);
 
   useEffect(() => {
     if (analyticsConsent !== "granted") return;

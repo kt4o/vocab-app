@@ -3403,6 +3403,11 @@ export default function App() {
         remaining_count: remainingCount,
       });
 
+      if (authUsername && !hasFirstReview) {
+        setHasFirstReview(true);
+        localStorage.setItem(getFirstReviewDoneKey(authUsername), "1");
+      }
+
       if (shouldReloadQueueAfterSave && !isLocalFallbackItem) {
         const reviewBook = latestBooksRef.current.find((book) => String(book?.id) === String(currentItem.bookId));
         await loadAdaptiveReviewQueue(getBookAdaptiveReviewDailyLimit(reviewBook), {
@@ -3411,10 +3416,6 @@ export default function App() {
           shuffleDue: getBookAdaptiveReviewShuffleDue(reviewBook),
         });
         trackEvent("adaptive_review_completed", {});
-        if (authUsername && !hasFirstReview) {
-          setHasFirstReview(true);
-          localStorage.setItem(getFirstReviewDoneKey(authUsername), "1");
-        }
       }
     } catch (error) {
       setAdaptiveReviewError(error instanceof Error ? error.message : "Unable to update review progress.");
@@ -4755,7 +4756,7 @@ export default function App() {
     setNewBookLanguageMode(parseBookLanguageMode(dictionaryPreference, DEFAULT_BOOK_LANGUAGE_MODE));
     setIsAddBookModalOpen(true);
     if (guidedTourStep === "dashboard-add-book") {
-      setGuidedTourStep("book-name");
+      setGuidedTourStep(prefill.trim() ? "book-create" : "book-name");
     }
   }
 

@@ -6,6 +6,33 @@ export const analyticsRouter = Router();
 
 analyticsRouter.use(requireAuth);
 
+// Cities known to generate non-human / data-center traffic; skip recording analytics for them.
+const SUPPRESSED_CITIES = new Set(["shanghai", "ashburn"]);
+
+function getRequesterCity(req) {
+  const candidates = [
+    req.headers["cf-ipcity"],
+    req.headers["x-vercel-ip-city"],
+    req.headers["cloudfront-viewer-city"],
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value && value.toLowerCase() !== "unknown") {
+      try {
+        return decodeURIComponent(value).trim();
+      } catch {
+        return value;
+      }
+    }
+  }
+  return "";
+}
+
+function isAnalyticsSuppressedCity(req) {
+  const city = getRequesterCity(req).toLowerCase();
+  return Boolean(city && SUPPRESSED_CITIES.has(city));
+}
+
 function getCurrentDayKey(date = new Date()) {
   const localDate = new Date(date);
   localDate.setHours(0, 0, 0, 0);
@@ -32,6 +59,13 @@ analyticsRouter.post("/retention/ping", async (req, res) => {
   const userId = Number(req.authUser?.id || 0);
   if (!Number.isFinite(userId) || userId <= 0) {
     res.status(400).json({ error: "invalid-user" });
+    return;
+  }
+
+  if (isAnalyticsSuppressedCity(req)) {
+    const eventName = normalizeEventName(req.body?.eventName);
+    const dayKey = normalizeDayKey(req.body?.dayKey);
+    res.json({ ok: true, eventName, dayKey, recordedAt: new Date().toISOString() });
     return;
   }
 
