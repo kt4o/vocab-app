@@ -6224,6 +6224,7 @@ body.theme-dark .recentSquare.isPinned {
   .streakStatusText,
   .streakProgressText {
     max-width: 100%;
+    display: none;
   }
   .streakModalSummary {
     grid-template-columns: 1fr;
