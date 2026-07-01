@@ -234,7 +234,7 @@ export function PricingPage() {
         {/* Trust line */}
         <section className="px-4 pb-14 pt-5 sm:px-6">
           <p className="text-center text-[12px] text-[#bbb]">
-            Prices in AUD · Secure checkout · Cancel any time
+            Prices in USD · Secure checkout · Cancel any time
           </p>
         </section>
 

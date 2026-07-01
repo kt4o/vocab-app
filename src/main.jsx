@@ -464,13 +464,13 @@ function RootPage() {
               {
                 "@type": "Offer",
                 price: "0",
-                priceCurrency: "AUD",
+                priceCurrency: "USD",
                 category: "Free",
               },
               {
                 "@type": "Offer",
                 price: "6",
-                priceCurrency: "AUD",
+                priceCurrency: "USD",
                 category: "Pro",
               },
             ],
