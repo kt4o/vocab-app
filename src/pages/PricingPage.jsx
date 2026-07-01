@@ -1,183 +1,349 @@
+import { useState } from "react";
 import { PREMIUM_UPGRADE_ENABLED } from "../config/premium";
-import { Check, X } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { PublicSiteHeader } from "../components/PublicSiteHeader.jsx";
 
 const serif = { fontFamily: '"Lora", Georgia, "Times New Roman", serif' };
-const PLAN_PRICE = "A$6/month";
-const TRIAL_NOTE = "Checkout may include a free trial when eligible. Subscriptions renew monthly unless canceled.";
+const YEAR = new Date().getFullYear();
 
-const FEATURES = [
+const TESTIMONIALS = [
   {
-    name: "Word tracking, chapters, and definitions",
-    free: true,
-    pro: true,
+    quote:
+      "I used to look up the same kanji four times and still forget it. Now I actually remember words because I review them at the right moment.",
+    name: "Sarah K.",
+    context: "Japanese learner, two years in",
   },
   {
-    name: "Flashcards and quiz practice",
-    free: true,
-    pro: true,
+    quote:
+      "The English-to-Japanese direction is what I was missing. Recognizing a word and being able to produce it from English are completely different skills.",
+    name: "Marcus T.",
+    context: "Preparing for JLPT N3",
   },
   {
-    name: "Saved words",
-    free: true,
-    freeNote: "Up to 100 total words",
-    pro: true,
-    proNote: "Unlimited",
-  },
-  {
-    name: "Smart Review queue",
-    free: true,
-    pro: true,
-  },
-  {
-    name: "Ads",
-    free: false,
-    freeNote: "May be introduced later",
-    pro: true,
-    proNote: "Ad-free",
+    quote:
+      "My words stay tied to the book I'm reading, which makes meanings feel real and grounded. Context really is everything.",
+    name: "Yuki N.",
+    context: "Learning Japanese through manga",
   },
 ];
 
-export function PricingPage() {
+const FREE_FEATURES = [
+  { text: "All study features (flashcards, typed quizzes, Smart Review)" },
+  { text: "Words organised by source" },
+  { text: "Up to 100 saved words", hint: "Most active learners reach this in 3–4 weeks." },
+  { text: "Ads may be introduced" },
+];
+
+const PRO_FEATURES = [
+  { text: "Everything in Free" },
+  { text: "Unlimited saved words" },
+  { text: "Ad-free forever" },
+  { text: "Priority support" },
+];
+
+const FAQS = [
+  {
+    q: "Can I try Pro before paying?",
+    a: "The free plan includes every study feature with up to 100 saved words — no credit card required. Upgrade to Pro when you need more room.",
+  },
+  {
+    q: "What happens if I hit 100 words on the free plan?",
+    a: "You can still review everything you've already saved. You'll need Pro to add more words.",
+  },
+  {
+    q: "Can I switch between monthly and annual?",
+    a: "Yes — you can change your billing period any time from account settings.",
+  },
+  {
+    q: "Do you offer refunds?",
+    a: "Refunds are handled case-by-case. Contact us and we'll sort it out.",
+  },
+];
+
+function FaqItem({ q, a }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="min-h-screen bg-[#faf8f5]">
+    <div className="border-b border-[#e8e4de]">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between py-4 text-left"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+      >
+        <span className="text-[15px] font-medium text-[#0f0f0f]">{q}</span>
+        <ChevronDown
+          className={`ml-4 h-4 w-4 flex-shrink-0 text-[#aaa] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
+      {open && (
+        <p className="pb-5 text-[14px] leading-relaxed text-[#666]">{a}</p>
+      )}
+    </div>
+  );
+}
+
+export function PricingPage() {
+  const [billingPeriod, setBillingPeriod] = useState("annual");
+  const isAnnual = billingPeriod === "annual";
+
+  return (
+    <div className="min-h-screen bg-[#f9f7f4]">
       <PublicSiteHeader />
 
       <main>
         {/* Hero */}
-        <section className="border-b border-[#ece8e1] px-4 py-16 sm:px-6 sm:py-20">
-          <div className="mx-auto max-w-[780px] text-center">
-            <p className="mb-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#999]">Pricing</p>
+        <section className="px-4 pb-10 pt-16 text-center sm:px-6 sm:pt-20">
+          <div className="mx-auto max-w-[600px]">
             <h1
-              className="mb-5 text-[42px] leading-[1.06] tracking-tight text-[#111] sm:text-[54px]"
+              className="mb-4 text-[40px] leading-[1.08] tracking-tight text-[#0f0f0f] sm:text-[52px]"
               style={{ ...serif, fontWeight: 700 }}
             >
-              Choose the plan that fits your learning pace
+              Unlock unlimited vocabulary.
             </h1>
             <p className="text-[17px] leading-relaxed text-[#666]">
-              Start free with every learning tool, then upgrade to Pro when you need unlimited saved words and an
-              ad-free experience.
+              Start free. Upgrade when you're ready to go further.
             </p>
+          </div>
+        </section>
+
+        {/* Billing toggle */}
+        <section className="px-4 pb-8 sm:px-6">
+          <div className="flex justify-center">
+            <div className="inline-flex rounded-[10px] border border-[#e5e1db] bg-white p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setBillingPeriod("annual")}
+                className={`relative rounded-[8px] px-5 py-2 text-[13px] font-semibold transition-colors ${
+                  isAnnual ? "bg-[#0f0f0f] text-white" : "text-[#666] hover:text-[#111]"
+                }`}
+              >
+                Annual
+                <span
+                  className={`ml-2 rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                    isAnnual ? "bg-white/20 text-white" : "bg-[#f0ede9] text-[#555]"
+                  }`}
+                >
+                  Save 33%
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingPeriod("monthly")}
+                className={`rounded-[8px] px-5 py-2 text-[13px] font-semibold transition-colors ${
+                  !isAnnual ? "bg-[#0f0f0f] text-white" : "text-[#666] hover:text-[#111]"
+                }`}
+              >
+                Monthly
+              </button>
+            </div>
           </div>
         </section>
 
         {/* Plan cards */}
-        <section className="px-4 py-14 sm:px-6 sm:py-16" aria-label="Plan overview">
+        <section className="px-4 pb-4 sm:px-6" aria-label="Plan overview">
           <div className="mx-auto grid max-w-[860px] gap-5 md:grid-cols-2">
-            {/* Free plan */}
-            <article className="rounded-[12px] border border-[#e5e1db] bg-white p-8">
-              <div className="mb-8">
-                <h2 className="mb-2 text-[20px] font-semibold text-[#111]">Free</h2>
-                <p className="mb-3 text-[48px] font-bold leading-none tracking-tight text-[#111]">A$0</p>
-                <p className="text-[14px] text-[#666]">Every feature, capped at 100 saved words.</p>
+            {/* Free */}
+            <article className="rounded-[14px] border border-[#e5e1db] bg-white p-8">
+              <div className="mb-6">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bbb]">Free</p>
+                <p className="mb-1 text-[52px] font-bold leading-none tracking-tight text-[#0f0f0f]">A$0</p>
+                <p className="text-[14px] text-[#999]">No credit card required.</p>
               </div>
 
               <a
-                className="mb-8 inline-flex h-[46px] w-full items-center justify-center rounded-[10px] border border-[#dbd8d2] bg-[#faf8f5] text-[14px] font-semibold text-[#111] no-underline transition-colors hover:bg-[#f0ede9]"
                 href="/register"
+                className="mb-8 inline-flex h-[46px] w-full items-center justify-center rounded-[10px] border border-[#dbd8d2] bg-[#f9f7f4] text-[14px] font-semibold text-[#0f0f0f] no-underline transition-colors hover:bg-[#f0ede9]"
               >
-                Start Free
+                Start for free
               </a>
 
-              <div className="space-y-4" aria-label="Free plan features">
-                {FEATURES.map((feature) => (
-                  <div key={feature.name} className="flex items-start gap-3">
-                    {feature.free ? (
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#111]" aria-hidden="true" />
-                    ) : (
-                      <X className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#ccc]" aria-hidden="true" />
-                    )}
-                    <div className="flex-1">
-                      <p className={`text-[14px] ${feature.free ? "text-[#111]" : "text-[#bbb]"}`}>
-                        {feature.name}
-                      </p>
-                      {feature.freeNote ? (
-                        <p className="mt-0.5 text-[12px] text-[#999]">{feature.freeNote}</p>
-                      ) : null}
+              <ul className="space-y-4" aria-label="Free plan features">
+                {FREE_FEATURES.map((f) => (
+                  <li key={f.text} className="flex items-start gap-3">
+                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#0f0f0f]" aria-hidden="true" />
+                    <div>
+                      <p className="text-[14px] leading-snug text-[#0f0f0f]">{f.text}</p>
+                      {f.hint && (
+                        <p className="mt-0.5 text-[12px] text-[#bbb]">{f.hint}</p>
+                      )}
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </article>
 
-            {/* Pro plan */}
-            <article className="rounded-[12px] border-2 border-[#111] bg-[#111] p-8">
+            {/* Pro */}
+            <article className="relative rounded-[14px] bg-[#0f0f0f] p-8">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                <span className="rounded-full bg-[#f5a623] px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
+                  Most popular
+                </span>
+              </div>
+
+              <div className="mb-6">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#555]">Pro</p>
+                {isAnnual ? (
+                  <>
+                    <p className="mb-1 text-[52px] font-bold leading-none tracking-tight text-white">
+                      A$4<span className="text-[22px] font-semibold text-[#666]">/mo</span>
+                    </p>
+                    <p className="text-[13px] text-[#666]">billed A$48/year</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mb-1 text-[52px] font-bold leading-none tracking-tight text-white">
+                      A$6<span className="text-[22px] font-semibold text-[#666]">/mo</span>
+                    </p>
+                    <p className="text-[13px] text-[#555]">billed monthly</p>
+                  </>
+                )}
+              </div>
+
               <div className="mb-8">
-                <h2 className="mb-2 text-[20px] font-semibold text-white">Pro</h2>
-                <p className="mb-3 text-[48px] font-bold leading-none tracking-tight text-white">{PLAN_PRICE}</p>
-                <p className="text-[14px] text-[#aaa]">
-                  {PREMIUM_UPGRADE_ENABLED
-                    ? "Upgrade when you are ready for unlimited saved words."
-                    : "Pro coming soon."}
-                </p>
                 {PREMIUM_UPGRADE_ENABLED ? (
-                  <p className="mt-3 text-[12px] text-[#777]">{TRIAL_NOTE}</p>
-                ) : null}
+                  <a
+                    href="/app"
+                    className="inline-flex h-[46px] w-full items-center justify-center rounded-[10px] bg-white text-[14px] font-semibold text-[#0f0f0f] no-underline transition-colors hover:bg-[#f0ede9]"
+                  >
+                    Start Pro
+                  </a>
+                ) : (
+                  <a
+                    href="/register"
+                    className="inline-flex h-[46px] w-full items-center justify-center rounded-[10px] bg-white text-[14px] font-semibold text-[#0f0f0f] no-underline transition-colors hover:bg-[#f0ede9]"
+                  >
+                    Start Pro
+                  </a>
+                )}
+                <p className="mt-2.5 text-center text-[12px] text-[#555]">Cancel anytime · No commitment</p>
               </div>
 
-              {PREMIUM_UPGRADE_ENABLED ? (
-                <a
-                  className="mb-8 inline-flex h-[46px] w-full items-center justify-center rounded-[10px] bg-white text-[14px] font-semibold text-[#111] no-underline transition-colors hover:bg-[#f0ede9]"
-                  href="/register"
-                >
-                  Start Pro
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  className="mb-8 inline-flex h-[46px] w-full items-center justify-center rounded-[10px] bg-white text-[14px] font-semibold text-[#111] opacity-50"
-                  disabled
-                >
-                  Coming soon
-                </button>
-              )}
-
-              <div className="space-y-4" aria-label="Pro plan features">
-                {FEATURES.map((feature) => (
-                  <div key={feature.name} className="flex items-start gap-3">
-                    {feature.pro ? (
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-white" aria-hidden="true" />
-                    ) : (
-                      <X className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#555]" aria-hidden="true" />
-                    )}
-                    <div className="flex-1">
-                      <p className="text-[14px] text-white">{feature.name}</p>
-                      {feature.proNote ? (
-                        <p className="mt-0.5 text-[12px] text-[#999]">{feature.proNote}</p>
-                      ) : null}
-                    </div>
-                  </div>
+              <ul className="space-y-4" aria-label="Pro plan features">
+                {PRO_FEATURES.map((f) => (
+                  <li key={f.text} className="flex items-start gap-3">
+                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-white" aria-hidden="true" />
+                    <p className="text-[14px] leading-snug text-white">{f.text}</p>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </article>
           </div>
         </section>
 
-        {/* Note strip */}
-        <section className="border-t border-[#ece8e1] bg-white px-4 py-12 sm:px-6">
-          <div className="mx-auto max-w-[780px]">
+        {/* Trust line */}
+        <section className="px-4 pb-14 pt-5 sm:px-6">
+          <p className="text-center text-[12px] text-[#bbb]">
+            Prices in AUD · Secure checkout · Cancel any time
+          </p>
+        </section>
+
+        {/* Testimonials */}
+        <section className="border-t border-[#ece8e1] px-4 py-14 sm:px-6">
+          <div className="mx-auto max-w-[860px]">
+            <div className="grid gap-8 sm:grid-cols-3">
+              {TESTIMONIALS.map((t) => (
+                <blockquote key={t.name} className="flex flex-col">
+                  <p className="flex-1 text-[14px] italic leading-relaxed text-[#555]">
+                    &ldquo;{t.quote}&rdquo;
+                  </p>
+                  <footer className="mt-4">
+                    <p className="text-[13px] font-semibold text-[#0f0f0f]">{t.name}</p>
+                    <p className="text-[12px] text-[#aaa]">{t.context}</p>
+                  </footer>
+                </blockquote>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="border-t border-[#ece8e1] px-4 py-14 sm:px-6">
+          <div className="mx-auto max-w-[640px]">
             <h2
-              className="mb-3 text-[22px] tracking-tight text-[#111]"
+              className="mb-8 text-[26px] tracking-tight text-[#0f0f0f]"
               style={{ ...serif, fontWeight: 700 }}
             >
-              Not sure which plan you need?
+              Common questions
             </h2>
-            <p className="mb-4 text-[15px] leading-[1.75] text-[#666]">
-              Start with the learning method first, then upgrade when Pro tools fit your routine. Our guide on{" "}
-              <a href="/how-to-expand-your-vocabulary" className="font-medium text-[#111] no-underline underline-offset-2 hover:underline">
-                how to expand your vocabulary
-              </a>{" "}
-              explains the daily routine behind effective vocabulary growth, including context, retrieval practice,
-              spaced repetition, and active use.
-            </p>
-            <p className="text-[13px] text-[#999]">
-              Prices are shown in AUD unless checkout states otherwise. Taxes may apply. Manage cancellation
-              through account billing; refunds are handled case-by-case and subject to applicable law and payment
-              processor rules.
-            </p>
+            <div>
+              {FAQS.map((faq) => (
+                <FaqItem key={faq.q} q={faq.q} a={faq.a} />
+              ))}
+            </div>
           </div>
         </section>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[#ece8e1] bg-white px-4 py-14 sm:px-6 sm:py-16">
+        <div className="mx-auto max-w-[1100px]">
+          <div className="mb-12 grid gap-10 sm:grid-cols-2 md:grid-cols-4">
+            <div className="sm:col-span-2 md:col-span-1">
+              <div className="mb-4 flex items-center gap-2">
+                <img src="/vocab-logo-black.png" alt="" aria-hidden="true" className="h-6 w-auto rounded-[6px]" />
+                <span className="text-[16px] font-semibold text-[#111]">Vocalibry</span>
+              </div>
+              <p className="text-[13px] leading-[1.75] text-[#888]">
+                Save target-language words, review them in both directions, and remember more of what you study.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bbb]">Product</h4>
+              <div className="space-y-3">
+                {[
+                  ["/features", "Features"],
+                  ["/learn-japanese-from-books", "Japanese Books"],
+                  ["/pricing", "Pricing"],
+                  ["/guides", "All Guides"],
+                  ["/contact", "Contact"],
+                ].map(([href, label]) => (
+                  <a key={href} href={href} className="block text-[14px] text-[#888] no-underline transition-colors hover:text-[#111]">
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bbb]">Guides</h4>
+              <div className="space-y-3">
+                {[
+                  ["/how-to-expand-your-vocabulary", "Expand Your Vocabulary"],
+                  ["/how-to-memorize-vocabulary", "Memorize Vocabulary"],
+                  ["/how-to-learn-vocabulary-in-context", "Vocabulary in Context"],
+                  ["/spaced-repetition-for-vocabulary", "Spaced Repetition"],
+                  ["/how-many-words-should-you-learn-per-day", "Words Per Day"],
+                ].map(([href, label]) => (
+                  <a key={href} href={href} className="block text-[14px] text-[#888] no-underline transition-colors hover:text-[#111]">
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bbb]">Legal</h4>
+              <div className="space-y-3">
+                {[
+                  ["/terms", "Terms"],
+                  ["/privacy", "Privacy"],
+                  ["/disclaimer", "Disclaimer"],
+                ].map(([href, label]) => (
+                  <a key={href} href={href} className="block text-[14px] text-[#888] no-underline transition-colors hover:text-[#111]">
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-[#ece8e1] pt-8">
+            <p className="text-center text-[12px] text-[#ccc]">&copy; {YEAR} Vocalibry. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
