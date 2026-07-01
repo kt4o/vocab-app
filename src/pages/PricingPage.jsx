@@ -147,7 +147,7 @@ export function PricingPage() {
             <article className="rounded-[14px] border border-[#e5e1db] bg-white p-8">
               <div className="mb-6">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bbb]">Free</p>
-                <p className="mb-1 text-[52px] font-bold leading-none tracking-tight text-[#0f0f0f]">A$0</p>
+                <p className="mb-1 text-[52px] font-bold leading-none tracking-tight text-[#0f0f0f]">$0</p>
                 <p className="text-[14px] text-[#999]">No credit card required.</p>
               </div>
 
@@ -186,14 +186,14 @@ export function PricingPage() {
                 {isAnnual ? (
                   <>
                     <p className="mb-1 text-[52px] font-bold leading-none tracking-tight text-white">
-                      A$4<span className="text-[22px] font-semibold text-[#666]">/mo</span>
+                      $4<span className="text-[22px] font-semibold text-[#666]">/mo</span>
                     </p>
-                    <p className="text-[13px] text-[#666]">billed A$48/year</p>
+                    <p className="text-[13px] text-[#666]">billed $48/year</p>
                   </>
                 ) : (
                   <>
                     <p className="mb-1 text-[52px] font-bold leading-none tracking-tight text-white">
-                      A$6<span className="text-[22px] font-semibold text-[#666]">/mo</span>
+                      $6<span className="text-[22px] font-semibold text-[#666]">/mo</span>
                     </p>
                     <p className="text-[13px] text-[#555]">billed monthly</p>
                   </>

@@ -6019,7 +6019,7 @@ export default function App() {
                         }}
                         onClick={() => setSelectedBillingInterval("annual")}
                       >
-                        {tr("Annual · A$48/yr", "年間 · A$48/yr")}
+                        {tr("Annual · $48/yr", "年間 · $48/yr")}
                       </button>
                       <button
                         type="button"
@@ -6032,7 +6032,7 @@ export default function App() {
                         }}
                         onClick={() => setSelectedBillingInterval("monthly")}
                       >
-                        {tr("Monthly · A$6/mo", "月額 · A$6/mo")}
+                        {tr("Monthly · $6/mo", "月額 · $6/mo")}
                       </button>
                     </div>
                     <p className="settingsHint" style={{ marginTop: 6, marginBottom: 4 }}>
@@ -6053,7 +6053,7 @@ export default function App() {
                         }}
                         onClick={() => setSelectedBillingInterval("lifetime")}
                       >
-                        {tr("Lifetime · A$99 (limited)", "永久ライセンス · A$99（限定）")}
+                        {tr("Lifetime · $99 (limited)", "永久ライセンス · $99（限定）")}
                       </button>
                     ) : null}
                     {!isSelectedIntervalConfigured ? (

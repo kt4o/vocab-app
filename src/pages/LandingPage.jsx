@@ -387,7 +387,7 @@ export function LandingPage() {
               {/* Free */}
               <div className="rounded-[12px] border border-[#e5e1db] bg-white p-8">
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#bbb]">Free</p>
-                <div className="mb-1 text-[52px] font-bold leading-none tracking-tight text-[#111]">A$0</div>
+                <div className="mb-1 text-[52px] font-bold leading-none tracking-tight text-[#111]">$0</div>
                 <p className="mb-7 text-[13px] text-[#999]">Free forever</p>
                 <a
                   href="/register"
@@ -412,7 +412,7 @@ export function LandingPage() {
               <div className="rounded-[12px] border-2 border-[#111] bg-[#111] p-8">
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#666]">Pro</p>
                 <div className="mb-1 flex items-end gap-2">
-                  <span className="text-[52px] font-bold leading-none tracking-tight text-white">A$6</span>
+                  <span className="text-[52px] font-bold leading-none tracking-tight text-white">$6</span>
                   <span className="mb-1.5 text-[14px] text-[#666]">/ month</span>
                 </div>
                 <p className="mb-7 text-[13px] text-[#666]">Unlimited words, no ads</p>
