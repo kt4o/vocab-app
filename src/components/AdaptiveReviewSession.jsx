@@ -405,11 +405,11 @@ export function AdaptiveReviewSession({
 
         {!loading && !shouldShowError && !currentItem ? (
           <div className="analyticsCard adaptiveReviewStateCard">
-            <h3>No more words due</h3>
+            <h3>You're all caught up!</h3>
             <p className="settingsHint">
               {scopeName
-                ? `Your ${scopeName} review queue is clear for now. Come back later, or practice this book another way.`
-                : "Your adaptive review queue is clear for now. Come back later, or keep building your vocabulary so the scheduler has more to work with."}
+                ? `No words due for ${scopeName} right now — this is spaced repetition working as intended. Your next words will surface when the timing is optimal for memory.`
+                : "No words due right now — this is spaced repetition working as intended. Your next words will surface when the timing is optimal for memory. Check back tomorrow to keep your streak going."}
             </p>
             <div className="modalActions">
               {onPracticeQuiz ? (

@@ -2536,6 +2536,9 @@ export default function App() {
   const [billingCurrentPeriodEnd, setBillingCurrentPeriodEnd] = useState("");
   const [accountEmail, setAccountEmail] = useState("");
   const [isStripeBillingConfigured, setIsStripeBillingConfigured] = useState(false);
+  const [isStripeAnnualConfigured, setIsStripeAnnualConfigured] = useState(false);
+  const [isStripeLifetimeConfigured, setIsStripeLifetimeConfigured] = useState(false);
+  const [selectedBillingInterval, setSelectedBillingInterval] = useState("annual");
   const [isAccountProfileLoading, setIsAccountProfileLoading] = useState(false);
   const [isBillingStatusLoading, setIsBillingStatusLoading] = useState(false);
   const [isBillingCheckoutSubmitting, setIsBillingCheckoutSubmitting] = useState(false);
@@ -2564,6 +2567,10 @@ export default function App() {
   const [adaptiveReviewError, setAdaptiveReviewError] = useState("");
   const [adaptiveReviewPendingRating, setAdaptiveReviewPendingRating] = useState("");
   const [isAdaptiveReviewInfoOpen, setIsAdaptiveReviewInfoOpen] = useState(false);
+  const [showPostTourSheet, setShowPostTourSheet] = useState(false);
+  const [showFirstReviewCelebration, setShowFirstReviewCelebration] = useState(false);
+  const [justCompletedFirstReview, setJustCompletedFirstReview] = useState(false);
+  const [reengagementDismissed, setReengagementDismissed] = useState(false);
   const isJapaneseUi = preferredLanguage === "ja";
   const appLocale = isJapaneseUi ? "ja" : "en";
   const uiText = APP_TEXT[appLocale] || APP_TEXT.en;
@@ -2619,6 +2626,12 @@ export default function App() {
   const activityTotalStats = sumActivityHistory(activityHistory);
   const isAccountDataHydrating = Boolean(authToken) && !isCloudStateHydrated;
   const isProPlan = billingPlan === "pro";
+  const isSelectedIntervalConfigured =
+    selectedBillingInterval === "annual"
+      ? isStripeAnnualConfigured
+      : selectedBillingInterval === "lifetime"
+        ? isStripeLifetimeConfigured
+        : isStripeBillingConfigured;
   const totalSavedWordCount = countStoredWords(books);
   const freeWordLimitRemaining = Math.max(0, FREE_WORD_LIMIT - totalSavedWordCount);
   const isFreeWordLimitReached = !isProPlan && totalSavedWordCount >= FREE_WORD_LIMIT;
@@ -3406,6 +3419,7 @@ export default function App() {
       if (authUsername && !hasFirstReview) {
         setHasFirstReview(true);
         localStorage.setItem(getFirstReviewDoneKey(authUsername), "1");
+        if (shouldReloadQueueAfterSave) setJustCompletedFirstReview(true);
       }
 
       if (shouldReloadQueueAfterSave && !isLocalFallbackItem) {
@@ -3458,11 +3472,7 @@ export default function App() {
       <LoadingAnimation className="accountSyncScreen" label={uiText.loadingAccountData} />
     ) : content;
 
-    const stopGuidedTourForSidebarNavigation = () => {
-      if (!guidedTourStep) return;
-      setGuidedTourStep("");
-      setIsGuidedTourDismissed(true);
-    };
+    const stopGuidedTourForSidebarNavigation = () => {};
 
     return (
       <div className={`appShell ${guidedTourStep && !isOnboardingTutorialOpen ? "isGuidedLocked" : ""} ${isGuidedModalOpen ? "hasGuidedModalOpen" : ""} ${isGuidedTourMobile && guidedTourStep && !isOnboardingTutorialOpen ? "hasMobileTourBanner" : ""}`}>
@@ -3853,6 +3863,8 @@ export default function App() {
     setBillingSubscriptionStatus("");
     setBillingCurrentPeriodEnd("");
     setIsStripeBillingConfigured(false);
+    setIsStripeAnnualConfigured(false);
+    setIsStripeLifetimeConfigured(false);
     setIsAccountProfileLoading(false);
     setAccountActionError("");
     setIsChangePasswordModalOpen(false);
@@ -4011,12 +4023,14 @@ export default function App() {
       setBillingSubscriptionStatus(String(payload?.subscriptionStatus || "").trim().toLowerCase());
       setBillingCurrentPeriodEnd(String(payload?.currentPeriodEnd || "").trim());
       setIsStripeBillingConfigured(Boolean(payload?.isStripeConfigured));
+      setIsStripeAnnualConfigured(Boolean(payload?.isStripeAnnualConfigured));
+      setIsStripeLifetimeConfigured(Boolean(payload?.isStripeLifetimeConfigured));
     } finally {
       setIsBillingStatusLoading(false);
     }
   }, [authToken]);
 
-  async function startBillingCheckout() {
+  async function startBillingCheckout(billingInterval = "monthly") {
     if (
       !PREMIUM_UPGRADE_ENABLED ||
       !authToken ||
@@ -4034,6 +4048,7 @@ export default function App() {
         headers: buildAuthHeaders(authToken, {
           "Content-Type": "application/json",
         }),
+        body: JSON.stringify({ billingInterval }),
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -4305,6 +4320,8 @@ export default function App() {
       setBillingCurrentPeriodEnd("");
       setAccountEmail("");
       setIsStripeBillingConfigured(false);
+      setIsStripeAnnualConfigured(false);
+      setIsStripeLifetimeConfigured(false);
       setIsChangePasswordModalOpen(false);
       setIsBillingStatusLoading(false);
       setIsAccountProfileLoading(false);
@@ -4763,8 +4780,7 @@ export default function App() {
   function closeAddBookModal() {
     setIsAddBookModalOpen(false);
     if (guidedTourStep === "book-name" || guidedTourStep === "book-create") {
-      setGuidedTourStep("");
-      setIsGuidedTourDismissed(true);
+      setGuidedTourStep("dashboard-add-book");
     }
   }
 
@@ -5328,17 +5344,6 @@ export default function App() {
       <aside className={`guidedCoach guidedCoach-${guidedStep.key} guidedCoach-${placement}`} aria-live="polite">
         <div className="guidedCoachTopRow">
           <span className="guidedCoachStep">{guidedStep.stepLabel}</span>
-          <button
-            type="button"
-            className="guidedCoachSkipBtn"
-            onClick={() => {
-              trackEvent("onboarding_tour_skipped", { step: guidedTourStep });
-              setIsGuidedTourDismissed(true);
-              setGuidedTourStep("");
-            }}
-          >
-            {tr("Skip tour", "Skip tour")}
-          </button>
         </div>
         <h2>{guidedStep.title}</h2>
         <p>{guidedStep.body}</p>
@@ -5357,13 +5362,6 @@ export default function App() {
           <strong className="mobileTourBannerTitle">{guidedStep.title}</strong>
           <p className="mobileTourBannerBody">{guidedStep.body}</p>
         </div>
-        <button
-          type="button"
-          className="mobileTourBannerSkip"
-          onClick={() => { trackEvent("onboarding_tour_skipped", { step: guidedTourStep }); setIsGuidedTourDismissed(true); setGuidedTourStep(""); }}
-        >
-          {tr("Skip", "スキップ")}
-        </button>
       </div>
     );
   }
@@ -5480,6 +5478,13 @@ export default function App() {
   }, [authUsername]);
 
   useEffect(() => {
+    if (justCompletedFirstReview && adaptiveReviewItems.length === 0 && !adaptiveReviewLoading) {
+      setShowFirstReviewCelebration(true);
+      setJustCompletedFirstReview(false);
+    }
+  }, [justCompletedFirstReview, adaptiveReviewItems.length, adaptiveReviewLoading]);
+
+  useEffect(() => {
     const isModalOpen =
       isOnboardingTutorialOpen ||
       isAddBookModalOpen ||
@@ -5592,6 +5597,87 @@ export default function App() {
   }
 
   function renderModal() {
+  if (showPostTourSheet) {
+    return (
+      <div className="modalOverlay">
+        <div
+          className="modalCard postTourSheetCard"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="post-tour-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 id="post-tour-title">{tr("You're all set!", "準備完了！")}</h3>
+          <p>
+            {tr(
+              "Vocalibry schedules each word for the exact moment before you'd forget it. The more you review, the longer the gaps between sessions — until words are locked in for good.",
+              "Vocalibryは、忘れる直前のタイミングに合わせて各単語をスケジュールします。復習を重ねるほど間隔が広がり、やがて単語が完全に定着します。"
+            )}
+          </p>
+          <p className="settingsHint">
+            {tr(
+              "Check back tomorrow — your words will be ready for their first scheduled review.",
+              "明日また来てみましょう — 最初の予定復習が準備されます。"
+            )}
+          </p>
+          <div className="modalActions">
+            <button
+              type="button"
+              className="modalBtn primary"
+              onClick={() => {
+                setShowPostTourSheet(false);
+                openAdaptiveReviewSession(currentBook?.id, { backScreen: "bookMenu" });
+              }}
+            >
+              {tr("Got it, start review →", "わかった、復習を始める →")}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (showFirstReviewCelebration) {
+    return (
+      <div className="modalOverlay">
+        <div
+          className="modalCard postTourSheetCard"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="first-review-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 id="first-review-title">{tr("First review done!", "初めての復習完了！")}</h3>
+          <p>
+            {tr(
+              "These words are now scheduled using spaced repetition. The more you review, the longer they stay — until they become permanent memory.",
+              "これらの単語は間隔反復でスケジュールされました。復習を重ねるほど記憶が長続きし、やがて永久記憶になります。"
+            )}
+          </p>
+          <div className="modalActions">
+            <button
+              type="button"
+              className="modalBtn primary"
+              onClick={() => {
+                setShowFirstReviewCelebration(false);
+                setScreen("gallery");
+              }}
+            >
+              {tr("See my words →", "単語を見る →")}
+            </button>
+            <button
+              type="button"
+              className="modalBtn ghost"
+              onClick={() => setShowFirstReviewCelebration(false)}
+            >
+              {tr("Close", "閉じる")}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isOnboardingTutorialOpen) {
     return (
       <div className="modalOverlay tutorialOverlay" onClick={completeOnboardingTutorial}>
@@ -5623,9 +5709,6 @@ export default function App() {
               </div>
               <button type="button" className="tutStartBtn" onClick={() => setOnboardingTutorialStep(1)}>
                 {tr("Get started", "始める")} →
-              </button>
-              <button type="button" className="tutSkipLink" onClick={() => { trackEvent("onboarding_intro_skipped"); completeOnboardingTutorial(); }}>
-                {tr("Skip", "スキップ")}
               </button>
             </>
           ) : (
@@ -5712,16 +5795,6 @@ export default function App() {
                 "各ブックを1つの学習方向に集中させます。"
               )}
             </p>
-            <button
-              type="button"
-              className="createBookBrowsePremadeBtn"
-              onClick={() => {
-                setIsAddBookModalOpen(false);
-                setScreen("premadeBooks");
-              }}
-            >
-              {tr("Browse Premade Books", "既製ブックを見る")}
-            </button>
             {renderGuidedTourCoach("inline", "book-name")}
             <div className="modalActions">
               <button type="button" className="modalBtn ghost" onClick={closeAddBookModal}>
@@ -5911,50 +5984,112 @@ export default function App() {
                 {billingPeriodEndLabel ? (
                   <p className="settingsHint">{tr("Current period ends", "現在の期間終了日")}: {billingPeriodEndLabel}</p>
                 ) : null}
-                {!isStripeBillingConfigured ? (
-                  <p className="settingsHint">
-                    {tr("Stripe billing is not configured yet. Add Stripe env vars on the backend.", "Stripe請求が未設定です。バックエンドで環境変数を設定してください。")}
-                  </p>
-                ) : null}
                 {billingPlan === "pro" && !isLifetimePro ? (
-                  <div className="settingsRow">
-                    <span>{tr("Manage billing", "請求管理")}</span>
-                    <button
-                      type="button"
-                      className="primaryBtn"
-                      onClick={openBillingPortal}
-                      disabled={isBillingPortalSubmitting || !isStripeBillingConfigured}
-                    >
-                      {isBillingPortalSubmitting ? tr("Please wait...", "処理中...") : tr("Manage Subscription", "サブスク管理")}
-                    </button>
-                  </div>
+                  <>
+                    {!isStripeBillingConfigured ? (
+                      <p className="settingsHint">
+                        {tr("Stripe billing is not configured yet. Add Stripe env vars on the backend.", "Stripe請求が未設定です。バックエンドで環境変数を設定してください。")}
+                      </p>
+                    ) : null}
+                    <div className="settingsRow">
+                      <span>{tr("Manage billing", "請求管理")}</span>
+                      <button
+                        type="button"
+                        className="primaryBtn"
+                        onClick={openBillingPortal}
+                        disabled={isBillingPortalSubmitting || !isStripeBillingConfigured}
+                      >
+                        {isBillingPortalSubmitting ? tr("Please wait...", "処理中...") : tr("Manage Subscription", "サブスク管理")}
+                      </button>
+                    </div>
+                  </>
                 ) : billingPlan === "pro" ? (
                   <p className="settingsHint">{tr("Your plan is lifetime Pro. Billing management is not required.", "永久Proのため請求管理は不要です。")}</p>
                 ) : (
-                  <div className="settingsRow">
-                    <span>{PREMIUM_UPGRADE_ENABLED ? tr("Upgrade account", "アカウントをアップグレード") : tr("Pro coming soon", "Proは近日公開")}</span>
-                    <button
-                      type="button"
-                      className="primaryBtn"
-                      onClick={startBillingCheckout}
-                      disabled={
-                        !PREMIUM_UPGRADE_ENABLED ||
-                        isBillingCheckoutSubmitting ||
-                        !isStripeBillingConfigured ||
-                        isBillingStatusLoading
-                      }
-                    >
-                      {!PREMIUM_UPGRADE_ENABLED
-                        ? tr("Upgrade Coming Soon", "アップグレード近日公開")
-                        : isBillingCheckoutSubmitting
-                          ? tr("Redirecting...", "移動中...")
-                          : tr("Upgrade to Pro", "Proにアップグレード")}
-                    </button>
-                  </div>
+                  <>
+                    <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                      <button
+                        type="button"
+                        className="primaryBtn"
+                        style={{
+                          flex: 1,
+                          ...(selectedBillingInterval === "annual"
+                            ? { background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }
+                            : {}),
+                        }}
+                        onClick={() => setSelectedBillingInterval("annual")}
+                      >
+                        {tr("Annual · A$48/yr", "年間 · A$48/yr")}
+                      </button>
+                      <button
+                        type="button"
+                        className="primaryBtn"
+                        style={{
+                          flex: 1,
+                          ...(selectedBillingInterval === "monthly"
+                            ? { background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }
+                            : {}),
+                        }}
+                        onClick={() => setSelectedBillingInterval("monthly")}
+                      >
+                        {tr("Monthly · A$6/mo", "月額 · A$6/mo")}
+                      </button>
+                    </div>
+                    <p className="settingsHint" style={{ marginTop: 6, marginBottom: 4 }}>
+                      {selectedBillingInterval === "annual"
+                        ? tr("Billed upfront — saves 33% vs monthly.", "年間前払い — 月額比33%オフ。")
+                        : tr("Billed monthly, cancel anytime.", "毎月請求、いつでもキャンセル可。")}
+                    </p>
+                    {isStripeLifetimeConfigured ? (
+                      <button
+                        type="button"
+                        className="primaryBtn"
+                        style={{
+                          width: "100%",
+                          marginBottom: 4,
+                          ...(selectedBillingInterval === "lifetime"
+                            ? { background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }
+                            : {}),
+                        }}
+                        onClick={() => setSelectedBillingInterval("lifetime")}
+                      >
+                        {tr("Lifetime · A$99 (limited)", "永久ライセンス · A$99（限定）")}
+                      </button>
+                    ) : null}
+                    {!isSelectedIntervalConfigured ? (
+                      <p className="settingsHint">
+                        {tr("Stripe billing is not configured yet. Add Stripe env vars on the backend.", "Stripe請求が未設定です。バックエンドで環境変数を設定してください。")}
+                      </p>
+                    ) : null}
+                    <div className="settingsRow">
+                      <span>
+                        {PREMIUM_UPGRADE_ENABLED
+                          ? tr("Upgrade account", "アカウントをアップグレード")
+                          : tr("Pro coming soon", "Proは近日公開")}
+                      </span>
+                      <button
+                        type="button"
+                        className="primaryBtn"
+                        onClick={() => startBillingCheckout(selectedBillingInterval)}
+                        disabled={
+                          !PREMIUM_UPGRADE_ENABLED ||
+                          isBillingCheckoutSubmitting ||
+                          !isSelectedIntervalConfigured ||
+                          isBillingStatusLoading
+                        }
+                      >
+                        {!PREMIUM_UPGRADE_ENABLED
+                          ? tr("Upgrade Coming Soon", "アップグレード近日公開")
+                          : isBillingCheckoutSubmitting
+                            ? tr("Redirecting...", "移動中...")
+                            : tr("Upgrade to Pro", "Proにアップグレード")}
+                      </button>
+                    </div>
+                    {!PREMIUM_UPGRADE_ENABLED ? (
+                      <p className="settingsHint">{tr("Pro coming soon.", "Proは近日公開です。")}</p>
+                    ) : null}
+                  </>
                 )}
-                {!PREMIUM_UPGRADE_ENABLED ? (
-                  <p className="settingsHint">{tr("Pro coming soon.", "Proは近日公開です。")}</p>
-                ) : null}
               </>
             ) : null}
 
@@ -7355,6 +7490,43 @@ export default function App() {
           </div>
         </div>
         </div>
+        {(() => {
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayKey = getCurrentDayKey(yesterday);
+          const isReturningAfterAbsence = hasCompletedGuidedTour && streak.lastDate && streak.lastDate < yesterdayKey && adaptiveReviewStats.dueNow > 0 && !reengagementDismissed;
+          if (!isReturningAfterAbsence) return null;
+          return (
+            <div className="reengagementBanner">
+              <span className="reengagementBannerText">
+                <strong>{tr("Welcome back!", "おかえり！")}</strong>
+                <span>{tr(`You have ${adaptiveReviewStats.dueNow} word${adaptiveReviewStats.dueNow === 1 ? "" : "s"} waiting — pick up where you left off.`, `${adaptiveReviewStats.dueNow}語が待っています — 続きから始めましょう。`)}</span>
+              </span>
+              <div className="reengagementBannerActions">
+                <button type="button" className="reengagementReviewBtn" onClick={() => { setReengagementDismissed(true); setScreen("reviewSelect"); }}>
+                  {tr("Review now", "今すぐ復習")}
+                </button>
+                <button type="button" className="reengagementDismissBtn" aria-label={tr("Dismiss", "閉じる")} onClick={() => setReengagementDismissed(true)}>
+                  ×
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+        {hasCompletedGuidedTour && adaptiveReviewStats.dueNow > 0 && streak.lastDate !== getCurrentDayKey() && (
+          <button
+            type="button"
+            className="dueWordsCallout"
+            onClick={() => setScreen("reviewSelect")}
+          >
+            <span className="dueWordsCalloutIcon">{"🧠"}</span>
+            <span className="dueWordsCalloutText">
+              <strong>{tr(`${adaptiveReviewStats.dueNow} word${adaptiveReviewStats.dueNow === 1 ? "" : "s"} ready for review`, `${adaptiveReviewStats.dueNow}語の復習が待っています`)}</strong>
+              <span>{tr("Tap to keep your streak going", "タップしてストリークを続けよう")}</span>
+            </span>
+            <span className="dueWordsCalloutArrow" aria-hidden="true">{"›"}</span>
+          </button>
+        )}
         <div className="panelGrid dashboardPanelGrid">
           <button
             type="button"
@@ -7905,6 +8077,7 @@ export default function App() {
               <span className="bookModeIcon" aria-hidden="true">{"\uD83D\uDCD8"}</span>
               <strong>{tr("Definitions", "単語追加")}</strong>
               <p>{tr("Add and manage words, meanings, and chapter placement.", "単語・意味・章を追加/管理します。")}</p>
+              {(currentBook?.words || []).length < 5 && <small className="bookModeStartHere">{tr("← Start here", "← ここから始める")}</small>}
             </button>
             {renderGuidedTourCoach("below", "book-definitions")}
           </div>
@@ -7929,6 +8102,8 @@ export default function App() {
                   setIsGuidedTourDismissed(true);
                   setHasCompletedGuidedTour(true);
                   if (authUsername) localStorage.setItem(getGuidedTourDoneKey(authUsername), "1");
+                  setShowPostTourSheet(true);
+                  return;
                 }
                 openAdaptiveReviewSession(currentBook?.id, { backScreen: "bookMenu" });
               }}
@@ -7936,6 +8111,7 @@ export default function App() {
               <span className="bookModeIcon" aria-hidden="true">{"🧠"}</span>
               <strong>{tr("Adaptive Review", "適応型復習")}</strong>
               <p>{tr("Review only the due words from this book.", "このブックの復習期限が来た単語だけを練習します。")}</p>
+              {(currentBook?.words || []).length >= 2 && <small className="bookModeStartHere">{tr("Your daily study habit", "毎日の学習習慣")}</small>}
             </button>
             {renderGuidedTourCoach("below", "book-adaptive")}
           </div>

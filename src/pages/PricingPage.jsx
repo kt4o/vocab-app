@@ -66,7 +66,7 @@ function FaqItem({ q, a }) {
     <div className="border-b border-[#e8e4de]">
       <button
         type="button"
-        className="flex w-full items-center justify-between py-4 text-left"
+        className="flex w-full items-center justify-between border-0 bg-transparent py-4 text-left outline-none"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
       >
@@ -110,7 +110,7 @@ export function PricingPage() {
         {/* Billing toggle */}
         <section className="px-4 pb-8 sm:px-6">
           <div className="flex justify-center">
-            <div className="inline-flex rounded-[10px] border border-[#e5e1db] bg-white p-1 shadow-sm">
+            <div className="inline-flex gap-1 rounded-[10px] border border-[#e5e1db] bg-white p-1 shadow-sm">
               <button
                 type="button"
                 onClick={() => setBillingPeriod("annual")}

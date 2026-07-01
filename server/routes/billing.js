@@ -6,6 +6,8 @@ import { requireAuth } from "../middleware/auth.js";
 const stripeSecretKey = String(process.env.STRIPE_SECRET_KEY || "").trim();
 const stripeWebhookSecret = String(process.env.STRIPE_WEBHOOK_SECRET || "").trim();
 const stripePriceId = String(process.env.STRIPE_PRICE_ID || "").trim();
+const stripePriceIdAnnual = String(process.env.STRIPE_PRICE_ID_ANNUAL || "").trim();
+const stripePriceIdLifetime = String(process.env.STRIPE_PRICE_ID_LIFETIME || "").trim();
 const stripeTrialDaysRaw = Number(process.env.STRIPE_TRIAL_DAYS || 30);
 const stripeTrialDays = Number.isFinite(stripeTrialDaysRaw)
   ? Math.max(0, Math.min(365, Math.floor(stripeTrialDaysRaw)))
@@ -97,8 +99,8 @@ function resolveSafeAppBaseUrl(req, res) {
   return appBaseUrl;
 }
 
-function ensureStripeCheckoutConfigured(res) {
-  if (!stripe || !stripePriceId) {
+function ensureStripeCheckoutConfigured(res, priceId) {
+  if (!stripe || !priceId) {
     res.status(503).json({ error: "billing-not-configured" });
     return false;
   }
@@ -208,16 +210,17 @@ billingWebhookRouter.post(
       if (event.type === "checkout.session.completed") {
         const session = event.data.object;
         const mode = String(session?.mode || "").toLowerCase();
+        const customerId =
+          typeof session.customer === "string" ? session.customer : session.customer?.id || null;
+        const clientReferenceUserId = Number(
+          session?.client_reference_id || session?.metadata?.userId || 0
+        );
+
         if (mode === "subscription") {
-          const customerId =
-            typeof session.customer === "string" ? session.customer : session.customer?.id || null;
           const subscriptionId =
             typeof session.subscription === "string"
               ? session.subscription
               : session.subscription?.id || null;
-          const clientReferenceUserId = Number(
-            session?.client_reference_id || session?.metadata?.userId || 0
-          );
 
           let subscriptionStatus = "active";
           let subscriptionCurrentPeriodEnd = null;
@@ -243,6 +246,19 @@ billingWebhookRouter.post(
               subscriptionStatus,
               subscriptionCurrentPeriodEnd,
             });
+          }
+        } else if (mode === "payment") {
+          if (customerId) {
+            await query(
+              "UPDATE users SET lifetime_pro = true, plan = 'pro' WHERE stripe_customer_id = $1",
+              [customerId]
+            );
+          }
+          if (Number.isFinite(clientReferenceUserId) && clientReferenceUserId > 0) {
+            await query(
+              "UPDATE users SET stripe_customer_id = COALESCE(stripe_customer_id, $1), lifetime_pro = true, plan = 'pro' WHERE id = $2",
+              [customerId, clientReferenceUserId]
+            );
           }
         }
       }
@@ -296,6 +312,8 @@ billingRouter.get("/status", async (req, res) => {
       hasBillingCustomer: Boolean(String(row?.stripe_customer_id || "").trim()),
       hasActiveSubscription: Boolean(String(row?.stripe_subscription_id || "").trim()),
       isStripeConfigured: Boolean(stripe && stripePriceId),
+      isStripeAnnualConfigured: Boolean(stripe && stripePriceIdAnnual),
+      isStripeLifetimeConfigured: Boolean(stripe && stripePriceIdLifetime),
     });
   } catch {
     res.status(500).json({ error: "billing-status-failed" });
@@ -303,7 +321,21 @@ billingRouter.get("/status", async (req, res) => {
 });
 
 billingRouter.post("/checkout-session", async (req, res) => {
-  if (!ensureStripeCheckoutConfigured(res)) return;
+  const billingInterval = String(req.body?.billingInterval || "monthly").trim().toLowerCase();
+  if (!["monthly", "annual", "lifetime"].includes(billingInterval)) {
+    res.status(400).json({ error: "invalid-billing-interval" });
+    return;
+  }
+
+  const selectedPriceId =
+    billingInterval === "annual"
+      ? stripePriceIdAnnual
+      : billingInterval === "lifetime"
+        ? stripePriceIdLifetime
+        : stripePriceId;
+  const checkoutMode = billingInterval === "lifetime" ? "payment" : "subscription";
+
+  if (!ensureStripeCheckoutConfigured(res, selectedPriceId)) return;
 
   const userId = Number(req.authUser?.id || 0);
   try {
@@ -337,14 +369,17 @@ billingRouter.post("/checkout-session", async (req, res) => {
 
     const appBaseUrl = resolveSafeAppBaseUrl(req, res);
     if (!appBaseUrl) return;
+
     const isFirstSubscriptionCheckout =
+      checkoutMode === "subscription" &&
       !String(row.stripe_subscription_id || "").trim() &&
       !normalizeSubscriptionStatus(row.subscription_status);
     const shouldApplyTrial = stripeTrialDays > 0 && isFirstSubscriptionCheckout;
+
     const checkoutSession = await stripe.checkout.sessions.create({
-      mode: "subscription",
+      mode: checkoutMode,
       customer: customerId,
-      line_items: [{ price: stripePriceId, quantity: 1 }],
+      line_items: [{ price: selectedPriceId, quantity: 1 }],
       success_url: `${appBaseUrl}/app?billing=success`,
       cancel_url: `${appBaseUrl}/app?billing=cancel`,
       client_reference_id: String(row.id),
