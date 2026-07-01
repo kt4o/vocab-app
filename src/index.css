@@ -3578,6 +3578,11 @@ body.theme-dark .tutStepNum {
   cursor: not-allowed;
 }
 
+@keyframes guidedTargetPulse {
+  0%, 100% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 12%, transparent), var(--shadow-soft); }
+  50%       { box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent) 24%, transparent), var(--shadow-soft); }
+}
+
 .guidedTarget {
   position: relative;
   z-index: 920;
@@ -3586,6 +3591,7 @@ body.theme-dark .tutStepNum {
   box-shadow:
     0 0 0 7px color-mix(in srgb, var(--accent) 12%, transparent 88%),
     var(--shadow-soft);
+  animation: guidedTargetPulse 2s ease-in-out infinite;
 }
 
 .guidedTargetRow {
@@ -3610,6 +3616,63 @@ body.theme-dark .tutStepNum {
 
 .bookModeGrid > .guidedControlAnchor {
   display: flex;
+}
+
+/* ── GUIDED BACKDROP ─────────────────────────────────────────────── */
+
+@keyframes guidedBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.guidedBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 905;
+  background: rgba(0, 0, 0, 0.38);
+  pointer-events: none;
+  animation: guidedBackdropIn 0.25s ease;
+}
+
+/* ── MOBILE TAP INDICATOR ────────────────────────────────────────── */
+
+.guidedTapIndicator {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .guidedTapIndicator {
+    display: block;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 931;
+    animation: tapIndicatorBounce 1.3s ease-in-out infinite;
+  }
+
+  @keyframes tapIndicatorBounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%       { transform: translateX(-50%) translateY(-5px); }
+  }
+
+  .guidedTapIndicator::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--accent);
+  }
 }
 
 .addWordGuidedAnchor {

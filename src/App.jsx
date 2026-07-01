@@ -136,6 +136,7 @@ const ONBOARDING_GOAL_STORAGE_KEY = "vocab_onboarding_goal";
 const CHECKLIST_DISMISSED_PREFIX = "vocab_checklist_dismissed";
 const FIRST_REVIEW_DONE_PREFIX = "vocab_first_review_done";
 const GUIDED_TOUR_DONE_PREFIX = "vocab_guided_tour_done";
+const GUIDED_TOUR_STEP_PREFIX = "vocab_guided_tour_step";
 const ONBOARDING_GOAL_OPTIONS = [
   { id: "language", label: "A foreign language" },
   { id: "exam", label: "Exam vocabulary" },
@@ -2126,6 +2127,10 @@ function getGuidedTourDoneKey(username) {
   return `${GUIDED_TOUR_DONE_PREFIX}_${String(username || "account").trim().toLowerCase()}`;
 }
 
+function getGuidedTourStepKey(username) {
+  return `${GUIDED_TOUR_STEP_PREFIX}_${String(username || "account").trim().toLowerCase()}`;
+}
+
 function getGuidedTourTargetSelector(step) {
   if (step === "dashboard-add-book") return ".recentSquare.addSquare";
   if (step === "book-name") return ".createBookFields input";
@@ -3476,6 +3481,9 @@ export default function App() {
 
     return (
       <div className={`appShell ${guidedTourStep && !isOnboardingTutorialOpen ? "isGuidedLocked" : ""} ${isGuidedModalOpen ? "hasGuidedModalOpen" : ""} ${isGuidedTourMobile && guidedTourStep && !isOnboardingTutorialOpen ? "hasMobileTourBanner" : ""}`}>
+        {guidedTourStep && !isOnboardingTutorialOpen && !isGuidedModalOpen && (
+          <div className="guidedBackdrop" aria-hidden="true" />
+        )}
         <aside
           ref={sidebarRef}
           className={`sidebar ${isSidebarHidden ? "isCollapsed" : ""}`}
@@ -5334,11 +5342,19 @@ export default function App() {
     const guidedStep = getGuidedTourStep();
     if (!guidedStep || isOnboardingTutorialOpen) return null;
     if (targetKey && guidedStep.key !== targetKey) return null;
+
+    if (isGuidedTourMobile && targetKey) {
+      return (
+        <div className="guidedTapIndicator" aria-hidden="true">
+          {tr("Tap here", "ここをタップ")} ↓
+        </div>
+      );
+    }
+
     if (!targetKey && screen === "dashboard" && guidedStep.key === "dashboard-add-book") return null;
     if (!targetKey && screen === "bookMenu" && (guidedStep.key === "book-definitions" || guidedStep.key === "book-adaptive")) return null;
     if (!targetKey && screen === "definitions" && ["word-type", "word-add", "word-saving", "definitions-back"].includes(guidedStep.key)) return null;
     if (!targetKey && isAddBookModalOpen && ["book-name", "book-create"].includes(guidedStep.key)) return null;
-
 
     return (
       <aside className={`guidedCoach guidedCoach-${guidedStep.key} guidedCoach-${placement}`} aria-live="polite">
@@ -5474,8 +5490,32 @@ export default function App() {
     if (!authUsername) return;
     setIsChecklistDismissed(localStorage.getItem(getChecklistDismissedKey(authUsername)) === "1");
     setHasFirstReview(localStorage.getItem(getFirstReviewDoneKey(authUsername)) === "1");
-    setHasCompletedGuidedTour(localStorage.getItem(getGuidedTourDoneKey(authUsername)) === "1");
+    const tourDone = localStorage.getItem(getGuidedTourDoneKey(authUsername)) === "1";
+    setHasCompletedGuidedTour(tourDone);
+    if (!tourDone && !isDevTutorialAccount(authUsername)) {
+      const savedStep = localStorage.getItem(getGuidedTourStepKey(authUsername));
+      if (savedStep) {
+        setGuidedTourStep("dashboard-add-book");
+        setScreen("dashboard");
+      }
+    }
   }, [authUsername]);
+
+  useEffect(() => {
+    if (!authUsername || isDevTutorialAccount(authUsername)) return;
+    if (guidedTourStep) {
+      localStorage.setItem(getGuidedTourStepKey(authUsername), guidedTourStep);
+    } else {
+      localStorage.removeItem(getGuidedTourStepKey(authUsername));
+    }
+  }, [guidedTourStep, authUsername]);
+
+  useEffect(() => {
+    if (!guidedTourStep) return;
+    const handler = (e) => { e.preventDefault(); return (e.returnValue = ""); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [guidedTourStep]);
 
   useEffect(() => {
     if (justCompletedFirstReview && adaptiveReviewItems.length === 0 && !adaptiveReviewLoading) {
