@@ -5346,7 +5346,7 @@ export default function App() {
     if (isGuidedTourMobile && targetKey) {
       return (
         <div className="guidedTapIndicator" aria-hidden="true">
-          {tr("Tap here", "ここをタップ")} ↓
+          {tr("Tap here", "ここをタップ")}
         </div>
       );
     }

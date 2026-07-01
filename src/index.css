@@ -3673,6 +3673,18 @@ body.theme-dark .tutStepNum {
     border: 5px solid transparent;
     border-top-color: var(--accent);
   }
+
+  /* Back button is at the top of the screen — flip indicator below it */
+  .pageHeader .guidedTapIndicator {
+    bottom: auto;
+    top: calc(100% + 10px);
+  }
+  .pageHeader .guidedTapIndicator::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: var(--accent);
+  }
 }
 
 .addWordGuidedAnchor {
